@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCE 7-16 & 7-22 Multi-Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        .dark .form-section {
+            background-color: #1f2937;
+        }
+        .form-section h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .dark .form-section h2 {
+            color: #f3f4f6;
+            border-color: #374151;
+        }
+        label {
+            font-weight: 500;
+            color: #374151;
+        }
+        .dark label {
+            color: #d1d5db;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            transition: border-color 0.2s;
+            background-color: #fff;
+        }
+        .dark input[type="number"], .dark select {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #f3f4f6;
+        }
+        input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+        }
+        .results-container table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+        .results-container th, .results-container td {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            text-align: left;
+        }
+        .dark .results-container th, .dark .results-container td {
+            border-color: #4b5563;
+        }
+        .results-container th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+        .results-container caption {
+            font-size: 1.125rem;
+            font-weight: 600;
+            caption-side: top;
+            padding: 0.75rem;
+            text-align: center;
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+        
+        .dark .results-container th {
+            background-color: #1f2937;
+        }
+        .dark .results-container caption {
+            background-color: #374151;
+            color: #f3f4f6;
+        }
+        
+        /* Custom toggle button style */
+        .toggle-active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .toggle-inactive {
+            background-color: transparent;
+            color: #4b5563;
+        }
+        .dark .toggle-inactive {
+            color: #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300" style="font-family: 'Inter', sans-serif;">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8 relative">
+             <div class="flex justify-center mb-4 flex-wrap">
+                <div class="relative inline-flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+                    <button id="wind-calc-btn" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-active">Wind Load</button>
+                    <button id="snow-calc-btn" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-inactive">Snow Load</button>
+                    <button id="rain-calc-btn" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-inactive">Rain Load</button>
+                    <button id="combo-calc-btn" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-inactive">Load Combos</button>
+                </div>
+            </div>
+            <h1 id="main-title" class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">ASCE 7-16 & 7-22 Wind Load Calculator</h1>
+            <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+        </header>
+
+        <main id="calculator-form">
+             <!-- Wind Load Calculator Inputs will be injected here -->
+        </main>
+        
+        <main id="snow-calculator-form" class="hidden">
+             <!-- Snow Load Calculator Inputs will be injected here -->
+        </main>
+
+        <main id="rain-calculator-form" class="hidden">
+             <!-- Rain Load Calculator Inputs will be injected here -->
+        </main>
+
+        <main id="combo-calculator-form" class="hidden">
+             <!-- Load Combo Calculator Inputs will be injected here -->
+        </main>
+        
+        <div id="save-load-feedback" class="text-center mt-2 text-sm text-gray-600 h-5"></div>
+
+        <div id="results-container" class="mt-10 results-container"></div>
+        <div id="snow-results-container" class="mt-10 results-container hidden"></div>
+        <div id="rain-results-container" class="mt-10 results-container hidden"></div>
+        <div id="combo-results-container" class="mt-10 results-container hidden"></div>
+
+    </div>
+    
+    <script>
+    
+    // --- GLOBAL VARIABLES for state management ---
+    let lastWindRunResults = null;
+    let showWindAsBullets = false;
+    let lastSnowRunResults = null;
+    let lastRainRunResults = null;
+    let lastComboRunResults = null;
+
+    // =================================================================================
+    //  UI INJECTION & INITIALIZATION
+    // =================================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- INJECT HTML FOR CALCULATOR FORMS ---
+        function injectWindCalculatorForm() {
+            const windFormContainer = document.getElementById('calculator-form');
+            windFormContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">General Parameters</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="asce_standard" class="block text-sm font-medium mb-1">ASCE Standard</label>
+                                    <select id="asce_standard">
+                                        <option value="ASCE 7-16" selected>ASCE 7-16</option>
+                                        <option value="ASCE 7-22">ASCE 7-22</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="unit_system" class="block text-sm font-medium mb-1">Unit System</label>
+                                    <select id="unit_system">
+                                        <option value="imperial" selected>Imperial (mph, ft)</option>
+                                        <option value="metric">Metric (m/s, m)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="risk_category" class="block text-sm font-medium mb-1">Risk Category</label>
+                                    <select id="risk_category">
+                                        <option value="I">I</option>
+                                        <option value="II" selected>II</option>
+                                        <option value="III">III</option>
+                                        <option value="IV">IV</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="design_method" class="block text-sm font-medium mb-1">Design Method</label>
+                                    <select id="design_method">
+                                        <option value="ASD" selected>ASD</option>
+                                        <option value="LRFD">LRFD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="form-section">
+                             <h2 class="dark:text-gray-200">Jurisdiction & Site</h2>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="jurisdiction" class="block text-sm font-medium mb-1">Jurisdiction</label>
+                                    <select id="jurisdiction">
+                                        <option value="ASCE 7" selected>ASCE 7</option>
+                                        <option value="NYCBC 2022">NYCBC 2022</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="ground_elevation" class="block text-sm font-medium mb-1">Ground Elevation</label>
+                                    <input type="number" id="ground_elevation" value="100">
+                                </div>
+                                <div>
+                                    <label for="topographic_factor_Kzt" class="block text-sm font-medium mb-1">Topo. Factor (Kzt)</label>
+                                    <input type="number" id="topographic_factor_Kzt" value="1">
+                                </div>
+                             </div>
+                         </div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">Building Properties</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="basic_wind_speed" class="block text-sm font-medium mb-1">Basic Wind Speed</label>
+                                    <input type="number" id="basic_wind_speed" value="115">
+                                </div>
+                                <div>
+                                    <label for="exposure_category" class="block text-sm font-medium mb-1">Exposure Category</label>
+                                    <select id="exposure_category">
+                                        <option value="B">B</option>
+                                        <option value="C" selected>C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="mean_roof_height" class="block text-sm font-medium mb-1">Mean Roof Height (h)</label>
+                                    <input type="number" id="mean_roof_height" value="50">
+                                </div>
+                                <div>
+                                    <label for="building_length_L" class="block text-sm font-medium mb-1">Building Length (L)</label>
+                                    <input type="number" id="building_length_L" value="100">
+                                </div>
+                                <div>
+                                    <label for="building_width_B" class="block text-sm font-medium mb-1">Building Width (B)</label>
+                                    <input type="number" id="building_width_B" value="60">
+                                </div>
+                                <div>
+                                    <label for="enclosure_classification" class="block text-sm font-medium mb-1">Enclosure Class.</label>
+                                    <select id="enclosure_classification">
+                                        <option value="Enclosed" selected>Enclosed</option>
+                                        <option value="Partially Enclosed">Partially Enclosed</option>
+                                        <option value="Open">Open</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                         <div class="form-section">
+                             <h2 class="dark:text-gray-200">Roof Properties</h2>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="roof_type" class="block text-sm font-medium mb-1">Roof Type</label>
+                                    <select id="roof_type">
+                                        <option value="flat">Flat</option>
+                                        <option value="gable" selected>Gable</option>
+                                        <option value="hip">Hip</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="roof_slope_deg" class="block text-sm font-medium mb-1">Roof Slope (degrees)</label>
+                                    <input type="number" id="roof_slope_deg" value="30">
+                                </div>
+                             </div>
+                         </div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">Factors & Coefficients</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="structure_type_for_kd" class="block text-sm font-medium mb-1">Structure Type (for Kd)</label>
+                                    <select id="structure_type_for_kd">
+                                        <option selected>Buildings (MWFRS, C&C)</option>
+                                        <option>Arched Roofs</option>
+                                        <option>Circular Domes</option>
+                                        <option>Chimneys, Tanks (Square)</option>
+                                        <option>Chimneys, Tanks (Hexagonal)</option>
+                                        <option>Chimneys, Tanks (Octagonal)</option>
+                                        <option>Chimneys, Tanks (Round)</option>
+                                        <option>Solid Freestanding Signs/Walls</option>
+                                        <option>Open Signs/Frames</option>
+                                        <option>Trussed Towers (Triangular, Square, Rectangular)</option>
+                                        <option>Trussed Towers (All Other Cross Sections)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="gust_effect_factor_g" class="block text-sm font-medium mb-1">Gust Effect Factor (G)</label>
+                                    <input type="number" id="gust_effect_factor_g" value="0.85">
+                                </div>
+                                <div>
+                                    <label for="temporary_construction" class="block text-sm font-medium mb-1">Temporary Construction?</label>
+                                    <select id="temporary_construction">
+                                        <option value="No" selected>No</option>
+                                        <option value="Yes">Yes</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
+                    <button id="load-inputs-btn" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all">Load Inputs</button>
+                    <button id="save-inputs-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all">Save Inputs</button>
+                    <button id="run-calculation-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">Run Wind Load Calculation</button>
+                </div>
+            `;
+        }
+
+        function injectSnowCalculatorForm() {
+            const snowFormContainer = document.getElementById('snow-calculator-form');
+            snowFormContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">General Parameters</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="snow_asce_standard" class="block text-sm font-medium mb-1">ASCE Standard</label>
+                                    <select id="snow_asce_standard">
+                                        <option value="ASCE 7-16" selected>ASCE 7-16</option>
+                                        <option value="ASCE 7-22">ASCE 7-22</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_unit_system" class="block text-sm font-medium mb-1">Unit System</label>
+                                    <select id="snow_unit_system">
+                                        <option value="imperial" selected>Imperial (psf, ft)</option>
+                                        <option value="metric">Metric (kPa, m)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_risk_category" class="block text-sm font-medium mb-1">Risk Category</label>
+                                    <select id="snow_risk_category">
+                                        <option value="I">I</option>
+                                        <option value="II" selected>II</option>
+                                        <option value="III">III</option>
+                                        <option value="IV">IV</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_design_method" class="block text-sm font-medium mb-1">Design Method</label>
+                                    <select id="snow_design_method">
+                                        <option value="ASD" selected>ASD</option>
+                                        <option value="LRFD">LRFD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">Jurisdiction & Site</h2>
+                             <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="snow_jurisdiction" class="block text-sm font-medium mb-1">Jurisdiction</label>
+                                    <select id="snow_jurisdiction">
+                                        <option value="ASCE 7" selected>ASCE 7</option>
+                                        <option value="NYCBC 2022">NYCBC 2022</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_nycbc_minimum_roof_snow_load" class="block text-sm font-medium mb-1">NYCBC Min. Load (psf)</label>
+                                    <input type="number" id="snow_nycbc_minimum_roof_snow_load" value="20">
+                                </div>
+                                <div>
+                                    <label for="snow_ground_snow_load" class="block text-sm font-medium mb-1">Ground Snow Load (pg)</label>
+                                    <input type="number" id="snow_ground_snow_load" value="25">
+                                </div>
+                             </div>
+                        </div>
+                        <div class="form-section">
+                            <h2 class="dark:text-gray-200">Building & Roof Properties</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <label for="snow_surface_roughness_category" class="block text-sm font-medium mb-1">Surface Roughness</label>
+                                    <select id="snow_surface_roughness_category">
+                                        <option value="B">B</option>
+                                        <option value="C" selected>C</option>
+                                        <option value="D">D</option>
+                                        <option value="Above treeline (windswept)">Above treeline (windswept)</option>
+                                        <option value="Alaska (no trees)">Alaska (no trees)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_exposure_condition" class="block text-sm font-medium mb-1">Exposure</label>
+                                    <select id="snow_exposure_condition">
+                                        <option>Fully Exposed</option>
+                                        <option selected>Partially Exposed</option>
+                                        <option>Sheltered</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_thermal_condition" class="block text-sm font-medium mb-1">Thermal Condition (Ct)</label>
+                                    <select id="snow_thermal_condition">
+                                        <option>Heated Structure</option>
+                                        <option selected>Unheated Structure</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label for="snow_roof_slope_degrees" class="block text-sm font-medium mb-1">Roof Slope (°)</label>
+                                    <input type="number" id="snow_roof_slope_degrees" value="10">
+                                </div>
+                                <div>
+                                    <label for="snow_is_roof_slippery" class="block text-sm font-medium mb-1">Slippery Roof?</label>
+                                    <select id="snow_is_roof_slippery">
+                                        <option value="Yes">Yes</option>
+                                        <option value="No" selected>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                         <div class="form-section">
+                             <h2 class="dark:text-gray-200">Additional Load Cases</h2>
+                              <div class="space-y-4">
+                                <div>
+                                    <label for="snow_calculate_unbalanced" class="block text-sm font-medium mb-1">Calculate Unbalanced Load?</label>
+                                    <select id="snow_calculate_unbalanced">
+                                        <option value="Yes">Yes</option>
+                                        <option value="No" selected>No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="snow_calculate_drift" class="block text-sm font-medium mb-1">Calculate Drift Load?</label>
+                                    <select id="snow_calculate_drift">
+                                        <option value="Yes">Yes</option>
+                                        <option value="No" selected>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                         </div>
+                         <div class="form-section">
+                             <h2 class="dark:text-gray-200">Unbalanced & Drift Parameters</h2>
+                             <div class="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <label for="snow_eave_to_ridge_distance_W" class="block text-sm font-medium mb-1">Eave-to-Ridge (W)</label>
+                                    <input type="number" id="snow_eave_to_ridge_distance_W" value="25">
+                                </div>
+                                <div>
+                                    <label for="snow_is_simply_supported_prismatic" class="block text-sm font-medium mb-1">Simply Supported?</label>
+                                    <select id="snow_is_simply_supported_prismatic">
+                                        <option value="Yes">Yes</option>
+                                        <option value="No" selected>No</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label for="snow_winter_wind_parameter_W2" class="block text-sm font-medium mb-1">Winter Wind (W₂)</label>
+                                    <input type="number" id="snow_winter_wind_parameter_W2" value="0.55">
+                                </div>
+                                <div>
+                                    <label for="snow_upper_roof_length_lu" class="block text-sm font-medium mb-1">Upper Roof L (lu)</label>
+                                    <input type="number" id="snow_upper_roof_length_lu" value="30">
+                                </div>
+                                <div>
+                                    <label for="snow_height_difference_hc" class="block text-sm font-medium mb-1">Height Diff (hc)</label>
+                                    <input type="number" id="snow_height_difference_hc" value="10">
+                                </div>
+                                <div>
+                                    <label for="snow_lower_roof_length_ll" class="block text-sm font-medium mb-1">Lower Roof L (ll)</label>
+                                    <input type="number" id="snow_lower_roof_length_ll" value="30">
+                                </div>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+                 <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
+                    <button id="run-snow-calculation-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">Run Snow Load Calculation</button>
+                </div>
+            `;
+        }
+
+        function injectRainCalculatorForm() {
+            const rainFormContainer = document.getElementById('rain-calculator-form');
+            rainFormContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-section">
+                        <h2 class="dark:text-gray-200">General Parameters</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="rain_asce_standard" class="block text-sm font-medium mb-1">ASCE Standard</label>
+                                <select id="rain_asce_standard">
+                                    <option value="ASCE 7-16" selected>ASCE 7-16</option>
+                                    <option value="ASCE 7-22">ASCE 7-22</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="rain_unit_system" class="block text-sm font-medium mb-1">Unit System</label>
+                                <select id="rain_unit_system">
+                                    <option value="imperial" selected>Imperial (in, psf)</option>
+                                    <option value="metric">Metric (mm, kPa)</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="rain_design_method" class="block text-sm font-medium mb-1">Design Method</label>
+                                <select id="rain_design_method">
+                                    <option value="ASD" selected>ASD</option>
+                                    <option value="LRFD">LRFD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="form-section">
+                        <h2 class="dark:text-gray-200">Drainage Properties</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                             <div>
+                                <label for="rain_jurisdiction" class="block text-sm font-medium mb-1">Jurisdiction</label>
+                                <select id="rain_jurisdiction">
+                                    <option value="ASCE 7" selected>ASCE 7</option>
+                                    <option value="NYCBC 2022">NYCBC 2022</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="rain_static_head" class="block text-sm font-medium mb-1">Static Head (ds)</label>
+                                <input type="number" id="rain_static_head" value="2.0">
+                            </div>
+                            <div>
+                                <label for="rain_hydraulic_head" class="block text-sm font-medium mb-1">Hydraulic Head (dh)</label>
+                                <input type="number" id="rain_hydraulic_head" value="1.0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-center">
+                    <button id="run-rain-calculation-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">Run Rain Load Calculation</button>
+                </div>
+            `;
+        }
+        
+        function injectComboCalculatorForm() {
+            const comboFormContainer = document.getElementById('combo-calculator-form');
+            comboFormContainer.innerHTML = `
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                     <div class="form-section">
+                        <h2 class="dark:text-gray-200">Code & Method</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                             <div>
+                                <label for="combo_asce_standard" class="block text-sm font-medium mb-1">ASCE Standard</label>
+                                <select id="combo_asce_standard">
+                                    <option value="ASCE 7-16" selected>ASCE 7-16</option>
+                                    <option value="ASCE 7-22">ASCE 7-22</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="combo_jurisdiction" class="block text-sm font-medium mb-1">Jurisdiction</label>
+                                <select id="combo_jurisdiction">
+                                    <option value="ASCE 7" selected>ASCE 7</option>
+                                    <option value="NYCBC 2022">NYCBC 2022</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="combo_design_method" class="block text-sm font-medium mb-1">Design Method</label>
+                                <select id="combo_design_method">
+                                    <option value="ASD" selected>ASD</option>
+                                    <option value="LRFD">LRFD</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="combo_input_load_level" class="block text-sm font-medium mb-1">Input S & W Level</label>
+                                <select id="combo_input_load_level">
+                                    <option value="Nominal (Service/ASD)" selected>Nominal (Service/ASD)</option>
+                                    <option value="Ultimate (Strength/LRFD)">Ultimate (Strength/LRFD)</option>
+                                </select>
+                            </div>
+                        </div>
+                     </div>
+                      <div class="form-section">
+                        <h2 class="dark:text-gray-200">Gravity & Environmental Loads</h2>
+                         <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="combo_dead_load_d" class="block text-sm font-medium mb-1">Dead Load (D)</label>
+                                    <input type="number" id="combo_dead_load_d" value="6.5">
+                                </div>
+                                 <div>
+                                    <label for="combo_live_load_l" class="block text-sm font-medium mb-1">Live Load (L)</label>
+                                    <input type="number" id="combo_live_load_l" value="0">
+                                </div>
+                                 <div>
+                                    <label for="combo_roof_live_load_lr" class="block text-sm font-medium mb-1">Roof Live (Lr)</label>
+                                    <input type="number" id="combo_roof_live_load_lr" value="20">
+                                </div>
+                                 <div>
+                                    <label for="combo_rain_load_r" class="block text-sm font-medium mb-1">Rain Load (R)</label>
+                                    <input type="number" id="combo_rain_load_r" value="0">
+                                </div>
+                         </div>
+                      </div>
+                </div>
+                 <div>
+                     <div class="form-section">
+                        <h2 class="dark:text-gray-200">Snow Loads</h2>
+                         <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="combo_balanced_snow_load_sb" class="block text-sm font-medium mb-1">Balanced (Sb)</label>
+                                    <input type="number" id="combo_balanced_snow_load_sb" value="21">
+                                </div>
+                                 <div>
+                                    <label for="combo_unbalanced_windward_snow_load_suw" class="block text-sm font-medium mb-1">Unbalanced Windward (Suw)</label>
+                                    <input type="number" id="combo_unbalanced_windward_snow_load_suw" value="6.30">
+                                </div>
+                                 <div>
+                                    <label for="combo_unbalanced_leeward_snow_load_sul" class="block text-sm font-medium mb-1">Unbalanced Leeward (Sul)</label>
+                                    <input type="number" id="combo_unbalanced_leeward_snow_load_sul" value="32.29">
+                                </div>
+                                 <div>
+                                    <label for="combo_drift_surcharge_sd" class="block text-sm font-medium mb-1">Drift Surcharge (Sd)</label>
+                                    <input type="number" id="combo_drift_surcharge_sd" value="30.18">
+                                </div>
+                         </div>
+                      </div>
+                      <div class="form-section">
+                        <h2 class="dark:text-gray-200">Lateral Loads</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="combo_maximum_wind_load_wmax" class="block text-sm font-medium mb-1">Max Wind (Wmax)</label>
+                                    <input type="number" id="combo_maximum_wind_load_wmax" value="-3.32">
+                                </div>
+                                 <div>
+                                    <label for="combo_minimum_wind_load_wmin" class="block text-sm font-medium mb-1">Min Wind (Wmin)</label>
+                                    <input type="number" id="combo_minimum_wind_load_wmin" value="-18.57">
+                                </div>
+                                 <div>
+                                    <label for="combo_seismic_load_e" class="block text-sm font-medium mb-1">Seismic Load (E)</label>
+                                    <input type="number" id="combo_seismic_load_e" value="0">
+                                </div>
+                        </div>
+                      </div>
+                </div>
+             </div>
+             <div class="mt-8 flex justify-center">
+                 <button id="run-combo-calculation-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">Run Load Combinations</button>
+             </div>
+            `;
+        }
+
+        injectWindCalculatorForm();
+        injectSnowCalculatorForm();
+        injectRainCalculatorForm();
+        injectComboCalculatorForm();
+
+        // --- EVENT HANDLERS ---
+        document.getElementById('run-calculation-btn').addEventListener('click', handleRunWindCalculation);
+        document.getElementById('save-inputs-btn').addEventListener('click', handleSaveWindInputs);
+        document.getElementById('load-inputs-btn').addEventListener('click', handleLoadWindInputs);
+        document.getElementById('run-snow-calculation-btn').addEventListener('click', handleRunSnowCalculation);
+        document.getElementById('run-rain-calculation-btn').addEventListener('click', handleRunRainCalculation);
+        document.getElementById('run-combo-calculation-btn').addEventListener('click', handleRunComboCalculation);
+
+        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+        const windBtn = document.getElementById('wind-calc-btn');
+        const snowBtn = document.getElementById('snow-calc-btn');
+        const rainBtn = document.getElementById('rain-calc-btn');
+        const comboBtn = document.getElementById('combo-calc-btn');
+
+        windBtn.addEventListener('click', () => switchCalculator('wind'));
+        snowBtn.addEventListener('click', () => switchCalculator('snow'));
+        rainBtn.addEventListener('click', () => switchCalculator('rain'));
+        comboBtn.addEventListener('click', () => switchCalculator('combo'));
+        
+        document.body.addEventListener('click', (event) => {
+            const targetId = event.target.id;
+            if (targetId === 'toggle-wind-summary-view-btn') {
+                showWindAsBullets = !showWindAsBullets;
+                renderWindResults(lastWindRunResults);
+            }
+        });
+        
+    }); // END DOMContentLoaded
+
+    // =================================================================================
+    //  TOGGLE LOGIC & THEME
+    // =================================================================================
+     function switchCalculator(calcType) {
+        const forms = {
+            wind: document.getElementById('calculator-form'),
+            snow: document.getElementById('snow-calculator-form'),
+            rain: document.getElementById('rain-calculator-form'),
+            combo: document.getElementById('combo-calculator-form')
+        };
+        const results = {
+            wind: document.getElementById('results-container'),
+            snow: document.getElementById('snow-results-container'),
+            rain: document.getElementById('rain-results-container'),
+            combo: document.getElementById('combo-results-container')
+        };
+        const buttons = {
+            wind: document.getElementById('wind-calc-btn'),
+            snow: document.getElementById('snow-calc-btn'),
+            rain: document.getElementById('rain-calc-btn'),
+            combo: document.getElementById('combo-calc-btn')
+        };
+        const titles = {
+            wind: 'ASCE 7-16 & 7-22 Wind Load Calculator',
+            snow: 'ASCE 7-16 & 7-22 Snow Load Calculator',
+            rain: 'ASCE 7-16 & 7-22 Rain Load Calculator',
+            combo: 'ASCE 7-16 & 7-22 Load Combination Calculator'
+        };
+
+        document.getElementById('main-title').textContent = titles[calcType];
+
+        for (const type in forms) {
+            const isCurrent = type === calcType;
+            forms[type].classList.toggle('hidden', !isCurrent);
+            results[type].classList.toggle('hidden', !isCurrent);
+            buttons[type].classList.toggle('toggle-active', isCurrent);
+            buttons[type].classList.toggle('toggle-inactive', !isCurrent);
+        }
+     }
+    
+     function toggleTheme() {
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+        themeToggleDarkIcon.classList.toggle('hidden');
+        themeToggleLightIcon.classList.toggle('hidden');
+        if (localStorage.getItem('color-theme') === 'light') {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('color-theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('color-theme', 'light');
+        }
+    }
+    
+    // =================================================================================
+    //  WIND LOAD CALCULATOR LOGIC
+    // =================================================================================
+    const windLoadCalculator = (() => {
+        // --- PRIVATE HELPER & CALCULATION FUNCTIONS ---
+        function interpolate(x, xp, fp) {
+            if (x <= xp[0]) return fp[0];
+            if (x >= xp[xp.length - 1]) return fp[fp.length - 1];
+            let i = 0;
+            while (x > xp[i + 1]) i++;
+            const x1 = xp[i], y1 = fp[i];
+            const x2 = xp[i + 1], y2 = fp[i + 1];
+            return y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
+        }
+
+        function getInternalPressureCoefficient(enclosureClass) {
+            const map = {
+                "Enclosed": [0.18, "ASCE 7 Table 26.13-1 (Enclosed)"],
+                "Partially Enclosed": [0.55, "ASCE 7 Table 26.13-1 (Partially Enclosed)"],
+                "Open": [0.00, "ASCE 7 Table 26.13-1 (Open)"]
+            };
+            return map[enclosureClass] || [0.00, "Invalid Enclosure"];
+        }
+
+        function getCpValues(standard, h, L, B, roofType, roofSlopeDeg, unitSystem) {
+            const cpMap = {};
+            const refNotes = {};
+            const L_over_B = B > 0 ? L / B : 0;
+            const h_unit = unitSystem === 'imperial' ? 'ft' : 'm';
+
+            cpMap["Windward Wall"] = 0.8;
+            refNotes["Windward Wall"] = "ASCE 7 Fig. 27.4-1";
+            cpMap["Side Wall"] = -0.7;
+            refNotes["Side Wall"] = "ASCE 7 Fig. 27.4-1";
+            cpMap["Leeward Wall"] = interpolate(L_over_B, [0, 1, 2, 4], [-0.5, -0.5, -0.3, -0.2]);
+            refNotes["Leeward Wall"] = "ASCE 7 Fig. 27.4-1 (varies with L/B)";
+
+            if (roofType === "flat") {
+                if (standard === "ASCE 7-16") {
+                    const h_over_L = L > 0 ? h / L : 0;
+                    if (h_over_L <= 0.5) {
+                        cpMap[`Roof (0 to ${ (h / 2).toFixed(1) } ${h_unit})`] = -0.9;
+                        cpMap[`Roof (${ (h / 2).toFixed(1) } to ${h.toFixed(1)} ${h_unit})`] = -0.9;
+                        cpMap[`Roof (${h.toFixed(1)} to ${ (2 * h).toFixed(1) } ${h_unit})`] = -0.5;
+                        cpMap[`Roof (> ${ (2 * h).toFixed(1) } ${h_unit})`] = -0.3;
+                        refNotes["Roof"] = "ASCE 7-16 Fig. 27.4-1 (h/L ≤ 0.5)";
+                    } else {
+                        const cp_0_h2 = interpolate(h_over_L, [0.5, 1.0], [-0.9, -1.3]);
+                        const cp_h2_h = interpolate(h_over_L, [0.5, 1.0], [-0.9, -0.7]);
+                        const cp_h_end = interpolate(h_over_L, [0.5, 1.0], [-0.5, -0.4]);
+                        cpMap[`Roof (0 to ${ (h / 2).toFixed(1) } ${h_unit})`] = cp_0_h2;
+                        cpMap[`Roof (${ (h / 2).toFixed(1) } to ${h.toFixed(1)} ${h_unit})`] = cp_h2_h;
+                        cpMap[`Roof (> ${h.toFixed(1)} ${h_unit})`] = cp_h_end;
+                        refNotes["Roof"] = "ASCE 7-16 Fig. 27.4-1 (h/L > 0.5)";
+                    }
+                } else { // ASCE 7-22
+                    let a = Math.min(0.1 * Math.min(L, B), 0.4 * h);
+                    const min_a = unitSystem === 'imperial' ? 3.0 : 0.9;
+                    a = Math.max(a, min_a);
+                    cpMap[`Roof Zone 1 (0 to ${a.toFixed(1)} ${h_unit})`] = -0.9;
+                    cpMap[`Roof Zone 2 (${a.toFixed(1)} to ${ (2 * a).toFixed(1) } ${h_unit})`] = -0.5;
+                    cpMap[`Roof Zone 3 (> ${ (2 * a).toFixed(1) } ${h_unit})`] = -0.3;
+                    refNotes["Roof"] = "ASCE 7-22 Fig. 27.4-1 (Zoned approach)";
+                }
+            } else if (["gable", "hip"].includes(roofType)) {
+                const theta = roofSlopeDeg;
+                cpMap["Windward Roof"] = interpolate(theta, [0, 7, 27, 45, 90], [-0.9, -0.7, 0.0, 0.4, 0.8]);
+                cpMap["Leeward Roof"] = -0.5;
+                refNotes["Windward Roof"] = "ASCE 7 Fig. 27.4-1 (Gable/Hip)";
+                refNotes["Leeward Roof"] = "ASCE 7 Fig. 27.4-1 (Gable/Hip)";
+                if (roofType === 'hip') {
+                    cpMap["Side Roof"] = -0.7;
+                    refNotes["Side Roof"] = "ASCE 7 Fig. 27.4-1 (Hip Roof)";
+                }
+            }
+            return { cpMap, refNotes };
+        }
+
+        function getKdFactor(structureType) {
+            const kdMap = {
+                "Buildings (MWFRS, C&C)": [0.85, "ASCE 7 Table 26.6-1 (Buildings)"],
+                "Arched Roofs": [0.85, "ASCE 7 Table 26.6-1 (Arched Roofs)"],
+                "Solid Freestanding Signs/Walls": [0.85, "ASCE 7 Table 26.6-1 (Signs/Walls)"],
+                "Open Signs/Frames": [0.85, "ASCE 7 Table 26.6-1 (Open Signs)"],
+                "Trussed Towers (Triangular, Square, Rectangular)": [0.85, "ASCE 7 Table 26.6-1 (Trussed Towers)"],
+                "Trussed Towers (All Other Cross Sections)": [0.95, "ASCE 7 Table 26.6-1 (Trussed Towers)"],
+                "Chimneys, Tanks (Square)": [0.90, "ASCE 7 Table 26.6-1 (Square)"],
+                "Chimneys, Tanks (Hexagonal)": [0.95, "ASCE 7 Table 26.6-1 (Hexagonal)"]
+            };
+            return kdMap[structureType] || [1.0, "ASCE 7 Table 26.6-1 (Default)"];
+        }
+
+        function getImportanceFactor(category, standard) {
+            const factors = standard === "ASCE 7-22" ? { "I": 0.75, "II": 1.00, "III": 1.15, "IV": 1.15 } : { "I": 0.87, "II": 1.00, "III": 1.15, "IV": 1.15 };
+            const ref = standard === "ASCE 7-22" ? "ASCE 7-22 Table 1.5-2" : "ASCE 7-16 Table 1.5-2";
+            return [factors[category] || 1.00, ref];
+        }
+
+        function getExposureConstants(category) {
+            const expMap = {
+                'B': [7.0, 1200.0, "ASCE 7 Table 26.9-1 (Exposure B)"],
+                'C': [9.5, 900.0, "ASCE 7 Table 26.9-1 (Exposure C)"],
+                'D': [11.5, 700.0, "ASCE 7 Table 26.9-1 (Exposure D)"]
+            };
+            return expMap[category] || expMap['C'];
+        }
+
+        function calculateKz(h, category, units) {
+            const [alpha, zg_imp, ref_note] = getExposureConstants(category);
+            const zg = units === 'imperial' ? zg_imp : zg_imp * 0.3048;
+            const min_h = units === 'imperial' ? 15.0 : 4.6;
+            const calc_h = Math.max(h, min_h);
+            const Kz = 2.01 * Math.pow(calc_h / zg, 2 / alpha);
+            return { Kz, alpha, zg, ref_note };
+        }
+
+        function calculateKe(elevation, units, standard) {
+            if (standard === "ASCE 7-22") return [1.0, "ASCE 7-22 Section 26.9 (Ke = 1.0)"];
+            const elev_ft = [-500, 0, 500, 1000, 2000, 3000, 4000, 5000, 6000];
+            const ke_vals = [1.05, 1.00, 0.95, 0.90, 0.82, 0.74, 0.67, 0.61, 0.55];
+            const elev_calc = units === 'metric' ? elevation * 3.28084 : elevation;
+            const ke_val = interpolate(elev_calc, elev_ft, ke_vals);
+            return [ke_val, `ASCE 7-16 Table 26.9-1 (Elevation: ${elev_calc.toFixed(0)} ft)`];
+        }
+
+        function calculateVelocityPressure(Kz, Kzt, Kd, Ke, V, standard, riskCat, units) {
+            const [Iw, iw_ref] = getImportanceFactor(riskCat, standard);
+            const constant = units === 'imperial' ? 0.00256 : 0.613;
+            let qz, ref_note;
+            if (standard === 'ASCE 7-16') {
+                qz = constant * Kz * Kzt * Kd * Ke * (V * V);
+                ref_note = "ASCE 7-16 Eq. 26.10-1 (Iw included in V map per Section 26.5)";
+            } else {
+                qz = constant * Kz * Kzt * Kd * Ke * Iw * (V * V);
+                ref_note = `ASCE 7-22 Eq. 26.10-1 (Iw = ${Iw.toFixed(2)} from ${iw_ref})`;
+            }
+            return { qz, ref_note };
+        }
+
+        function calculateDesignPressure(qz, G, Cp, GCpi) {
+            return qz * (G * Cp - GCpi);
+        }
+
+        function validateInputs(inputs) {
+            const warnings = [], errors = [];
+            if (inputs.unit_system === 'imperial' && (inputs.V_unreduced < 85 || inputs.V_unreduced > 200)) {
+                warnings.push(`Wind speed ${inputs.V_unreduced} mph is outside typical ASCE 7 range (85-200 mph)`);
+            }
+            const min_height = inputs.unit_system === 'imperial' ? 15 : 4.6;
+            if (inputs.h_in < min_height) {
+                warnings.push(`Mean roof height ${inputs.h_in} is below minimum for Kz calculation (min: ${min_height})`);
+            }
+            if (['gable', 'hip'].includes(inputs.roof_type)) {
+                if (inputs.roof_slope < 0 || inputs.roof_slope > 90) errors.push("Roof slope must be between 0 and 90 degrees");
+                else if (inputs.roof_slope > 45) warnings.push("Roof slope > 45 degrees may require special considerations per ASCE 7-16 Section 27.3");
+            }
+            return { warnings, errors };
+        }
+
+        // --- PUBLIC API ---
+        function run(inputs) {
+            let effective_standard = inputs.asce_standard;
+            let v_input = inputs.basic_wind_speed;
+            let v_unreduced = inputs.basic_wind_speed;
+            let jurisdiction_note = "", temporary_structure_note = "";
+
+            if (inputs.jurisdiction === "NYCBC 2022") {
+                effective_standard = "ASCE 7-16";
+                const risk_v_map = { "I": 110, "II": 117, "III": 127, "IV": 132 };
+                v_input = risk_v_map[inputs.risk_category] || 117;
+                v_unreduced = v_input;
+                jurisdiction_note = `NYCBC 2022 wind speed of ${v_input} mph for Risk Category ${inputs.risk_category} has been applied (Table 1609.3).`;
+            }
+
+            if (inputs.temporary_construction === "Yes") {
+                v_input *= 0.8;
+                const v_unit = inputs.unit_system === 'imperial' ? 'mph' : 'm/s';
+                temporary_structure_note = `A 0.8 reduction factor has been applied for temporary construction (PROJECT-SPECIFIC ALLOWANCE, NOT ASCE 7). Calculation wind speed is ${v_input.toFixed(1)} ${v_unit} (reduced from ${v_unreduced} ${v_unit}).`;
+            }
+
+            const { warnings, errors } = validateInputs({ ...inputs, V_unreduced: v_unreduced, h_in: inputs.mean_roof_height, roof_slope: inputs.roof_slope_deg });
+            if (errors.length > 0) return { errors };
+
+            const [abs_gcpi, gcpi_ref] = getInternalPressureCoefficient(inputs.enclosure_classification);
+            const [Kd, kd_ref] = getKdFactor(inputs.structure_type_for_kd);
+            const [Ke, ke_ref] = calculateKe(inputs.ground_elevation, inputs.unit_system, effective_standard);
+            const { Kz, alpha, zg, ref_note: kz_ref } = calculateKz(inputs.mean_roof_height, inputs.exposure_category, inputs.unit_system);
+            const { qz, ref_note: qz_ref } = calculateVelocityPressure(Kz, inputs.topographic_factor_Kzt, Kd, Ke, v_input, effective_standard, inputs.risk_category, inputs.unit_system);
+            const [Iw, iw_ref] = getImportanceFactor(inputs.risk_category, effective_standard);
+
+            const windResults = {
+                inputs: { ...inputs, V_in: v_input, V_unreduced: v_unreduced, GCpi_abs: abs_gcpi, effective_standard: effective_standard },
+                intermediate: { Kz, Kz_ref: kz_ref, Ke, ke_ref, qz, qz_ref, Kd, Kd_ref: kd_ref, GCpi_ref: gcpi_ref, alpha, zg, Iw, iw_ref },
+                directional_results: {},
+                jurisdiction_note, temporary_structure_note, warnings, errors
+            };
+
+            const { cpMap: cp_map_L } = getCpValues(effective_standard, inputs.mean_roof_height, inputs.building_length_L, inputs.building_width_B, inputs.roof_type, inputs.roof_slope_deg, inputs.unit_system);
+            windResults.directional_results['perp_to_L'] = Object.entries(cp_map_L).map(([surface, cp]) => {
+                const p_pos = calculateDesignPressure(qz, inputs.gust_effect_factor_g, cp, abs_gcpi);
+                const p_neg = calculateDesignPressure(qz, inputs.gust_effect_factor_g, cp, -abs_gcpi);
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
+            });
+
+            const { cpMap: cp_map_B } = getCpValues(effective_standard, inputs.mean_roof_height, inputs.building_width_B, inputs.building_length_L, inputs.roof_type, inputs.roof_slope_deg, inputs.unit_system);
+            windResults.directional_results['perp_to_B'] = Object.entries(cp_map_B).map(([surface, cp]) => {
+                const p_pos = calculateDesignPressure(qz, inputs.gust_effect_factor_g, cp, abs_gcpi);
+                const p_neg = calculateDesignPressure(qz, inputs.gust_effect_factor_g, cp, -abs_gcpi);
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
+            });
+
+            return windResults;
+        }
+
+        return { run };
+    })();
+
+    function handleRunWindCalculation() {
+        const windInputIds = [
+            'asce_standard', 'unit_system', 'risk_category', 'design_method',
+            'jurisdiction', 'ground_elevation', 'topographic_factor_Kzt',
+            'basic_wind_speed', 'exposure_category', 'mean_roof_height',
+            'building_length_L', 'building_width_B', 'enclosure_classification',
+            'roof_type', 'roof_slope_deg', 'structure_type_for_kd',
+            'gust_effect_factor_g', 'temporary_construction'
+        ];
+        const inputs = {};
+        windInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                const isNumeric = el.type === 'number' && el.value !== '';
+                inputs[id] = isNumeric ? parseFloat(el.value) || 0 : el.value;
+            }
+        });
+        const results = windLoadCalculator.run(inputs);
+        renderWindResults(results);
+    }
+
+    function renderWindResults(results) {
+         if (!results) return;
+         lastWindRunResults = results; // Cache the results
+
+         const resultsContainer = document.getElementById('results-container');
+         if (results.errors && results.errors.length > 0) {
+             resultsContainer.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4">
+                 <p class="font-bold">Input Errors Found:</p>
+                 <ul class="list-disc list-inside mt-2">${results.errors.map(e => `<li>${e}</li>`).join('')}</ul>
+                 <p class="mt-2">Please correct errors and run again.</p>
+             </div>`;
+             return;
+         }
+
+        const { inputs, intermediate, directional_results, jurisdiction_note, temporary_structure_note, warnings } = results;
+        const is_imp = inputs.unit_system === 'imperial';
+        const [v_unit, h_unit, p_unit] = is_imp ? ['mph', 'ft', 'psf'] : ['m/s', 'm', 'Pa'];
+
+        let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
+        
+        html += `<div id="results-action-buttons" class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+                        <button id="wind-print-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">Print Report</button>
+                        <button id="toggle-wind-copy-view-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">Enable Copy-Friendly View</button>
+                        <button id="toggle-wind-summary-view-btn" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">${showWindAsBullets ? 'Show Table View' : 'Show Bullet Points'}</button>
+                       </div>`;
+
+        html += `<div class="text-center border-b dark:border-gray-700 pb-4">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">WIND LOAD CALCULATION REPORT (${inputs.effective_standard})</h2>
+                    </div>`;
+
+        if (jurisdiction_note) html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${jurisdiction_note}</p></div>`;
+        if (temporary_structure_note) html += `<div class="bg-yellow-100 dark:bg-yellow-900/50 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-300 p-4 rounded-md"><p><strong>Project-Specific Allowance:</strong> ${temporary_structure_note}</p></div>`;
+        if (warnings.length > 0) {
+            html += `<div class="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-md">
+                            <p class="font-bold">Validation Warnings:</p>
+                            <ul class="list-disc list-inside mt-2">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+                        </div>`;
+        }
+        
+         const createWindTable = (data, title) => {
+            let tableHtml = `<table class="w-full mt-4 border-collapse"><caption class="font-bold text-center bg-gray-200 dark:bg-gray-700 p-2">${title}</caption><thead class="bg-gray-100 dark:bg-gray-700"><tr>
+                    <th>Surface/Zone</th>
+                    <th>C_p</th>
+                    <th>Pressure (+GCpi) [${p_unit}]</th>
+                    <th>Pressure (-GCpi) [${p_unit}]</th>
+                </tr></thead><tbody class="dark:text-gray-300">`;
+            data.forEach(r => {
+                const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
+                const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+                tableHtml += `<tr>
+                    <td>${r.surface}</td>
+                    <td>${r.cp.toFixed(2)}</td>
+                    <td>${p_pos.toFixed(2)}</td>
+                    <td>${p_neg.toFixed(2)}</td>
+                   </tr>`;
+            });
+            tableHtml += `</tbody></table>`;
+            return tableHtml;
+        };
+        const createWindBulletSummary = (data, title) => {
+            let summaryHtml = `<div class="mt-4"><h4 class="font-bold text-center">${title}</h4><ul class="list-disc list-inside mt-2 space-y-1">`;
+            data.forEach(r => {
+                const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
+                const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+                summaryHtml += `<li><strong>${r.surface}</strong> (C<sub>p</sub>: ${r.cp.toFixed(2)}): Design pressures are <strong>${p_pos.toFixed(2)} ${p_unit}</strong> (for positive internal pressure) and <strong>${p_neg.toFixed(2)} ${p_unit}</strong> (for negative internal pressure).</li>`;
+            });
+            summaryHtml += `</ul></div>`;
+            return summaryHtml;
+        };
+        const renderDirectionalResults = (data, title) => {
+            return showWindAsBullets ? createWindBulletSummary(data, title) : createWindTable(data, title);
+        }
+        const res_list_L = directional_results.perp_to_L;
+        const res_list_B = directional_results.perp_to_B;
+        html += `
+        <div class="text-center pt-4"><h3 class="text-xl font-bold">FINAL DESIGN PRESSURES (${inputs.design_method})</h3></div>
+        <div>
+            <h4 class="text-lg font-semibold mt-6 mb-2 text-center">Wind Perpendicular to ${inputs.building_length_L} ${h_unit} Side (on ${inputs.building_width_B} ${h_unit} face)</h4>
+            ${renderDirectionalResults(res_list_L, `--- ${inputs.design_method} Pressures ---`)}
+        </div>
+        <div>
+            <h4 class="text-lg font-semibold mt-8 mb-2 text-center">Wind Perpendicular to ${inputs.building_width_B} ${h_unit} Side (on ${inputs.building_length_L} ${h_unit} face)</h4>
+            ${renderDirectionalResults(res_list_B, `--- ${inputs.design_method} Pressures ---`)}
+        </div>
+        `;
+        html += `</div>`;
+        resultsContainer.innerHTML = html;
+    }
+
+    function handleSaveWindInputs() {
+        const windInputIds = [
+            'asce_standard', 'unit_system', 'risk_category', 'design_method',
+            'jurisdiction', 'ground_elevation', 'topographic_factor_Kzt',
+            'basic_wind_speed', 'exposure_category', 'mean_roof_height',
+            'building_length_L', 'building_width_B', 'enclosure_classification',
+            'roof_type', 'roof_slope_deg', 'structure_type_for_kd',
+            'gust_effect_factor_g', 'temporary_construction'
+        ];
+        const inputsToSave = {};
+        windInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) inputsToSave[id] = el.value;
+        });
+        localStorage.setItem('windLoadCalculatorInputs', JSON.stringify(inputsToSave));
+        showFeedback('Wind inputs saved successfully!');
+    }
+
+    function handleLoadWindInputs() {
+        const savedData = localStorage.getItem('windLoadCalculatorInputs');
+        if (!savedData) return showFeedback('No saved wind data found.', true);
+        try {
+            const inputsToLoad = JSON.parse(savedData);
+            const windInputIds = [
+                'asce_standard', 'unit_system', 'risk_category', 'design_method',
+                'jurisdiction', 'ground_elevation', 'topographic_factor_Kzt',
+                'basic_wind_speed', 'exposure_category', 'mean_roof_height',
+                'building_length_L', 'building_width_B', 'enclosure_classification',
+                'roof_type', 'roof_slope_deg', 'structure_type_for_kd',
+                'gust_effect_factor_g', 'temporary_construction'
+            ];
+            windInputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && inputsToLoad[id] !== undefined) el.value = inputsToLoad[id];
+            });
+            showFeedback('Wind inputs loaded successfully!');
+        } catch (e) {
+            showFeedback('Failed to load wind inputs. Data may be corrupt.', true);
+            console.error("Error parsing saved wind load data:", e);
+        }
+    }
+
+    function showFeedback(message, isError = false) {
+        const feedbackEl = document.getElementById('save-load-feedback');
+        if (!feedbackEl) return;
+        feedbackEl.textContent = message;
+        feedbackEl.style.color = isError ? '#dc2626' : '#4b5563';
+        setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
+    }
+    
+    // =================================================================================
+    //  SNOW LOAD CALCULATOR LOGIC (JavaScript implementation)
+    // =================================================================================
+    const snowLoadCalculator = (() => {
+        function getSnowFactors(risk, exposure, thermal, surface_roughness) {
+            const is_map = {"I": 0.8, "II": 1.0, "III": 1.1, "IV": 1.2};
+            const Is = is_map[risk] || 1.0;
+            const ce_map = {
+                "B": {"Fully Exposed": 0.9, "Partially Exposed": 1.0, "Sheltered": 1.2},
+                "C": {"Fully Exposed": 0.9, "Partially Exposed": 1.0, "Sheltered": 1.1},
+                "D": {"Fully Exposed": 0.8, "Partially Exposed": 0.9, "Sheltered": 1.0},
+                "Above treeline (windswept)": {"Fully Exposed": 0.7, "Partially Exposed": 0.8},
+                "Alaska (no trees)": {"Fully Exposed": 0.7, "Partially Exposed": 0.8}
+            };
+            const Ce = ce_map[surface_roughness]?.[exposure] ?? 1.0;
+            const ct_map = {"Heated Structure": 1.0, "Unheated Structure": 1.2};
+            const Ct = ct_map[thermal] || 1.0;
+            return { Is, Ce, Ct };
+        }
+
+        function calculateSlopeFactor(slope_deg, is_slippery, Ct, standard) {
+            if (standard === "ASCE 7-22") {
+                if (is_slippery) {
+                    if (slope_deg < 5) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 5) / 65;
+                } else {
+                    if (slope_deg < 30) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 30) / 40;
+                }
+            } else { // ASCE 7-16
+                if (Ct <= 1.0) { // Warm Roof
+                    if (is_slippery) {
+                        if (slope_deg < 5) return 1.0;
+                        if (slope_deg > 70) return 0.0;
+                        return 1.0 - (slope_deg - 5) / 65;
+                    } else {
+                        if (slope_deg < 30) return 1.0;
+                        if (slope_deg > 70) return 0.0;
+                        return 1.0 - (slope_deg - 30) / 40;
+                    }
+                } else { // Cold Roof
+                    if (is_slippery) {
+                        if (slope_deg < 15) return 1.0;
+                        if (slope_deg > 70) return 0.0;
+                        return 1.0 - (slope_deg - 15) / 55;
+                    } else {
+                        if (slope_deg < 45) return 1.0;
+                        if (slope_deg > 70) return 0.0;
+                        return 1.0 - (slope_deg - 45) / 25;
+                    }
+                }
+            }
+        }
+        
+        function calculateSnowDensity(pg) {
+            let gamma = 0.13 * pg + 14;
+            return Math.min(gamma, 30.0);
+        }
+
+        function calculateUnbalancedLoads(ps_balanced, pg, slope_deg, standard, W, is_simply_supported, W2, gamma, Is) {
+            const slope_ratio = Math.tan(slope_deg * Math.PI / 180);
+            const min_slope_ratio = 0.5 / 12;
+            const max_slope_ratio = 7 / 12;
+
+            if (!(slope_ratio >= min_slope_ratio && slope_ratio <= max_slope_ratio)) {
+                return { applicable: false, reason: `Slope is outside the range for unbalanced loads per ${standard}.` };
+            }
+            
+            const S = slope_ratio > 0 ? 1 / slope_ratio : 0;
+            
+            if (standard === "ASCE 7-22") {
+                if (is_simply_supported && W <= 20) {
+                    return { applicable: true, case: 'A: Simple Roof', windward_nominal: 0.0, leeward_nominal: pg, S_val: S };
+                } else {
+                    if (S <= 0 || gamma <= 0 || W2 < 0 || pg <= 0) return { applicable: false, reason: 'Invalid inputs for surcharge calculation.' };
+                    const hd = 1.5 * ((Math.pow(pg, 0.74) * Math.pow(W, 0.7) * Math.pow(W2, 1.7)) / gamma);
+                    const surcharge_magnitude = S > 0 ? (hd * gamma) / Math.pow(S, 0.5) : 0;
+                    const surcharge_width = (8 * hd * Math.pow(S, 0.5)) / 3;
+                    return { applicable: true, case: 'B: Other Gable Roof', windward_nominal: 0.3 * ps_balanced, leeward_nominal: ps_balanced, surcharge_magnitude, surcharge_width, hd_unbalanced: hd, S_val: S };
+                }
+            } else { // ASCE 7-16
+                if (is_simply_supported && W <= 20) {
+                    return { applicable: true, case: 'A: Simple Roof', windward_nominal: 0.0, leeward_nominal: Is * pg, S_val: S };
+                } else {
+                    if (S <= 0 || gamma <= 0 || pg <= 0 || Is <= 0) return { applicable: false, reason: 'Invalid inputs for surcharge calculation.' };
+                    const lu_for_hd = Math.max(W, 20.0);
+                    const hd_calc = (0.43 * Math.pow(lu_for_hd, 1/3) * Math.pow(pg + 10, 0.25)) - 1.5;
+                    const hd = Is > 0 ? Math.max(0, hd_calc) / Math.pow(Is, 0.5) : 0;
+                    const surcharge_magnitude = S > 0 ? (hd * gamma) / Math.pow(S, 0.5) : 0;
+                    const surcharge_width = (8 * hd * Math.pow(S, 0.5)) / 3;
+                    return { applicable: true, case: 'B: Other Gable Roof', windward_nominal: 0.3 * ps_balanced, leeward_nominal: ps_balanced, surcharge_magnitude, surcharge_width, hd_unbalanced: hd, S_val: S };
+                }
+            }
+        }
+
+        function calculateDriftLoads(pg, lu, hc, pf, standard, W2, lower_roof_length_ll, Is) {
+             const gamma = calculateSnowDensity(pg);
+             const hb = gamma > 0 ? pf / gamma : 0;
+             if (hc <= 0 || hb <= 0 || (hc / hb) <= 0.2) {
+                 return { applicable: false, reason: 'Drift surcharge not required per h_c/h_b ≤ 0.2.' };
+             }
+
+             let hd_final, w_final, pd_nominal;
+
+             if (standard === "ASCE 7-22") {
+                const calc_hd_7_22 = (len) => (gamma > 0 && W2 >= 0 && pg > 0 && len > 0) ? 1.5 * ((Math.pow(pg, 0.74) * Math.pow(len, 0.7) * Math.pow(W2, 1.7)) / gamma) : 0;
+                let hd_leeward = Math.min(calc_hd_7_22(lu), 0.6 * lower_roof_length_ll);
+                let w_leeward = hd_leeward <= hc ? 4 * hd_leeward : (hc > 0 ? (4 * Math.pow(hd_leeward, 2)) / hc : 0);
+                w_leeward = Math.min(w_leeward, 8 * hc);
+                
+                let hd_windward_initial = calc_hd_7_22(lower_roof_length_ll);
+                let hd_windward = 0.75 * hd_windward_initial;
+                let w_windward = 6 * hd_windward_initial;
+
+                hd_final = Math.max(hd_leeward, hd_windward);
+                w_final = (hd_leeward >= hd_windward) ? w_leeward : w_windward;
+
+             } else { // ASCE 7-16
+                const calc_hd_7_16 = (len, pg_val, is_val) => (pg_val >= 0 && len > 0 && is_val > 0) ? Math.max(0, (0.43 * Math.pow(len, 1/3) * Math.pow(pg_val + 10, 0.25)) - 1.5) / Math.pow(is_val, 0.5) : 0;
+                let hd_leeward = Math.min(calc_hd_7_16(lu, pg, Is), 0.6 * lower_roof_length_ll);
+                let hd_windward = 0.75 * calc_hd_7_16(lower_roof_length_ll, pg, Is);
+                let hd_controlling = Math.max(hd_leeward, hd_windward);
+                hd_final = hd_controlling; // In 7-16, hd is directly used.
+                let w_calc = hd_controlling <= hc ? 4 * hd_controlling : (hc > 0 ? (4 * Math.pow(hd_controlling, 2)) / hc : 0);
+                w_final = Math.min(w_calc, 8 * hc);
+             }
+             
+             pd_nominal = hd_final * gamma;
+             return { applicable: true, gamma, hb, hd: hd_final, w: w_final, pd_nominal };
+        }
+
+        function run(inputs) {
+             const { Is, Ce, Ct } = getSnowFactors(inputs.risk_category, inputs.exposure_condition, inputs.thermal_condition, inputs.surface_roughness_category);
+             const Cs = calculateSlopeFactor(inputs.roof_slope_degrees, inputs.is_roof_slippery, Ct, inputs.asce_standard);
+             const pf = 0.7 * Ce * Ct * Is * inputs.ground_snow_load;
+             let ps_calculated = Cs * pf;
+             
+             let ps_min_asce7 = 0;
+             const is_low_slope = inputs.roof_slope_degrees < 15;
+             if (is_low_slope) {
+                ps_min_asce7 = Math.min(inputs.ground_snow_load, 20) * Is;
+             }
+             
+             let ps_asce7 = is_low_slope ? Math.max(ps_calculated, ps_min_asce7) : ps_calculated;
+             
+             let ps_balanced = ps_asce7;
+             let is_nycbc_min_governed = false;
+             if (inputs.jurisdiction === "NYCBC 2022" && ps_balanced < inputs.nycbc_minimum_roof_snow_load) {
+                 ps_balanced = inputs.nycbc_minimum_roof_snow_load;
+                 is_nycbc_min_governed = true;
+             }
+            
+             let unbalanced_results = {};
+             if (inputs.calculate_unbalanced) {
+                 const gamma = calculateSnowDensity(inputs.ground_snow_load);
+                 unbalanced_results = calculateUnbalancedLoads(ps_balanced, inputs.ground_snow_load, inputs.roof_slope_degrees, inputs.asce_standard, inputs.eave_to_ridge_distance_W, inputs.is_simply_supported_prismatic, inputs.winter_wind_parameter_W2, gamma, Is);
+             }
+
+             let drift_results = {};
+             if (inputs.calculate_drift) {
+                 drift_results = calculateDriftLoads(inputs.ground_snow_load, inputs.upper_roof_length_lu, inputs.height_difference_hc, pf, inputs.asce_standard, inputs.winter_wind_parameter_W2, inputs.lower_roof_length_ll, Is);
+             }
+
+             return {
+                inputs,
+                intermediate: { Is, Ce, Ct, Cs, pf, ps_asce7, is_low_slope, asce7_min_governed: ps_asce7 > ps_calculated, ps_calculated },
+                results: { ps_balanced_nominal: ps_balanced },
+                unbalanced: unbalanced_results,
+                drift: drift_results,
+                is_nycbc_min_governed,
+                success: true
+            };
+        }
+
+        return { run };
+    })();
+
+    function handleRunSnowCalculation() {
+        const snowInputIds = [
+            'snow_asce_standard', 'snow_unit_system', 'snow_risk_category', 'snow_design_method',
+            'snow_jurisdiction', 'snow_nycbc_minimum_roof_snow_load', 'snow_ground_snow_load',
+            'snow_surface_roughness_category', 'snow_exposure_condition', 'snow_thermal_condition',
+            'snow_roof_slope_degrees', 'snow_is_roof_slippery', 'snow_calculate_unbalanced', 'snow_calculate_drift',
+            'snow_eave_to_ridge_distance_W', 'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2',
+            'snow_upper_roof_length_lu', 'snow_height_difference_hc', 'snow_lower_roof_length_ll'
+        ];
+        const inputs = {};
+        snowInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                const key = id.replace('snow_', '');
+                if (el.type === 'number') {
+                    inputs[key] = parseFloat(el.value) || 0;
+                } else if (['is_roof_slippery', 'is_simply_supported_prismatic', 'calculate_unbalanced', 'calculate_drift'].includes(key)) {
+                    inputs[key] = el.value === 'Yes';
+                } else {
+                    inputs[key] = el.value;
+                }
+            }
+        });
+        
+        const results = snowLoadCalculator.run(inputs);
+        renderSnowResults(results);
+    }
+
+    function renderSnowResults(results) {
+         if (!results || !results.success) return;
+         lastSnowRunResults = results;
+        
+         const resultsContainer = document.getElementById('snow-results-container');
+         const { inputs, intermediate, is_nycbc_min_governed, unbalanced, drift } = results;
+         const { ps_balanced_nominal } = results.results;
+         const p_unit = inputs.unit_system === 'imperial' ? 'psf' : 'kPa';
+         const l_unit = inputs.unit_system === 'imperial' ? 'ft' : 'm';
+
+         let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">
+            <div class="text-center border-b dark:border-gray-700 pb-4">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">SNOW LOAD CALCULATION REPORT (${inputs.asce_standard})</h2>
+            </div>`;
+
+        if (inputs.jurisdiction === "NYCBC 2022") {
+            const note = is_nycbc_min_governed ? `The calculated roof snow load was less than the specified NYCBC minimum of ${inputs.nycbc_minimum_roof_snow_load} psf. The NYCBC minimum has been applied.` : "The calculated roof snow load meets or exceeds the specified NYCBC minimum.";
+            html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${note}</p></div>`;
+        }
+
+        html += `
+            <div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Balanced Snow Load (${inputs.design_method})</h3>
+                <div class="text-center">
+                    <p class="text-4xl font-bold">${ps_balanced_nominal.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
+                </div>
+            </div>`;
+        
+        if (inputs.calculate_unbalanced) {
+             html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                        <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Unbalanced Snow Load</h3>`;
+            if (unbalanced.applicable) {
+                const leeward_total = unbalanced.leeward_nominal + (unbalanced.surcharge_magnitude || 0);
+                html += `<div class="grid grid-cols-2 text-center">
+                            <div><p>Windward</p><p class="font-bold text-2xl">${unbalanced.windward_nominal.toFixed(2)} ${p_unit}</p></div>
+                            <div><p>Leeward</p><p class="font-bold text-2xl">${leeward_total.toFixed(2)} ${p_unit}</p></div>
+                         </div>`;
+            } else {
+                 html += `<p class="text-center text-gray-600 dark:text-gray-400">${unbalanced.reason}</p>`;
+            }
+             html += `</div>`;
+        }
+
+        if (inputs.calculate_drift) {
+             html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                        <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Drift Surcharge Load</h3>`;
+             if (drift.applicable) {
+                  html += `<div class="grid grid-cols-3 text-center">
+                            <div><p>Surcharge (p<sub>d</sub>)</p><p class="font-bold text-2xl">${drift.pd_nominal.toFixed(2)} ${p_unit}</p></div>
+                            <div><p>Drift Height (h<sub>d</sub>)</p><p class="font-bold text-2xl">${drift.hd.toFixed(2)} ${l_unit}</p></div>
+                            <div><p>Drift Width (w)</p><p class="font-bold text-2xl">${drift.w.toFixed(2)} ${l_unit}</p></div>
+                         </div>`;
+             } else {
+                 html += `<p class="text-center text-gray-600 dark:text-gray-400">${drift.reason}</p>`;
+             }
+             html += `</div>`;
+        }
+            
+        html += `</div>`;
+        resultsContainer.innerHTML = html;
+    }
+
+    // =================================================================================
+    //  RAIN LOAD CALCULATOR LOGIC
+    // =================================================================================
+    const rainLoadCalculator = (() => {
+        function run(inputs) {
+            const { ds, dh, unit_system, jurisdiction, design_method, asce_standard } = inputs;
+            const R_nominal = (unit_system === 'imperial') ? 5.2 * (ds + dh) : 0.0098 * (ds + dh);
+            const jurisdiction_note = (jurisdiction === "NYCBC 2022") ? "NYCBC 2022 adopts ASCE 7-16 for rain loads. Note: The hydraulic head (dh) must be based on the 100-year hourly rainfall rate of 4 in/hr as per the NYC Plumbing Code." : "";
+
+            return {
+                inputs,
+                results: {
+                    R_nominal,
+                    R_strength: 1.6 * R_nominal,
+                    R_asd: 1.0 * R_nominal
+                },
+                jurisdiction_note,
+                success: true
+            };
+        }
+        return { run };
+    })();
+
+    function handleRunRainCalculation() {
+        const inputs = {
+            asce_standard: document.getElementById('rain_asce_standard').value,
+            unit_system: document.getElementById('rain_unit_system').value,
+            design_method: document.getElementById('rain_design_method').value,
+            jurisdiction: document.getElementById('rain_jurisdiction').value,
+            ds: parseFloat(document.getElementById('rain_static_head').value) || 0,
+            dh: parseFloat(document.getElementById('rain_hydraulic_head').value) || 0
+        };
+        const results = rainLoadCalculator.run(inputs);
+        renderRainResults(results);
+    }
+
+    function renderRainResults(results) {
+        if (!results || !results.success) return;
+        lastRainRunResults = results;
+        const resultsContainer = document.getElementById('rain-results-container');
+        const { inputs, jurisdiction_note } = results;
+        const { R_nominal, R_strength, R_asd } = results.results;
+        const p_unit = inputs.unit_system === 'imperial' ? 'psf' : 'kPa';
+        const d_unit = inputs.unit_system === 'imperial' ? 'in' : 'mm';
+        const factor = inputs.unit_system === 'imperial' ? '5.2' : '0.0098';
+
+        let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">
+            <div class="text-center border-b dark:border-gray-700 pb-4">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">RAIN LOAD CALCULATION REPORT (${inputs.asce_standard})</h2>
+            </div>`;
+
+        if (jurisdiction_note) {
+            html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${jurisdiction_note}</p></div>`;
+        }
+        
+        const finalLoad = (inputs.design_method === 'ASD') ? R_asd : R_strength;
+
+        html += `
+            <div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Final Rain Load (${inputs.design_method})</h3>
+                <div class="text-center">
+                    <p class="text-4xl font-bold">${finalLoad.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
+                </div>
+            </div>
+            <div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4">
+                <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Detailed Calculation</h3>
+                <p><strong>Formula (Eq 8.3-1):</strong> R = ${factor} * (d<sub>s</sub> + d<sub>h</sub>)</p>
+                <p><strong>Calculation:</strong> R = ${factor} * (${inputs.ds.toFixed(2)} ${d_unit} + ${inputs.dh.toFixed(2)} ${d_unit}) = <strong>${R_nominal.toFixed(2)} ${p_unit}</strong></p>
+                <hr class="dark:border-gray-600">
+                 <p><strong>Strength Design Load (LRFD):</strong> 1.6 * ${R_nominal.toFixed(2)} = <strong>${R_strength.toFixed(2)} ${p_unit}</strong></p>
+                 <p><strong>Allowable Stress Design Load (ASD):</strong> 1.0 * ${R_nominal.toFixed(2)} = <strong>${R_asd.toFixed(2)} ${p_unit}</strong></p>
+            </div>
+         </div>`;
+
+        resultsContainer.innerHTML = html;
+    }
+    
+    // =================================================================================
+    //  LOAD COMBINATION CALCULATOR LOGIC
+    // =================================================================================
+    const comboLoadCalculator = (() => {
+        function calculateCombinations(loads, standard, level, method, snow_scenario_type, jurisdiction, balanced_snow_load_sb) {
+            const { D, L, Lr, R, S: S_in, W: W_in, E: E_in } = loads;
+            const adjustment_notes = {};
+
+            let S, W;
+            if (standard === "ASCE 7-16") {
+                if (level === 'Ultimate (Strength/LRFD)') {
+                    W = W_in; 
+                    S = S_in !== 0 ? S_in / 1.6 : 0;
+                    if (S_in !== 0) adjustment_notes['S'] = `Input S (${S_in.toFixed(2)}) was Ultimate, converted to Nominal (${S.toFixed(2)}) for formulas.`;
+                } else {
+                    W = W_in * 1.6; 
+                    S = S_in;
+                    if (W_in !== 0) adjustment_notes['W'] = `Input W (${W_in.toFixed(2)}) was Nominal, converted to Ultimate (${W.toFixed(2)}) for formulas.`;
+                }
+            } else { // ASCE 7-22
+                if (level === 'Nominal (Service/ASD)') {
+                    W = W_in; 
+                    S = S_in * 1.6;
+                    if (S_in !== 0) adjustment_notes['S'] = `Input S (${S_in.toFixed(2)}) was Nominal, converted to Ultimate (${S.toFixed(2)}) for formulas.`;
+                } else {
+                    W = W_in !== 0 ? W_in / 1.6 : 0; 
+                    S = S_in;
+                    if (W_in !== 0) adjustment_notes['W'] = `Input W (${W_in.toFixed(2)}) was Ultimate, converted to Nominal (${W.toFixed(2)}) for formulas.`;
+                }
+            }
+            const E = E_in;
+
+            const asd_formulas_16 = { '1. D': 'D', '2. D + L': 'D + L', '3. D + (Lr or S or R)': 'D + Math.max(Lr, S, R)', '4. D + 0.75L + 0.75(Lr or S or R)': 'D + 0.75*L + 0.75*Math.max(Lr, S, R)', '5. D + 0.6W': 'D + 0.6*W', '6. D + 0.75L + 0.75(0.6W) + 0.75(Lr or S or R)': 'D + 0.75*L + 0.75*(0.6*W) + 0.75*Math.max(Lr, S, R)', '7. D + 0.7E': 'D + 0.7*E', '8. D + 0.75L + 0.75(0.7E) + 0.75S': 'D + 0.75*L + 0.75*(0.7*E) + 0.75*S', '9. 0.6D + 0.6W': '0.6*D + 0.6*W', '10. 0.6D + 0.7E': '0.6*D + 0.7*E' };
+            const lrfd_formulas_16 = { '1. 1.4D': '1.4*D', '2. 1.2D + 1.6L + 0.5(Lr or S or R)': '1.2*D + 1.6*L + 0.5*Math.max(Lr, S, R)', '3. 1.2D + 1.6(Lr or S or R) + (L or 0.5W)': '1.2*D + 1.6*Math.max(Lr, S, R) + Math.max(L, 0.5*W)', '4. 1.2D + 1.0W + L + 0.5(Lr or S or R)': '1.2*D + 1.0*W + L + 0.5*Math.max(Lr, S, R)', '5. 1.2D + 1.0E + L + 0.2S': '1.2*D + 1.0*E + L + 0.2*S', '6. 0.9D + 1.0W': '0.9*D + 1.0*W', '7. 0.9D + 1.0E': '0.9*D + 1.0*E' };
+            const asd_formulas_22 = { '1. D': 'D', '2. D + L': 'D + L', '3. D + (Lr or 0.7S or R)': 'D + Math.max(Lr, 0.7*S, R)', '4. D + 0.75L + 0.75(Lr or 0.7S or R)': 'D + 0.75*L + 0.75*Math.max(Lr, 0.7*S, R)', '5. D + W': 'D + W', '6. D + 0.75L + 0.75W + 0.75(Lr or 0.7S or R)': 'D + 0.75*L + 0.75*W + 0.75*Math.max(Lr, 0.7*S, R)', '7. D + 0.7E': 'D + 0.7*E', '8. D + 0.75L + 0.75(0.7E) + 0.75(0.7S)': 'D + 0.75*L + 0.75*(0.7*E) + 0.75*(0.7*S)', '9. 0.6D + W': '0.6*D + W', '10. 0.6D + 0.7E': '0.6*D + 0.7*E' };
+            const lrfd_formulas_22 = { '1. 1.4D': '1.4*D', '2. 1.2D + 1.6L + 0.5(Lr or S or R)': '1.2*D + 1.6*L + 0.5*Math.max(Lr, S, R)', '3a. 1.2D + 1.6(Lr or R) + (L or 0.5W)': '1.2*D + 1.6*Math.max(Lr, R) + Math.max(L, 0.5*W)', '3b. 1.2D + 1.0S + (L or 0.5W)': '1.2*D + 1.0*S + Math.max(L, 0.5*W)', '4. 1.2D + 1.6W + L + 0.5(Lr or S or R)': '1.2*D + 1.6*W + L + 0.5*Math.max(Lr, S, R)', '5. 1.2D + 1.0E + L + 1.0S': '1.2*D + 1.0*E + L + 1.0*S', '6. 0.9D + 1.6W': '0.9*D + 1.6*W', '7. 0.9D + 1.0E': '0.9*D + 1.0*E' };
+            
+            const selectedFormulas = (standard === "ASCE 7-16") ? (method === "ASD" ? asd_formulas_16 : lrfd_formulas_16) : (method === "ASD" ? asd_formulas_22 : lrfd_formulas_22);
+
+            const scope = { D, L, Lr, R, S, W, E, Math };
+            const results = {};
+            for (const key in selectedFormulas) {
+                try {
+                    results[key] = new Function(...Object.keys(scope), `return ${selectedFormulas[key]}`)(...Object.values(scope));
+                } catch (e) {
+                    results[key] = NaN; // Or handle error appropriately
+                }
+            }
+
+            return { results, final_formulas: selectedFormulas, S, W, adjustment_notes };
+        }
+        return { calculate: calculateCombinations };
+    })();
+    
+    function handleRunComboCalculation() {
+        const inputs = {
+            asce_standard: document.getElementById('combo_asce_standard').value,
+            jurisdiction: document.getElementById('combo_jurisdiction').value,
+            design_method: document.getElementById('combo_design_method').value,
+            input_load_level: document.getElementById('combo_input_load_level').value,
+            D: parseFloat(document.getElementById('combo_dead_load_d').value) || 0,
+            L: parseFloat(document.getElementById('combo_live_load_l').value) || 0,
+            Lr: parseFloat(document.getElementById('combo_roof_live_load_lr').value) || 0,
+            R: parseFloat(document.getElementById('combo_rain_load_r').value) || 0,
+            Sb: parseFloat(document.getElementById('combo_balanced_snow_load_sb').value) || 0,
+            Suw: parseFloat(document.getElementById('combo_unbalanced_windward_snow_load_suw').value) || 0,
+            Sul: parseFloat(document.getElementById('combo_unbalanced_leeward_snow_load_sul').value) || 0,
+            Sd: parseFloat(document.getElementById('combo_drift_surcharge_sd').value) || 0,
+            Wmax: parseFloat(document.getElementById('combo_maximum_wind_load_wmax').value) || 0,
+            Wmin: parseFloat(document.getElementById('combo_minimum_wind_load_wmin').value) || 0,
+            E: parseFloat(document.getElementById('combo_seismic_load_e').value) || 0,
+        };
+
+        const effective_standard = inputs.jurisdiction === "NYCBC 2022" ? "ASCE 7-16" : inputs.asce_standard;
+        const scenarios = {
+            balanced: { title: 'Balanced Snow Load', S: inputs.Sb },
+            unbalanced_leeward: { title: 'Unbalanced Leeward Snow', S: inputs.Sul },
+            unbalanced_windward: { title: 'Unbalanced Windward Snow', S: inputs.Suw },
+            drift: { title: 'Drift Surcharge Load', S: inputs.Sb + inputs.Sd }
+        };
+
+        const scenarios_data = {};
+        for(const key in scenarios) {
+            if (scenarios[key].S === 0 && key !== 'balanced') continue;
+             const base_loads = { D: inputs.D, L: inputs.L, Lr: inputs.Lr, R: inputs.R, S: scenarios[key].S, E: inputs.E };
+             scenarios_data[`${key}_wmax`] = comboLoadCalculator.calculate({ ...base_loads, W: inputs.Wmax }, effective_standard, inputs.input_load_level, inputs.design_method, key, inputs.jurisdiction, inputs.Sb);
+             scenarios_data[`${key}_wmin`] = comboLoadCalculator.calculate({ ...base_loads, W: inputs.Wmin }, effective_standard, inputs.input_load_level, inputs.design_method, key, inputs.jurisdiction, inputs.Sb);
+        }
+
+        const fullResults = { inputs, scenarios_data, success: true };
+        renderComboResults(fullResults);
+    }
+
+    function renderComboResults(fullResults) {
+        if (!fullResults || !fullResults.success) return;
+        lastComboRunResults = fullResults;
+        
+        const resultsContainer = document.getElementById('combo-results-container');
+        let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">
+                     <div class="text-center border-b dark:border-gray-700 pb-4">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">LOAD COMBINATION REPORT (${fullResults.inputs.asce_standard})</h2>
+                     </div>`;
+
+        let all_gov_data = [];
+        for (const key in fullResults.scenarios_data) {
+            if (key.endsWith('_wmin')) continue; // Process wmax and wmin together
+            const scenario_key = key.replace('_wmax', '');
+             const snow_scenarios = {'balanced': 'Balanced Snow Load', 'unbalanced_leeward': 'Unbalanced Leeward Snow', 'unbalanced_windward': 'Unbalanced Windward Snow', 'drift': 'Drift Surcharge Load'};
+             const title = snow_scenarios[scenario_key];
+
+             const res_wmax = fullResults.scenarios_data[`${scenario_key}_wmax`];
+             const res_wmin = fullResults.scenarios_data[`${scenario_key}_wmin`];
+             
+             if(!res_wmax) continue;
+
+             html += `<h3 class="text-xl font-semibold text-center mt-6">${title}</h3>`;
+             html += `<table class="results-container w-full mt-2 border-collapse">
+                        <thead><tr><th>Combination</th><th>Formula</th><th>Result (Wmax)</th><th>Result (Wmin)</th></tr></thead>
+                        <tbody>`;
+            
+            for (const combo in res_wmax.results) {
+                 const formula = res_wmax.final_formulas[combo];
+                 const val_wmax = res_wmax.results[combo];
+                 const val_wmin = res_wmin.results[combo];
+                 all_gov_data.push(val_wmax);
+                 all_gov_data.push(val_wmin);
+                 html += `<tr>
+                            <td>${combo}</td>
+                            <td>${formula.replace(/Math\.max/g, 'max').replace(/Math\.min/g, 'min')}</td>
+                            <td>${val_wmax.toFixed(2)}</td>
+                            <td>${val_wmin.toFixed(2)}</td>
+                          </tr>`;
+            }
+             html += `</tbody></table>`;
+        }
+
+        const overallMax = Math.max(...all_gov_data.filter(v => !isNaN(v)));
+        const overallMin = Math.min(...all_gov_data.filter(v => !isNaN(v)));
+
+        html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
+                <h3 class="text-xl font-semibold text-center mb-4 text-gray-800 dark:text-gray-200">Overall Governing Loads (${fullResults.inputs.design_method})</h3>
+                <div class="grid grid-cols-2 text-center">
+                    <div>
+                        <p class="text-lg">Max Pressure / Downward</p>
+                        <p class="text-3xl font-bold">${overallMax.toFixed(2)}</p>
+                    </div>
+                     <div>
+                        <p class="text-lg">Max Uplift / Suction</p>
+                        <p class="text-3xl font-bold">${overallMin.toFixed(2)}</p>
+                    </div>
+                </div>
+            </div>`;
+
+
+        html += `</div>`;
+        resultsContainer.innerHTML = html;
+    }
+
+    </script>
+</body>
+</html>
+

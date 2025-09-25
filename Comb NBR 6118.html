@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador Interativo de Combinações NBR 8681</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        .dark .form-section {
+            background-color: #1f2937;
+        }
+        .form-section h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .dark .form-section h2 {
+            color: #f3f4f6;
+            border-color: #374151;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            transition: border-color 0.2s;
+            background-color: #fff;
+        }
+        .dark input[type="text"], .dark select {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #f3f4f6;
+        }
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+        }
+        .results-container table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+        .results-container th, .results-container td {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            text-align: left;
+        }
+        .dark .results-container th, .dark .results-container td {
+            border-color: #4b5563;
+        }
+        .results-container th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+        .results-container caption {
+            font-size: 1.125rem;
+            font-weight: 600;
+            caption-side: top;
+            padding: 0.75rem;
+            text-align: center;
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+        
+        .dark .results-container th {
+            background-color: #1f2937;
+        }
+        .dark .results-container caption {
+            background-color: #374151;
+            color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">Gerador Interativo de Combinações NBR 8681</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Adicione e configure os carregamentos para gerar as combinações de ELU e ELS.</p>
+             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+        </header>
+
+        <main>
+            <div class="form-section">
+                 <h2 class="dark:text-gray-200">1. Adicione e Configure os Carregamentos</h2>
+                 <div class="space-y-3" id="loads-container">
+                    <!-- Load rows will be injected here -->
+                 </div>
+                 <button id="add-load-btn" class="mt-4 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all text-sm">
+                     + Adicionar Carga
+                 </button>
+            </div>
+             <div class="mt-8 flex justify-center">
+                 <button id="generate-report-btn" class="bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 transform hover:scale-105">
+                     Gerar Relatório de Combinações
+                 </button>
+            </div>
+        </main>
+        
+        <div id="report-output" class="mt-10 results-container"></div>
+
+    </div>
+    
+    <script>
+    // --- 1. CONFIGURAÇÕES E DADOS BASE (NBR 8681 e 6118) ---
+    // This section defines the core coefficients and load types according to Brazilian standards.
+    const LOAD_TYPES = {
+        'Peso Próprio (PP)': { isVariable: false, subtype: 'pp' },
+        'Permanente (G)': { isVariable: false, subtype: 'default' },
+        'Permanente (Retração/Recalque)': { isVariable: false, subtype: 'recalque' },
+        'Flutuação (Equilíbrio)': { isVariable: true, subtype: 'equilibrio' },
+        'Uso Residencial (Q)': { isVariable: true, psi0: 0.5, psi1: 0.4, psi2: 0.3 },
+        'Uso Escritório/Loja (Q)': { isVariable: true, psi0: 0.7, psi1: 0.4, psi2: 0.3 },
+        'Garagem/Estacionamento (Q)': { isVariable: true, psi0: 0.7, psi1: 0.6, psi2: 0.4 },
+        'Vento (W)': { isVariable: true, psi0: 0.6, psi1: 0.3, psi2: 0.0 },
+        'Temperatura (T)': { isVariable: true, psi0: 0.6, psi1: 0.5, psi2: 0.3 },
+        'Líquidos (Truncado)': { isVariable: true, psi0: 0.5, psi1: 0.4, psi2: 0.3 },
+        'Outras Ações Variáveis (Q)': { isVariable: true, psi0: 0.8, psi1: 0.6, psi2: 0.4 },
+    };
+    const GAMMA_G_DESF = 1.4;
+    const GAMMA_G_FAV = 1.0;
+    const GAMMA_PP_DESF = 1.35; // Per NBR 6118
+    const GAMMA_Q = 1.4;
+    const GAMMA_RECALQUE_DESF = 1.2; // Per NBR 6118
+    const GAMMA_RECALQUE_FAV = 0.0;
+    
+    document.addEventListener('DOMContentLoaded', () => {
+
+        const loadsContainer = document.getElementById('loads-container');
+        const addLoadBtn = document.getElementById('add-load-btn');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const themeToggle = document.getElementById('theme-toggle');
+
+        function addLoadRow() {
+            const rowId = `row-${Date.now()}`;
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.className = 'grid grid-cols-1 md:grid-cols-[2fr_2fr_1fr] gap-3 items-center';
+
+            const loadName = document.createElement('input');
+            loadName.type = 'text';
+            loadName.placeholder = 'Ex: Vento X+, Sobrecarga 1';
+            loadName.className = 'load-name';
+
+            const loadType = document.createElement('select');
+            loadType.className = 'load-type';
+            Object.keys(LOAD_TYPES).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = key;
+                loadType.appendChild(option);
+            });
+
+            const removeButton = document.createElement('button');
+            removeButton.textContent = "Remover";
+            removeButton.className = 'bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 text-sm';
+            removeButton.onclick = () => document.getElementById(rowId).remove();
+            
+            row.appendChild(loadName);
+            row.appendChild(loadType);
+            row.appendChild(removeButton);
+
+            loadsContainer.appendChild(row);
+        }
+
+        addLoadBtn.addEventListener('click', addLoadRow);
+        generateReportBtn.addEventListener('click', generateReportHandler);
+        
+         themeToggle.addEventListener('click', () => {
+             const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+             const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+             themeToggleDarkIcon.classList.toggle('hidden');
+             themeToggleLightIcon.classList.toggle('hidden');
+             if (localStorage.getItem('color-theme') === 'light') {
+                 document.documentElement.classList.add('dark');
+                 localStorage.setItem('color-theme', 'dark');
+             } else {
+                 document.documentElement.classList.remove('dark');
+                 localStorage.setItem('color-theme', 'light');
+             }
+        });
+
+
+        // Add initial row
+        addLoadRow();
+    });
+
+    function generateReportHandler() {
+        const reportOutput = document.getElementById('report-output');
+        reportOutput.innerHTML = '';
+
+        const userLoads = [];
+        const rows = document.getElementById('loads-container').children;
+        for (const row of rows) {
+            const name = row.querySelector('.load-name').value;
+            const type = row.querySelector('.load-type').value;
+            if (name && type) {
+                userLoads.push({ name, type });
+            }
+        }
+
+        if (userLoads.length === 0) {
+            reportOutput.innerHTML = `<p class="text-red-500 text-center">Por favor, adicione pelo menos um carregamento com nome e tipo definidos.</p>`;
+            return;
+        }
+
+        const permanentes = userLoads.filter(l => !LOAD_TYPES[l.type].isVariable);
+        const variaveis = userLoads.filter(l => LOAD_TYPES[l.type].isVariable);
+        const equilibrio_loads = variaveis.filter(l => LOAD_TYPES[l.type].subtype === 'equilibrio');
+        const variaveis_normais = variaveis.filter(l => LOAD_TYPES[l.type].subtype !== 'equilibrio');
+
+        const combinations = { elu_desf: [], elu_fav: [], elu_equilibrio: [], els: [] };
+
+        // --- Logic for Equilibrium Combination ---
+        if (equilibrio_loads.length > 0) {
+            equilibrio_loads.forEach(eq_load => {
+                const perm_fav_parts = permanentes
+                    .filter(g => LOAD_TYPES[g.type].subtype !== 'recalque')
+                    .map(g => `1.00 * ${g.name}`);
+                const buoyancy_part = `1.00 * ${eq_load.name}`;
+                const formula_parts = [...perm_fav_parts, buoyancy_part];
+                combinations.elu_equilibrio.push({
+                    title: `Verificação de Equilíbrio com ${eq_load.name}`,
+                    formula: formula_parts.join(" + ")
+                });
+            });
+        }
+        
+        // --- Logic for Normal ELU Combinations ---
+        if (variaveis_normais.length > 0) {
+            variaveis_normais.forEach(q_p => {
+                // Desfavorable
+                const desf_parts_perm = permanentes.map(g => {
+                    const subtype = LOAD_TYPES[g.type].subtype;
+                    if (subtype === 'recalque') return `${GAMMA_RECALQUE_DESF.toFixed(2)} * ${g.name}`;
+                    if (subtype === 'pp') return `${GAMMA_PP_DESF.toFixed(2)} * ${g.name}`;
+                    return `${GAMMA_G_DESF.toFixed(2)} * ${g.name}`;
+                });
+
+                let desf_parts_var = [`${GAMMA_Q.toFixed(2)} * ${q_p.name}`];
+                variaveis_normais.forEach(q => {
+                    if (q === q_p || ('Vento' in q_p.type && 'Vento' in q.type)) return;
+                    const coeff = GAMMA_Q * LOAD_TYPES[q.type].psi0;
+                    desf_parts_var.push(`${coeff.toFixed(2)} * ${q.name}`);
+                });
+                combinations.elu_desf.push({
+                    title: `Ação Principal: ${q_p.name}`,
+                    formula: [...desf_parts_perm, ...desf_parts_var].join(" + ")
+                });
+
+                // Favorable
+                const fav_parts_perm = permanentes
+                    .filter(g => LOAD_TYPES[g.type].subtype !== 'recalque')
+                    .map(g => `${GAMMA_G_FAV.toFixed(2)} * ${g.name}`);
+                combinations.elu_fav.push({
+                    title: `Ação Principal: ${q_p.name}`,
+                    formula: [...fav_parts_perm, ...desf_parts_var].join(" + ")
+                });
+            });
+        } else if (permanentes.length > 0) {
+            // Only permanent loads
+            const parts = permanentes.map(g => {
+                 const subtype = LOAD_TYPES[g.type].subtype;
+                 if (subtype === 'recalque') return `${GAMMA_RECALQUE_DESF.toFixed(2)} * ${g.name}`;
+                 if (subtype === 'pp') return `${GAMMA_PP_DESF.toFixed(2)} * ${g.name}`;
+                 return `${GAMMA_G_DESF.toFixed(2)} * ${g.name}`;
+            });
+            combinations.elu_desf.push({ title: 'Apenas Ações Permanentes', formula: parts.join(" + ") });
+        }
+        
+        // --- Logic for ELS Combinations ---
+        const qp_parts = permanentes.map(g => `1.00 * ${g.name}`);
+        variaveis_normais.forEach(q => qp_parts.push(`${LOAD_TYPES[q.type].psi2.toFixed(2)} * ${q.name}`));
+        combinations.els.push({ title: 'ELS - Quase Permanente', formula: qp_parts.join(" + ") });
+
+        if (variaveis_normais.length > 0) {
+            variaveis_normais.forEach(q_p => {
+                // Frequente
+                const freq_parts_perm = permanentes.map(g => `1.00 * ${g.name}`);
+                let freq_parts_var = [`1.00 * ${q_p.name}`];
+                variaveis_normais.forEach(q => {
+                     if (q === q_p || ('Vento' in q_p.type && 'Vento' in q.type)) return;
+                     freq_parts_var.push(`${LOAD_TYPES[q.type].psi1.toFixed(2)} * ${q.name}`);
+                });
+                combinations.els.push({ title: `ELS - Frequente (${q_p.name} Princ.)`, formula: [...freq_parts_perm, ...freq_parts_var].join(" + ") });
+
+                // Rara
+                const rara_parts_perm = permanentes.map(g => `1.00 * ${g.name}`);
+                let rara_parts_var = [`1.00 * ${q_p.name}`];
+                variaveis_normais.forEach(q => {
+                    if (q === q_p || ('Vento' in q_p.type && 'Vento' in q.type)) return;
+                     rara_parts_var.push(`${LOAD_TYPES[q.type].psi0.toFixed(2)} * ${q.name}`);
+                });
+                 combinations.els.push({ title: `ELS - Rara (${q_p.name} Princ.)`, formula: [...rara_parts_perm, ...rara_parts_var].join(" + ") });
+            });
+        }
+        
+        // --- Render HTML ---
+        let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
+        
+        function createSectionHTML(title, combos) {
+            if (combos.length === 0) return '';
+            let sectionHTML = `<div class="form-section !p-4"><h3 class="!text-lg !font-bold !border-b-2 !border-blue-500 !pb-2">${title}</h3><div class="space-y-3 mt-3">`;
+            combos.forEach(c => {
+                 sectionHTML += `<div class="p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
+                                    <p class="font-semibold text-gray-800 dark:text-gray-300">${c.title}</p>
+                                    <p class="text-sm text-blue-600 dark:text-blue-400 font-mono break-words">${c.formula}</p>
+                                 </div>`;
+            });
+            sectionHTML += `</div></div>`;
+            return sectionHTML;
+        }
+
+        html += createSectionHTML('ELU - Combinações Desfavoráveis', combinations.elu_desf);
+        html += createSectionHTML('ELU - Combinações Favoráveis', combinations.elu_fav);
+        html += createSectionHTML('ELU - Verificação de Equilíbrio (Corpo Rígido)', combinations.elu_equilibrio);
+        html += createSectionHTML('Estado Limite de Serviço (ELS)', combinations.els);
+        
+        html += `</div>`;
+        reportOutput.innerHTML = html;
+    }
+    </script>
+</body>
+</html>
+
