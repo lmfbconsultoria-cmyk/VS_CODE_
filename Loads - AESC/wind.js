@@ -1,51 +1,6 @@
 // --- GLOBAL VARIABLES for state management ---
 let lastWindRunResults = null;
 
-/**
- * Wraps a calculation function in a try-catch block to prevent crashes.
- * @param {function} calcFunction - The function to execute.
- * @param {string} errorMessage - A user-friendly error message.
- * @returns The result of the function or an error object.
- */
-function safeCalculation(calcFunction, errorMessage) {
-    try {
-        return calcFunction();
-    } catch (error) {
-        console.error(errorMessage, error);
-        return { error: errorMessage, success: false };
-    }
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function setLoadingState(isLoading) {
-    const button = document.getElementById(`run-calculation-btn`);
-    if (!button) return;
-
-    if (isLoading) {
-        if (!button.dataset.originalText) {
-            button.dataset.originalText = button.innerHTML;
-        }
-        button.disabled = true;
-        button.innerHTML = `<span class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Calculating...</span>`;
-    } else {
-        if (button.dataset.originalText) {
-            button.innerHTML = button.dataset.originalText;
-        }
-        button.disabled = false;
-    }
-}
-
 function addRangeIndicators() {
     document.querySelectorAll('input[type="number"][min], input[type="number"][max]').forEach(input => {
         const min = input.min ? `Min: ${input.min}` : '';
@@ -123,6 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('click', (event) => {
             if (event.target.id === 'copy-report-btn') {
                 handleCopyToClipboard('results-container', 'feedback-message');
+            }
+            if (event.target.id === 'print-report-btn') {
+                window.print();
             }
             const button = event.target.closest('.toggle-details-btn');
             if (button) {
@@ -460,6 +418,37 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
 
     // --- C&C Calculation Helpers for h > 60 ft ---
 
+    /**
+     * A generic helper for 2D interpolation of GCp values for high-rise buildings.
+     * It interpolates first based on the logarithm of the effective wind area,
+     * and then based on the building height.
+     * @param {object} gcp_data - The data object containing GCp values, heights, and areas.
+     * @param {number} A - The effective wind area.
+     * @param {number} h - The mean roof height.
+     * @returns {object} An object mapping zones to their interpolated positive and negative GCp values.
+     */
+    function interpolateHighRiseGcp(gcp_data, A, h) {
+        const log_areas = gcp_data.areas.map(Math.log);
+        const log_A = Math.log(A);
+        const results = {};
+
+        // Iterate over the zones defined in the gcp_data object (e.g., 'Wall Zone 4', 'Roof Zone 1'').
+        for (const zone of Object.keys(gcp_data).filter(k => k !== 'heights' && k !== 'areas')) {
+            const zoneData = gcp_data[zone];
+            
+            // 1. Interpolate across area for each height point in the table.
+            const pos_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, zoneData.pos));
+            const neg_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, zoneData.neg));
+            
+            // 2. Interpolate across height using the results from the area interpolation.
+            results[zone] = {
+                positive: interpolate(h, gcp_data.heights, pos_vals_at_h),
+                negative: interpolate(h, gcp_data.heights, neg_vals_at_h)
+            };
+        }
+        return results;
+    }
+
     function calculateWallPressuresHighRise(A, h) {
         const gcp_data = {
             heights: [60, 100, 200, 300, 400, 500],
@@ -467,20 +456,7 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
             'Wall Zone 4': { pos: [0.9, 0.9, 0.8], neg: [-1.0, -0.9, -0.8] },
             'Wall Zone 5': { pos: [0.9, 0.9, 0.8], neg: [-1.2, -1.1, -1.0] }
         };
-        const log_areas = gcp_data.areas.map(Math.log);
-        const log_A = Math.log(A);
-
-        const results = {};
-        for (const zone of ['Wall Zone 4', 'Wall Zone 5']) {
-            const pos_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].pos));
-            const neg_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].neg));
-            
-            results[zone] = {
-                positive: interpolate(h, gcp_data.heights, pos_vals_at_h),
-                negative: interpolate(h, gcp_data.heights, neg_vals_at_h)
-            };
-        }
-        return results;
+        return interpolateHighRiseGcp(gcp_data, A, h);
     }
 
     function calculateSteepRoofCandC(A, h, theta) {
@@ -492,20 +468,7 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
             'Zone 2\'': { pos: [0.9, 0.7, 0.5], neg: [-1.8, -1.4, -1.0] },
             'Zone 3\'': { pos: [1.3, 1.0, 0.7], neg: [-2.6, -2.0, -1.4] }
         };
-        const log_areas = gcp_data.areas.map(Math.log);
-        const log_A = Math.log(A);
-
-        const results = {};
-        for (const zone of ['Zone 1\'', 'Zone 2\'', 'Zone 3\'']) {
-            const pos_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].pos));
-            const neg_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].neg));
-
-            results[zone] = {
-                positive: interpolate(h, gcp_data.heights, pos_vals_at_h),
-                negative: interpolate(h, gcp_data.heights, neg_vals_at_h)
-            };
-        }
-        return results;
+        return interpolateHighRiseGcp(gcp_data, A, h);
     }
 
     function calculateLowSlopeRoofPressuresHighRise(A, h) {
@@ -516,20 +479,7 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
             'Roof Zone 2\'': { pos: [0.7, 0.5, 0.3], neg: [-1.8, -1.4, -1.0] },
             'Roof Zone 3\'': { pos: [0.7, 0.5, 0.3], neg: [-2.6, -2.0, -1.4] }
         };
-        const log_areas = gcp_data.areas.map(Math.log);
-        const log_A = Math.log(A);
-
-        const results = {};
-        for (const zone of ['Roof Zone 1\'', 'Roof Zone 2\'', 'Roof Zone 3\'']) {
-            const pos_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].pos));
-            const neg_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, gcp_data[zone].neg));
-
-            results[zone] = {
-                positive: interpolate(h, gcp_data.heights, pos_vals_at_h),
-                negative: interpolate(h, gcp_data.heights, neg_vals_at_h)
-            };
-        }
-        return results;
+        return interpolateHighRiseGcp(gcp_data, A, h);
     }
 
     // Enhanced C&C calculation function
@@ -754,7 +704,8 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
      * Calculates the mean hourly wind speed at a given height.
      */
     function calculateMeanHourlyWindSpeed(V_in, z_effective, zg, alpha, b_bar) {
-        const V_bar_33ft = V_in * b_bar * Math.pow(33 / zg, 1 / alpha) * (88/60); // Convert mph to fps
+        // For Imperial units, V_in (mph) is converted to fps. For Metric, V_in (m/s) is used directly.
+        const V_bar_33ft = V_in * b_bar * Math.pow(33 / zg, 1 / alpha) * (inputs.unit_system === 'imperial' ? (88/60) : 1);
         return V_bar_33ft * Math.pow(z_effective / 33, 1 / alpha);
     }
 
@@ -762,7 +713,9 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
      * Calculates the resonant response factor, R.
      */
     function calculateResonantResponseFactor(n1, V_z_bar, Lz_bar) {
-        const damping_ratio = 0.01; // Assumed for steel/concrete buildings
+        // Damping ratio (beta) is typically 0.01 for steel buildings and 0.015 for concrete buildings.
+        // ASCE 7-16 Section C26.11.3 suggests 0.01 is a reasonable general assumption.
+        const damping_ratio = 0.01;
         const N1 = (n1 * Lz_bar) / V_z_bar;
         const Rn = (7.47 * N1) / Math.pow(1 + 10.3 * N1, 5/3);
         const Rh = (1 / N1) - (1 / (2 * N1 * N1)) * (1 - Math.exp(-2 * N1));
@@ -794,7 +747,8 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
         const ref_h = unit_system === 'imperial' ? 33 : 10; // 33 ft or 10 m
         const Lz_bar = l * Math.pow(z_bar_effective / ref_h, epsilon_bar);
     
-        const gQ = 3.4; // ASCE 7-16 Section 26.11.2, typically 3.4
+        // Peak factor for background response (gQ) is taken as 3.4 per ASCE 7-16 Section 26.11.2.
+        const gQ = 3.4;
         const gR = Math.sqrt(2 * Math.log(3600 * n1)) + (0.577 / Math.sqrt(2 * Math.log(3600 * n1)));
     
         const Q = Math.sqrt(1 / (1 + 0.63 * Math.pow(Math.max(mean_roof_height, building_length_L) / Lz_bar, 0.63)));
@@ -909,14 +863,14 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
                 // For windward wall, pressure varies with height z. We show pressure at h.
                 const p_pos = calculateDesignPressure(qz, G, cp, abs_gcpi);
                 const p_neg = calculateDesignPressure(qz, G, cp, -abs_gcpi);
-                return { surface, cp, p_pos, p_neg };
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
             });
 
             const { cpMap: cp_map_B } = getAnalyticalCpValues(inputs.mean_roof_height, inputs.building_width_B, inputs.building_length_L, inputs.roof_type, inputs.roof_slope_deg);
              windResults.directional_results['perp_to_B'] = Object.entries(cp_map_B).map(([surface, cp]) => {
                 const p_pos = calculateDesignPressure(qz, G, cp, abs_gcpi);
                 const p_neg = calculateDesignPressure(qz, G, cp, -abs_gcpi);
-                return { surface, cp, p_pos, p_neg };
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
             });
 
             const intermediate_globals = { Kd, Ke, V_in: v_input, effective_standard, abs_gcpi, qz, G };
@@ -929,14 +883,14 @@ function calculateDesignPressure(qz, G, Cp, GCpi) {
             windResults.directional_results['perp_to_L'] = Object.entries(cp_map_L).map(([surface, cp]) => {
                 const p_pos = calculateDesignPressure(qz, G, cp, abs_gcpi);
                 const p_neg = calculateDesignPressure(qz, G, cp, -abs_gcpi);
-                return { surface, cp, p_pos, p_neg };
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
             });
 
             const { cpMap: cp_map_B } = getCpValues(effective_standard, inputs.mean_roof_height, inputs.building_width_B, inputs.building_length_L, inputs.roof_type, inputs.roof_slope_deg, inputs.unit_system);
             windResults.directional_results['perp_to_B'] = Object.entries(cp_map_B).map(([surface, cp]) => {
                 const p_pos = calculateDesignPressure(qz, G, cp, abs_gcpi);
                 const p_neg = calculateDesignPressure(qz, G, cp, -abs_gcpi);
-                return { surface, cp, p_pos, p_neg };
+                return { surface, cp, p_pos, p_neg, p_pos_asd: p_pos * 0.6, p_neg_asd: p_neg * 0.6 };
             });
 
             const intermediate_globals = { Kd, Ke, V_in: v_input, effective_standard, abs_gcpi, qz, G };
@@ -1037,19 +991,19 @@ function handleRunWindCalculation() {
         return;
     }
 
-    setLoadingState(true);
+    setLoadingState(true, 'run-calculation-btn');
     const results = safeCalculation(
         () => windLoadCalculator.run(inputs, validation),
         'An unexpected error occurred during the wind calculation.'
     );
 
     if (results.error) {
-        setLoadingState(false);
+        setLoadingState(false, 'run-calculation-btn');
         renderValidationResults({ errors: [results.error] }, document.getElementById('results-container'));
         return;
     }
     renderWindResults(results);
-    setLoadingState(false);
+    setLoadingState(false, 'run-calculation-btn');
 }
 
 function renderValidationResults(validation, container) {
@@ -1116,6 +1070,154 @@ function renderRoofPressureChart(canvasId, pressureData, building_dimension, des
     });
 }
 
+function generateCandCDiagram(inputs, candc) {
+    if (!candc || !candc.applicable) return '';
+
+    const { mean_roof_height: h, building_length_L: L, building_width_B: B, roof_type, roof_slope_deg, unit_system } = inputs;
+    const h_unit = unit_system === 'imperial' ? 'ft' : 'm';
+    const is_high_rise = candc.is_high_rise;
+
+    // Calculate 'a' for zone dimensions
+    const least_dim = Math.min(L, B);
+    let a = Math.min(0.1 * least_dim, 0.4 * h);
+    const min_a_val = unit_system === 'imperial' ? 3.0 : 0.9;
+    a = Math.max(a, 0.04 * least_dim, min_a_val);
+
+    const a_val_str = a.toFixed(1);
+    const a_str = `a = ${a_val_str} ${h_unit}`;
+
+    let roof_diagram = '';
+    let wall_diagram = '';
+
+    // --- Wall Diagram (Elevation) ---
+    const wall_zone_5_label = is_high_rise ? "Zone 5" : "Zone 5 (Corners)";
+    const wall_zone_4_label = is_high_rise ? "Zone 4" : "Zone 4 (Interior)";
+    wall_diagram = `
+        <div class="diagram my-4">
+            <h4 class="text-center font-semibold text-sm mb-2">Wall C&C Zones (Elevation)</h4>
+            <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                <!-- Building Outline -->
+                <rect x="50" y="50" width="300" height="120" class="svg-member" />
+                <!-- Zone 5 -->
+                <rect x="50" y="50" width="${a_val_str}" height="120" fill="#ef4444" opacity="0.5" />
+                <rect x="${350 - a_val_str}" y="50" width="${a_val_str}" height="120" fill="#ef4444" opacity="0.5" />
+                <!-- Zone 4 -->
+                <rect x="${50 + parseFloat(a_val_str)}" y="50" width="${300 - 2 * a_val_str}" height="120" fill="#facc15" opacity="0.5" />
+                <!-- Labels -->
+                <text x="200" y="110" class="svg-label" text-anchor="middle">${wall_zone_4_label}</text>
+                <text x="${50 + a_val_str / 2}" y="80" class="svg-label" text-anchor="middle">${wall_zone_5_label}</text>
+                <text x="${350 - a_val_str / 2}" y="80" class="svg-label" text-anchor="middle">${wall_zone_5_label}</text>
+                <!-- Dimension 'a' -->
+                <line x1="50" y1="180" x2="${50 + a_val_str}" y2="180" class="svg-dim" />
+                <text x="${50 + a_val_str / 2}" y="190" class="svg-dim-text">${a_str}</text>
+            </svg>
+        </div>`;
+
+    // --- Roof Diagram (Plan View) ---
+    const roof_zone_3_label = is_high_rise ? "Zone 3'" : "Zone 3 (Corners)";
+    const roof_zone_2_label = is_high_rise ? "Zone 2'" : "Zone 2 (Edges)";
+    const roof_zone_1_label = is_high_rise ? "Zone 1'" : "Zone 1 (Interior)";
+
+    if (roof_type === 'flat' || (['gable', 'hip'].includes(roof_type) && roof_slope_deg <= 7)) {
+        let hip_zones = '';
+        if (roof_type === 'hip') {
+            hip_zones = `
+                <path d="M50 50 L 150 100 L 50 150 Z" fill="#9333ea" opacity="0.5" />
+                <path d="M350 50 L 250 100 L 350 150 Z" fill="#9333ea" opacity="0.5" />
+                <text x="100" y="105" class="svg-label" text-anchor="middle">End Zones</text>
+                <text x="300" y="105" class="svg-label" text-anchor="middle">End Zones</text>
+            `;
+        }
+        roof_diagram = `
+            <div class="diagram my-4">
+                <h4 class="text-center font-semibold text-sm mb-2">Roof C&C Zones (Plan View)</h4>
+                <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Base Roof -->
+                    <rect x="50" y="50" width="300" height="100" class="svg-member" />
+                    <!-- Zone 1 -->
+                    <rect x="${50 + parseFloat(a_val_str)}" y="${50 + parseFloat(a_val_str)}" width="${300 - 2 * a_val_str}" height="${100 - 2 * a_val_str}" fill="#4ade80" opacity="0.5" />
+                    <!-- Zone 2 -->
+                    <path d="M50 50 h 300 v 100 h -300 z M ${50 + parseFloat(a_val_str)} ${50 + parseFloat(a_val_str)} v ${100 - 2 * a_val_str} h ${300 - 2 * a_val_str} v -${100 - 2 * a_val_str} z" fill-rule="evenodd" fill="#facc15" opacity="0.5" />
+                    <!-- Zone 3 -->
+                    <path d="M50 50 h ${a_val_str} v ${a_val_str} h -${a_val_str} z" fill="#ef4444" opacity="0.5" />
+                    <path d="M${350 - a_val_str} 50 h ${a_val_str} v ${a_val_str} h -${a_val_str} z" fill="#ef4444" opacity="0.5" />
+                    <path d="M50 ${150 - a_val_str} h ${a_val_str} v ${a_val_str} h -${a_val_str} z" fill="#ef4444" opacity="0.5" />
+                    <path d="M${350 - a_val_str} ${150 - a_val_str} h ${a_val_str} v ${a_val_str} h -${a_val_str} z" fill="#ef4444" opacity="0.5" />
+                    ${hip_zones}
+                    <!-- Labels -->
+                    <text x="200" y="105" class="svg-label" text-anchor="middle">${roof_zone_1_label}</text>
+                    <text x="200" y="70" class="svg-label" text-anchor="middle">${roof_zone_2_label}</text>
+                    <text x="80" y="70" class="svg-label" text-anchor="middle">${roof_zone_3_label}</text>
+                </svg>
+            </div>`;
+    } else if (['gable', 'hip'].includes(roof_type)) { // Steep slope
+        const ridge_line = roof_type === 'gable' ? `<line x1="50" y1="100" x2="350" y2="100" stroke-dasharray="4 2" class="svg-dim" />` : `<line x1="150" y1="100" x2="250" y2="100" stroke-dasharray="4 2" class="svg-dim" />`;
+        const hip_lines = roof_type === 'hip' ? `<line x1="50" y1="50" x2="150" y2="100" class="svg-dim" /><line x1="50" y1="150" x2="150" y2="100" class="svg-dim" /><line x1="350" y1="50" x2="250" y2="100" class="svg-dim" /><line x1="350" y1="150" x2="250" y2="100" class="svg-dim" />` : '';
+        roof_diagram = `
+            <div class="diagram my-4">
+                <h4 class="text-center font-semibold text-sm mb-2">Roof C&C Zones (Plan View, Slope > 7°)</h4>
+                <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="50" y="50" width="300" height="100" class="svg-member" />
+                    ${ridge_line} ${hip_lines}
+                    <!-- Zones -->
+                    <rect x="${50 + parseFloat(a_val_str)}" y="50" width="${300 - 2 * a_val_str}" height="100" fill="#4ade80" opacity="0.5" />
+                    <path d="M50 50 h 300 v 100 h -300 z M ${50 + parseFloat(a_val_str)} 50 v 100 h ${300 - 2 * a_val_str} v -100 z" fill-rule="evenodd" fill="#facc15" opacity="0.5" />
+                    <rect x="50" y="50" width="${a_val_str}" height="100" fill="#ef4444" opacity="0.5" />
+                    <rect x="${350 - a_val_str}" y="50" width="${a_val_str}" height="100" fill="#ef4444" opacity="0.5" />
+                    <!-- Labels -->
+                    <text x="200" y="105" class="svg-label" text-anchor="middle">${roof_zone_1_label}</text>
+                    <text x="${50 + a_val_str + (300 - 2 * a_val_str) / 2}" y="70" class="svg-label" text-anchor="middle" transform="rotate(-15 200 70)">${roof_zone_2_label}</text>
+                    <text x="${50 + a_val_str / 2}" y="105" class="svg-label" text-anchor="middle">${roof_zone_3_label}</text>
+                </svg>
+            </div>`;
+    }
+
+    return `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${wall_diagram}${roof_diagram}</div>`;
+}
+
+function generateWindSummary(inputs, directional_results, candc, p_unit) {
+    let gov_mwfrs_pos = { value: -Infinity, surface: 'N/A' };
+    let gov_mwfrs_neg = { value: Infinity, surface: 'N/A' };
+    let gov_candc_pos = { value: -Infinity, zone: 'N/A' };
+    let gov_candc_neg = { value: Infinity, zone: 'N/A' };
+
+    if (inputs.enclosure_classification === 'Open' && directional_results.open_roof) {
+        directional_results.open_roof.forEach(r => {
+            const p_pos = r.p_pos; // Values are already factored in the main run function
+            const p_neg = r.p_neg;
+            if (p_pos > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: p_pos, surface: r.surface };
+            if (p_neg < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: p_neg, surface: r.surface };
+        });
+    } else if (directional_results) {
+        Object.values(directional_results).forEach(resultSet => {
+            resultSet.forEach(r => {
+                const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
+                const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+                if (p_pos > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: p_pos, surface: r.surface };
+                if (p_neg < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: p_neg, surface: r.surface };
+            });
+        });
+    }
+
+    if (candc && candc.applicable && candc.pressures) {
+        for (const zone in candc.pressures) {
+            const data = candc.pressures[zone];
+            const p_pos = inputs.design_method === 'ASD' ? data.p_pos * 0.6 : data.p_pos;
+            const p_neg = inputs.design_method === 'ASD' ? data.p_neg * 0.6 : data.p_neg;
+            if (p_pos > gov_candc_pos.value) gov_candc_pos = { value: p_pos, zone };
+            if (p_neg < gov_candc_neg.value) gov_candc_neg = { value: p_neg, zone };
+        }
+    }
+
+    return `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
+                <h3 class="text-xl font-semibold text-center mb-4">Governing Load Summary (${inputs.design_method})</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
+                    <div><h4 class="font-semibold text-lg mb-2">MWFRS</h4><p>Max Pressure: <strong class="text-xl">${(gov_mwfrs_pos.value).toFixed(2)} ${p_unit}</strong> <span class="text-xs">(${gov_mwfrs_pos.surface})</span></p><p>Max Suction: <strong class="text-xl">${(gov_mwfrs_neg.value).toFixed(2)} ${p_unit}</strong> <span class="text-xs">(${gov_mwfrs_neg.surface})</span></p></div>
+                    <div><h4 class="font-semibold text-lg mb-2">C&C</h4><p>Max Pressure: <strong class="text-xl">${(gov_candc_pos.value).toFixed(2)} ${p_unit}</strong> <span class="text-xs">(${gov_candc_pos.zone})</span></p><p>Max Suction: <strong class="text-xl">${(gov_candc_neg.value).toFixed(2)} ${p_unit}</strong> <span class="text-xs">(${gov_candc_neg.zone})</span></p></div>
+                </div>
+             </div>`;
+}
+
 function renderWindResults(results) {
      if (!results) return;
      lastWindRunResults = results; // Cache the results
@@ -1128,6 +1230,7 @@ function renderWindResults(results) {
 
     let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+                    <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                     <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
                    </div>`;
 
@@ -1141,6 +1244,25 @@ function renderWindResults(results) {
         html += renderValidationResults({ warnings, errors: [] });
     }
     
+    // --- Design Parameters Summary ---
+    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
+                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
+                <ul class="summary-list">
+                    <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
+                    <li><strong>Basic Wind Speed (V):</strong> ${inputs.V_unreduced.toFixed(1)} ${v_unit} <span class="ref">[User Input / Jurisdiction]</span></li>
+                    ${inputs.V_in !== inputs.V_unreduced ? `<li><strong>Calculation Wind Speed:</strong> ${inputs.V_in.toFixed(1)} ${v_unit} <span class="ref">[After Reductions]</span></li>` : ''}
+                    <li><strong>Exposure Category:</strong> ${sanitizeHTML(inputs.exposure_category)} <span class="ref">[ASCE 7, Sec. 26.7]</span></li>
+                    <li><strong>Mean Roof Height (h):</strong> ${inputs.mean_roof_height} ${h_unit}</li>
+                    <li><strong>Wind Directionality Factor (K<sub>d</sub>):</strong> ${intermediate.Kd.toFixed(2)} <span class="ref">[${intermediate.Kd_ref}]</span></li>
+                    <li><strong>Topographic Factor (K<sub>zt</sub>):</strong> ${inputs.topographic_factor_Kzt.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.8]</span></li>
+                    <li><strong>Ground Elevation Factor (K<sub>e</sub>):</strong> ${intermediate.Ke.toFixed(2)} <span class="ref">[${intermediate.ke_ref}]</span></li>
+                    <li><strong>Gust-Effect Factor (G):</strong> ${inputs.gust_effect_factor_g.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.11]</span></li>
+                    <li><strong>Velocity Pressure Exp. Coeff. (K<sub>z</sub>):</strong> ${intermediate.Kz.toFixed(2)} <span class="ref">[${intermediate.Kz_ref}]</span></li>
+                    <li><strong>Internal Pressure Coeff. (GC<sub>pi</sub>):</strong> &plusmn;${inputs.GCpi_abs.toFixed(2)} <span class="ref">[${intermediate.GCpi_ref}]</span></li>
+                    <li><strong>Velocity Pressure (q<sub>h</sub>):</strong> ${intermediate.qz.toFixed(2)} ${p_unit} <span class="ref">[${intermediate.qz_ref}]</span></li>
+                </ul>
+             </div>`;
+
     // Handle Open Building Results
     if (inputs.enclosure_classification === 'Open') {
         html += `<div class="text-center pt-4"><h3 class="text-xl font-bold">NET DESIGN PRESSURES (p = q_h*G*C_N)</h3></div>`;
@@ -1151,8 +1273,8 @@ function renderWindResults(results) {
             <tbody class="dark:text-gray-300">`;
         
         directional_results.open_roof.forEach(r => {
-            const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
-            const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+            const p_pos = r.p_pos; // Already factored
+            const p_neg = r.p_neg;
             tableHtml += `
                 <tr>
                     <td>${r.surface}</td>
@@ -1182,14 +1304,14 @@ function renderWindResults(results) {
             const detailId = `${id_prefix}-detail-${i}`;
             tableHtml += `
                 <tr>
-                    <td>${r.surface} <button data-toggle-id="${detailId}" class="toggle-details-btn">[Show]</button></td>
+                    <td>${sanitizeHTML(r.surface)} <button data-toggle-id="${detailId}" class="toggle-details-btn">[Show]</button></td>
                     <td>${r.cp.toFixed(2)}</td>
                     <td>${p_pos.toFixed(2)}</td>
                     <td>${p_neg.toFixed(2)}</td>
                 </tr>
                 <tr id="${detailId}" class="details-row"><td colspan="4" class="p-0"><div class="calc-breakdown">
                         <h4>Calculation for ${r.surface}</h4>
-                        <ul><li>p = qz * (G*Cp - GCpi) = ${intermediate.qz.toFixed(2)} * (${inputs.gust_effect_factor_g}*${r.cp.toFixed(2)} - &plusmn;${inputs.GCpi_abs})</li></ul>
+                        <ul><li>p = qz * (G*Cp - GCpi) = ${intermediate.qz.toFixed(2)} * (${sanitizeHTML(inputs.gust_effect_factor_g)}*${r.cp.toFixed(2)} - &plusmn;${inputs.GCpi_abs})</li></ul>
                     </div></td></tr>`;
         });
         tableHtml += `</tbody></table>`;
@@ -1371,8 +1493,11 @@ function renderWindResults(results) {
         html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
                     <h3 class="text-xl font-semibold text-center mb-4">Components & Cladding (C&C) Pressures</h3>
                     <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">
-                        Calculated for Effective Wind Area A = ${inputs.effective_wind_area} ${is_imp ? 'ft²' : 'm²'}. Reference: ${candc.ref}.
+                        Calculated for Effective Wind Area A = ${sanitizeHTML(inputs.effective_wind_area)} ${is_imp ? 'ft²' : 'm²'}. Reference: ${sanitizeHTML(candc.ref)}.
                     </p>
+                    
+                    ${generateCandCDiagram(inputs, candc)}
+
                     <table class="w-full mt-4 border-collapse">`;
         if (candc.is_high_rise) {
             html += `<thead class="bg-gray-100 dark:bg-gray-700">
@@ -1390,7 +1515,7 @@ function renderWindResults(results) {
                 const p_pos = inputs.design_method === 'ASD' ? data.p_pos * 0.6 : data.p_pos;
                 const p_neg = inputs.design_method === 'ASD' ? data.p_neg * 0.6 : data.p_neg;
                 html += `<tr>
-                            <td>${zone}</td>
+                            <td>${sanitizeHTML(zone)}</td>
                             <td>${data.gcp_pos.toFixed(2)}</td>
                             <td>${data.gcp_neg.toFixed(2)}</td>
                             <td>${p_pos.toFixed(2)}</td>
@@ -1409,11 +1534,13 @@ function renderWindResults(results) {
             for (const zone in candc.pressures) {
                 const data = candc.pressures[zone];
                 const pressure = inputs.design_method === 'ASD' ? data.p_neg * 0.6 : data.p_neg;
-                html += `<tr><td>${zone}</td><td>${data.gcp.toFixed(2)}</td><td>${pressure.toFixed(2)}</td></tr>`;
+                html += `<tr><td>${sanitizeHTML(zone)}</td><td>${data.gcp.toFixed(2)}</td><td>${pressure.toFixed(2)}</td></tr>`;
             }
         }
         html += `</tbody></table></div>`;
     }
+
+    html += generateWindSummary(inputs, directional_results, candc, p_unit);
 
     html += `</div>`;
     resultsContainer.innerHTML = html;

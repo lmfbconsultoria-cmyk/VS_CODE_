@@ -1,50 +1,5 @@
 let lastRainRunResults = null;
 
-/**
- * Wraps a calculation function in a try-catch block to prevent crashes.
- * @param {function} calcFunction - The function to execute.
- * @param {string} errorMessage - A user-friendly error message.
- * @returns The result of the function or an error object.
- */
-function safeCalculation(calcFunction, errorMessage) {
-    try {
-        return calcFunction();
-    } catch (error) {
-        console.error(errorMessage, error);
-        return { error: errorMessage, success: false };
-    }
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function setLoadingState(isLoading) {
-    const button = document.getElementById(`run-rain-calculation-btn`);
-    if (!button) return;
-
-    if (isLoading) {
-        if (!button.dataset.originalText) {
-            button.dataset.originalText = button.innerHTML;
-        }
-        button.disabled = true;
-        button.innerHTML = `<span class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Calculating...</span>`;
-    } else {
-        if (button.dataset.originalText) {
-            button.innerHTML = button.dataset.originalText;
-        }
-        button.disabled = false;
-    }
-}
-
 const rainInputIds = [
     'rain_asce_standard', 'rain_unit_system', 'rain_design_method', 'rain_jurisdiction', 'rain_tributary_area',
     'rain_intensity', 'rain_static_head', 'rain_hydraulic_head', 'dh_auto_calc_toggle', 'rain_drain_type', 'rain_scupper_width', 'rain_drain_diameter'
@@ -104,6 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('click', (event) => {
             if (event.target.id === 'copy-report-btn') {
                 handleCopyToClipboard('rain-results-container', 'feedback-message');
+            }
+            if (event.target.id === 'print-report-btn') {
+                window.print();
             }
         });
     }
@@ -166,6 +124,7 @@ const rainLoadCalculator = (() => {
     function run(inputs) {
         let { static_head: ds, hydraulic_head: dh, intensity: i, tributary_area: A, unit_system, jurisdiction, dh_auto_calc, drain_type, scupper_width, drain_diameter } = inputs;
         let dh_calc_note = "";
+        const warnings = [];
 
         if (dh_auto_calc) {
             // Per IPC, Q (gpm) = 0.0104 * A (sqft) * i (in/hr)
@@ -194,6 +153,10 @@ const rainLoadCalculator = (() => {
             }
         }
 
+        if (dh > ds) {
+            warnings.push(`The calculated hydraulic head (d_h = ${dh.toFixed(2)}) is greater than the static head (d_s = ${ds.toFixed(2)}). This indicates the secondary drainage system may be undersized for the given rainfall intensity and could lead to ponding instability. Review drainage design.`);
+        }
+
         const R_nominal = (unit_system === 'imperial') ? 5.2 * (ds + dh) : 0.0098 * (ds + dh);
         const jurisdiction_note = (jurisdiction === "NYCBC 2022") ? "NYCBC 2022 adopts ASCE 7-16 for rain loads. Note: The hydraulic head (dh) must be based on the 100-year hourly rainfall rate of 4 in/hr as per the NYC Plumbing Code." : "";
 
@@ -206,6 +169,7 @@ const rainLoadCalculator = (() => {
             },
             jurisdiction_note,
             dh_calc_note,
+            warnings,
             success: true
         };
     }
@@ -237,18 +201,32 @@ function handleRunRainCalculation() {
         return;
     }
 
-    setLoadingState(true);
+    setLoadingState(true, 'run-rain-calculation-btn'); // Assumes setLoadingState is in shared-utils.js
     const results = safeCalculation(
         () => rainLoadCalculator.run(inputs),
         'An unexpected error occurred during the rain calculation.'
     );
     if (results.error) {
-        setLoadingState(false);
+        setLoadingState(false, 'run-rain-calculation-btn');
         renderValidationResults({ errors: [results.error] }, document.getElementById('rain-results-container'));
         return;
     }
     renderRainResults(results);
-    setLoadingState(false);
+    setLoadingState(false, 'run-rain-calculation-btn');
+}
+
+function generateRainSummary(inputs, results, p_unit, dh_calc_note) {
+    const { R_strength, R_asd } = results;
+    const finalLoad = (inputs.design_method === 'ASD') ? R_asd : R_strength;
+    const noteHtml = dh_calc_note ? `<p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">${dh_calc_note}</p>` : '';
+
+    return `<div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="text-xl font-semibold text-center mb-4">Governing Load Summary (${inputs.design_method})</h3>
+                <div class="text-center">
+                    <p class="text-4xl font-bold">${finalLoad.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
+                    ${noteHtml}
+                </div>
+            </div>`;
 }
 
 function renderRainResults(results) {
@@ -265,6 +243,7 @@ function renderRainResults(results) {
 
     let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+                    <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                     <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
               </div>`;
 
@@ -282,23 +261,29 @@ function renderRainResults(results) {
     
     const finalLoad = (inputs.design_method === 'ASD') ? R_asd : R_strength;
 
-    html += `
-        <div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
-            <h3 class="text-xl font-semibold text-center mb-4">Final Rain Load (${inputs.design_method})</h3>
-            <div class="text-center">
-                <p class="text-4xl font-bold">${finalLoad.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
-            </div>
-        </div>
-        <div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4">
-            <h3 class="text-xl font-semibold text-center mb-4">Calculation Breakdown</h3>
-            <ul class="space-y-2">
+    // --- Design Parameters Summary ---
+    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
+                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
+                <ul class="summary-list">
+                    <li><strong>Tributary Area (A):</strong> ${inputs.tributary_area.toFixed(0)} ${a_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
+                    <li><strong>Rainfall Intensity (i):</strong> ${inputs.intensity.toFixed(2)} ${i_unit} <span class="ref">[Plumbing Code / ASCE 7, C8.3]</span></li>
+                    <li><strong>Static Head (d<sub>s</sub>):</strong> ${inputs.static_head.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
+                    <li><strong>Hydraulic Head (d<sub>h</sub>):</strong> ${dh_final.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>_
+                    ${inputs.dh_auto_calc ? `<li><span class="pl-4 text-sm text-gray-500 dark:text-gray-400">&hookrightarrow; ${dh_calc_note}</span></li>` : ''}
+                    <li><strong>Nominal Rain Load (R):</strong> ${R_nominal.toFixed(2)} ${p_unit} <span class="ref">[ASCE 7, Eq. 8.3-1]</span></li>
+                </ul>
+             </div>`;
+
+    html += generateRainSummary(inputs, results.results, p_unit, dh_calc_note);
+    html += `<div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4 mt-6">
+            <h3 class="text-xl font-semibold text-center mb-4">Calculation Breakdown</h3><ul class="space-y-2">
                 <li><strong>Formula (ASCE 7 Eq 8.3-1):</strong> R = ${factor} * (d<sub>s</sub> + d<sub>h</sub>)</li>
                 <li><strong>Static Head (d<sub>s</sub>):</strong> ${inputs.static_head.toFixed(2)} ${d_unit}</li>
                 ${inputs.dh_auto_calc ? `
                     <li><strong>Hydraulic Head (d<sub>h</sub>) Calculation:</strong>
                         <ul class="list-disc list-inside pl-4 text-sm">
                             <li>Rainfall Intensity (i): ${inputs.intensity.toFixed(2)} ${i_unit}</li>
-                            <li>Tributary Area (A): ${inputs.tributary_area.toFixed(0)} ${a_unit}</li>
+                            <li>Tributary Area (A): ${sanitizeHTML(inputs.tributary_area.toFixed(0))} ${a_unit}</li>
                             ${dh_calc_note ? `<li>${dh_calc_note}</li>` : ''}
                             <li>Calculated d<sub>h</sub> = <b>${dh_final.toFixed(2)} ${d_unit}</b></li>
                         </ul>

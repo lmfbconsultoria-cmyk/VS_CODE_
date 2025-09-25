@@ -33,6 +33,78 @@ function initializeTheme() {
 }
 
 /**
+ * Wraps a calculation function in a try-catch block to prevent crashes.
+ * @param {function} calcFunction - The function to execute.
+ * @param {string} errorMessage - A user-friendly error message.
+ * @returns The result of the function or an error object.
+ */
+function safeCalculation(calcFunction, errorMessage) {
+    try {
+        return calcFunction();
+    } catch (error) {
+        console.error(errorMessage, error);
+        return { error: errorMessage, success: false };
+    }
+}
+
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait` milliseconds have elapsed.
+ * @param {function} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @returns {function} The new debounced function.
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Toggles the loading state of a button, showing a spinner and disabling it.
+ * @param {boolean} isLoading - Whether to show the loading state.
+ * @param {string} buttonId - The ID of the button to update.
+ */
+function setLoadingState(isLoading, buttonId) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    if (isLoading) {
+        if (!button.dataset.originalText) button.dataset.originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = `<span class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Calculating...</span>`;
+    } else {
+        if (button.dataset.originalText) button.innerHTML = button.dataset.originalText;
+        button.disabled = false;
+    }
+}
+
+/**
+ * Sanitizes a string to prevent XSS by escaping HTML special characters.
+ * @param {string | number} str - The string or number to sanitize.
+ * @returns {string} The sanitized string.
+ */
+function sanitizeHTML(str) {
+    if (typeof str !== 'string') {
+        // If it's not a string (e.g., a number), convert it safely.
+        return String(str);
+    }
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
  * Displays a temporary feedback message to the user.
  * @param {string} message - The message to display.
  * @param {boolean} [isError=false] - If true, displays the message as an error.
@@ -47,14 +119,14 @@ function showFeedback(message, isError = false, feedbackElId = 'feedback-message
 }
 
 /**
- * Copies the content of a given container to the clipboard as rich text.
+ * Copies the content of a given container to the clipboard as rich text, with proper image handling for Word.
  * @param {string} containerId - The ID of the container with the report content.
  * @param {string} feedbackElId - The ID of the feedback element.
  */
-function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
+async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
     const container = document.getElementById(containerId);
     if (!container || !container.innerHTML.trim()) {
-        showFeedback('No results to copy.', true, feedbackElId);
+        showFeedback('No report content to copy.', true, feedbackElId);
         return;
     }
 
@@ -64,72 +136,315 @@ function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
     // Prepare the clone for copying
     clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
     clone.querySelectorAll('button').forEach(btn => btn.remove());
-    clone.querySelectorAll('canvas').forEach(canvas => canvas.remove()); // Remove charts
+    clone.querySelectorAll('canvas').forEach(canvas => canvas.remove());
 
-    // Recursively apply inline styles for maximum Word compatibility
-    const applyStyles = (element) => {
-        const tagName = element.tagName.toLowerCase();
-        element.style.fontFamily = "'Times New Roman', Times, serif";
-        element.style.fontSize = '12pt';
-        element.style.color = 'black';
-        element.style.backgroundColor = 'transparent';
-        element.style.border = 'none';
+    // Track conversion failures
+    let conversionFailures = 0;
 
-        switch (tagName) {
-            case 'h2':
-                element.style.fontSize = '14pt';
-                element.style.fontWeight = 'bold';
-                element.style.textAlign = 'center';
-                element.style.borderBottom = '1px solid black';
-                element.style.paddingBottom = '4px';
-                element.style.marginBottom = '10px';
-                break;
-            case 'h3':
-                element.style.fontSize = '13pt';
-                element.style.fontWeight = 'bold';
-                element.style.marginTop = '12px';
-                break;
-            case 'table':
-                element.style.borderCollapse = 'collapse';
-                element.style.width = '100%';
-                element.style.marginTop = '10px';
-                element.style.marginBottom = '10px';
-                break;
-            case 'th':
-            case 'td':
-                element.style.border = '1px solid black';
-                element.style.padding = '4px 8px';
-                element.style.textAlign = 'left';
-                break;
-            case 'caption':
-                element.style.fontWeight = 'bold';
-                element.style.textAlign = 'center';
-                element.style.padding = '4px';
-                break;
+    // --- SVG to PNG Conversion (Enhanced) ---
+    const svgElements = Array.from(clone.querySelectorAll('svg'));
+    for (const svg of svgElements) {
+        try {
+            // Get more accurate dimensions
+            const computedStyle = getComputedStyle(svg);
+            const rect = svg.getBoundingClientRect();
+            
+            let width = rect.width || parseFloat(computedStyle.width) || 400;
+            let height = rect.height || parseFloat(computedStyle.height) || 300;
+            
+            // Ensure minimum dimensions
+            width = Math.max(width, 100);
+            height = Math.max(height, 100);
+            
+            // Check if SVG has visible content
+            const svgText = svg.textContent || '';
+            const hasVisibleContent = width > 10 && height > 10 && 
+                                    (svg.children.length > 0 || svgText.trim().length > 0);
+            
+            if (!hasVisibleContent) {
+                console.warn('SVG appears to be empty or too small:', svg);
+                svg.remove();
+                continue;
+            }
+
+            const pngImage = await convertSvgToPng(svg, width, height);
+            if (pngImage) {
+                const containerDiv = document.createElement('div');
+                containerDiv.style.textAlign = 'center';
+                containerDiv.style.margin = '10px 0';
+                containerDiv.style.border = '1px solid #ddd';
+                containerDiv.style.padding = '10px';
+                containerDiv.style.backgroundColor = '#f9f9f9';
+                
+                // Add a caption with the SVG text content if available
+                const caption = svg.textContent || svg.getAttribute('aria-label') || 'Chart';
+                if (caption && caption.trim().length > 0) {
+                    const captionEl = document.createElement('div');
+                    captionEl.textContent = caption;
+                    captionEl.style.fontStyle = 'italic';
+                    captionEl.style.marginTop = '5px';
+                    captionEl.style.fontSize = '10pt';
+                    captionEl.style.color = '#666';
+                    containerDiv.appendChild(pngImage);
+                    containerDiv.appendChild(captionEl);
+                } else {
+                    containerDiv.appendChild(pngImage);
+                }
+                
+                svg.parentNode.replaceChild(containerDiv, svg);
+            } else {
+                conversionFailures++;
+                // If conversion fails, try to keep the SVG as-is or create a placeholder
+                const placeholder = document.createElement('div');
+                placeholder.innerHTML = `<strong>Chart: </strong>${svg.textContent || 'Image not available'}`;
+                placeholder.style.border = '1px solid #ffcccc';
+                placeholder.style.padding = '10px';
+                placeholder.style.backgroundColor = '#fff5f5';
+                placeholder.style.margin = '10px 0';
+                svg.parentNode.replaceChild(placeholder, svg);
+            }
+        } catch (e) {
+            console.error("Error processing SVG:", e);
+            conversionFailures++;
+            svg.remove(); // Remove problematic SVG
         }
+    }
 
-        // Style for alert/note boxes
-        if (element.classList.contains('bg-blue-100') || element.classList.contains('bg-yellow-100')) {
-            element.style.border = '1px solid #dddddd';
-            element.style.backgroundColor = '#f9f9f9';
-            element.style.padding = '10px';
-            element.style.marginTop = '10px';
-            element.style.marginBottom = '10px';
+    // --- Handle regular images ---
+    const regularImages = Array.from(clone.querySelectorAll('img'));
+    for (const img of regularImages) {
+        try {
+            // Ensure images have proper attributes for Word
+            if (!img.alt) img.alt = 'Image';
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            
+            // Wrap images in a container for better formatting
+            const containerDiv = document.createElement('div');
+            containerDiv.style.textAlign = 'center';
+            containerDiv.style.margin = '10px 0';
+            img.parentNode.insertBefore(containerDiv, img);
+            containerDiv.appendChild(img);
+        } catch (e) {
+            console.warn('Error processing regular image:', e);
         }
+    }
 
-        // Recurse
-        element.childNodes.forEach(child => { if (child.nodeType === 1) applyStyles(child); });
-    };
+    // Apply Word-compatible styles
+    applyWordCompatibleStyles(clone);
 
-    applyStyles(clone);
+    // Create HTML content
+    const htmlContent = createWordCompatibleHTML(clone.innerHTML);
 
-    const htmlBlob = new Blob([clone.innerHTML], { type: 'text/html' });
-    navigator.clipboard.write([new ClipboardItem({ 'text/html': htmlBlob })]).then(() => {
-        showFeedback('Report copied to clipboard!', false, feedbackElId);
-    }).catch(err => {
+    try {
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const plainTextBlob = new Blob([createPlainTextFallback(clone)], { type: 'text/plain' });
+        
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                'text/html': htmlBlob,
+                'text/plain': plainTextBlob
+            })
+        ]);
+        
+        let feedbackMessage = 'Report copied to clipboard! You can paste it into Word.';
+        if (conversionFailures > 0) {
+            feedbackMessage += ` (${conversionFailures} images may need manual adjustment)`;
+        }
+        showFeedback(feedbackMessage, false, feedbackElId);
+    } catch (err) {
         console.error('Failed to copy results: ', err);
-        showFeedback('Copy failed. See console for details.', true, feedbackElId);
+        showFeedback('Copy failed. Please try again or use browser-specific copy commands.', true, feedbackElId);
+    }
+}
+
+/**
+ * Enhanced SVG to PNG conversion with better text handling and sizing
+ */
+async function convertSvgToPng(svg, width, height) {
+    return new Promise((resolve) => {
+        try {
+            // Create a copy of the SVG to avoid modifying the original
+            const svgCopy = svg.cloneNode(true);
+            
+            // Ensure the SVG has proper dimensions
+            if (!svgCopy.hasAttribute('width')) {
+                svgCopy.setAttribute('width', width + 'px');
+            }
+            if (!svgCopy.hasAttribute('height')) {
+                svgCopy.setAttribute('height', height + 'px');
+            }
+            
+            // Set viewBox if not present to ensure proper scaling
+            if (!svgCopy.hasAttribute('viewBox')) {
+                svgCopy.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            }
+            
+            // Ensure text elements are properly styled for conversion
+            const textElements = svgCopy.querySelectorAll('text');
+            textElements.forEach(text => {
+                if (!text.getAttribute('font-family')) {
+                    text.setAttribute('font-family', 'Arial, sans-serif');
+                }
+                if (!text.getAttribute('font-size')) {
+                    text.setAttribute('font-size', '12px');
+                }
+            });
+
+            const xml = new XMLSerializer().serializeToString(svgCopy);
+            const svg64 = btoa(unescape(encodeURIComponent(xml)));
+            const image64 = 'data:image/svg+xml;base64,' + svg64;
+
+            const image = new Image();
+            image.onload = function() {
+                // Use the actual SVG dimensions or computed dimensions
+                const actualWidth = svgCopy.getAttribute('width') ? 
+                    parseInt(svgCopy.getAttribute('width')) : width;
+                const actualHeight = svgCopy.getAttribute('height') ? 
+                    parseInt(svgCopy.getAttribute('height')) : height;
+                
+                // Add padding to prevent cutting off content
+                const padding = 20;
+                const canvasWidth = Math.max(actualWidth, width) + padding * 2;
+                const canvasHeight = Math.max(actualHeight, height) + padding * 2;
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // White background for Word compatibility
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
+                // Draw the image with padding
+                ctx.drawImage(image, padding, padding, actualWidth, actualHeight);
+                
+                const pngImage = new Image();
+                pngImage.src = canvas.toDataURL('image/png');
+                pngImage.style.maxWidth = '100%';
+                pngImage.style.height = 'auto';
+                pngImage.style.display = 'block';
+                pngImage.style.margin = '0 auto';
+                pngImage.alt = 'Chart image'; // Add alt text for accessibility
+                
+                resolve(pngImage);
+            };
+            image.onerror = () => {
+                console.warn('SVG to PNG conversion failed for:', svg);
+                resolve(null);
+            };
+            image.src = image64;
+        } catch (e) {
+            console.error('SVG conversion error:', e);
+            resolve(null);
+        }
     });
+}
+
+/**
+ * Alternative approach: Export as HTML file that Word can open directly
+ */
+function exportAsHTMLFile(containerId, filename = 'report.html') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const content = container.innerHTML;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        img { max-width: 100%; height: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`;
+    
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Creates Word-compatible HTML structure
+ */
+function createWordCompatibleHTML(content) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.15;
+            color: #000000;
+            margin: 0.5in;
+        }
+        img { max-width: 100%; height: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid black; padding: 4pt 8pt; }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`;
+}
+
+/**
+ * Creates a plain text fallback for the clipboard
+ */
+function createPlainTextFallback(element) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = element.innerHTML;
+    
+    // Remove images and other non-text elements for plain text version
+    tempDiv.querySelectorAll('img, svg, canvas').forEach(el => el.remove());
+    
+    return tempDiv.textContent || tempDiv.innerText || 'Report content';
+}
+
+/**
+ * Fallback method for copying when Clipboard API is not available
+ */
+async function fallbackCopyToClipboard(htmlContent, element) {
+    // Create a temporary element with the content
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = htmlContent;
+    tempElement.style.position = 'fixed';
+    tempElement.style.left = '-9999px';
+    document.body.appendChild(tempElement);
+    
+    // Select the content
+    const range = document.createRange();
+    range.selectNodeContents(tempElement);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    // Execute copy command
+    try {
+        document.execCommand('copy');
+        selection.removeAllRanges();
+        document.body.removeChild(tempElement);
+        return true;
+    } catch (e) {
+        document.body.removeChild(tempElement);
+        throw e;
+    }
 }
 
 /**

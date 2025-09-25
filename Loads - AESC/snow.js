@@ -1,50 +1,5 @@
 let lastSnowRunResults = null;
 
-/**
- * Wraps a calculation function in a try-catch block to prevent crashes.
- * @param {function} calcFunction - The function to execute.
- * @param {string} errorMessage - A user-friendly error message.
- * @returns The result of the function or an error object.
- */
-function safeCalculation(calcFunction, errorMessage) {
-    try {
-        return calcFunction();
-    } catch (error) {
-        console.error(errorMessage, error);
-        return { error: errorMessage, success: false };
-    }
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function setLoadingState(isLoading) {
-    const button = document.getElementById(`run-snow-calculation-btn`);
-    if (!button) return;
-
-    if (isLoading) {
-        if (!button.dataset.originalText) {
-            button.dataset.originalText = button.innerHTML;
-        }
-        button.disabled = true;
-        button.innerHTML = `<span class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Calculating...</span>`;
-    } else {
-        if (button.dataset.originalText) {
-            button.innerHTML = button.dataset.originalText;
-        }
-        button.disabled = false;
-    }
-}
-
 const snowInputIds = [
     'snow_asce_standard', 'snow_unit_system', 'snow_risk_category', 'snow_design_method', 'snow_jurisdiction', 
     'snow_nycbc_minimum_roof_snow_load', 'snow_ground_snow_load', 'snow_surface_roughness_category', 
@@ -85,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('click', (event) => {
             if (event.target.id === 'copy-report-btn') {
                 handleCopyToClipboard('snow-results-container', 'feedback-message');
+            }
+            if (event.target.id === 'print-report-btn') {
+                window.print();
             }
             const button = event.target.closest('.toggle-details-btn');
             if (button) {
@@ -205,6 +163,10 @@ const snowLoadCalculator = (() => {
     }
     
     function calculateSnowDensity(pg) {
+        if (!isFinite(pg) || pg <= 0) { // Changed pg < 0 to pg <= 0
+            // Return a safe, non-zero default if input is invalid or zero to prevent division by zero later.
+            return 14.0; 
+        }
         let gamma = 0.13 * pg + 14;
         return Math.min(gamma, 30.0);
     }
@@ -318,7 +280,14 @@ const snowLoadCalculator = (() => {
         return { applicable: true, Ws, distribution_width, ps_sliding };
     }
 
-function run(inputs) {
+function run(inputs, validation) {
+         // Add jurisdiction-specific warnings
+         if (inputs.jurisdiction === "NYCBC 2022") {
+             const nycbc_min_pg = 25; // NYCBC 1608.2 specifies pg >= 25 psf (or 30 psf in some areas)
+             if (inputs.ground_snow_load < nycbc_min_pg) {
+                 validation.warnings.push(`The input ground snow load (p_g = ${inputs.ground_snow_load} psf) is less than the NYCBC 2022 minimum of ${nycbc_min_pg} psf. Verify the correct jurisdictional value.`);
+             }
+         }
          const { Is, Ce, Ct } = getSnowFactors(inputs.risk_category, inputs.exposure_condition, inputs.thermal_condition, inputs.surface_roughness_category);
          const Cs = calculateSlopeFactor(inputs.roof_slope_degrees, inputs.is_roof_slippery, Ct, inputs.asce_standard);
          const pf = 0.7 * Ce * Ct * Is * inputs.ground_snow_load;
@@ -370,6 +339,7 @@ function run(inputs) {
             results: { ps_balanced_nominal: ps_balanced },
             unbalanced: unbalanced_results, drift: drift_results, partial: partial_load_results, sliding: sliding_snow_results,
             is_nycbc_min_governed,
+            warnings: validation.warnings,
             success: true
         };
     }
@@ -379,27 +349,31 @@ function run(inputs) {
 
 function handleRunSnowCalculation() {
     const rawInputs = gatherInputsFromIds(snowInputIds);
+    
+    // Sanitize and map inputs to a clean object, preventing NaN issues
     const inputs = {
-        // Sanitize all numerical inputs to prevent NaN issues
-        ground_snow_load: Math.max(0, rawInputs.snow_ground_snow_load),
-        nycbc_minimum_roof_snow_load: Math.max(0, rawInputs.snow_nycbc_minimum_roof_snow_load),
-        roof_slope_degrees: Math.max(0, Math.min(90, rawInputs.snow_roof_slope_degrees)),
-        eave_to_ridge_distance_W: Math.max(0, rawInputs.snow_eave_to_ridge_distance_W),
-        winter_wind_parameter_W2: Math.max(0, rawInputs.snow_winter_wind_parameter_W2),
-        upper_roof_length_lu: Math.max(0, rawInputs.snow_upper_roof_length_lu),
-        height_difference_hc: Math.max(0, rawInputs.snow_height_difference_hc),
-        lower_roof_length_ll: Math.max(0, rawInputs.snow_lower_roof_length_ll),
+        ground_snow_load: parseFloat(rawInputs.snow_ground_snow_load) || 0,
+        nycbc_minimum_roof_snow_load: parseFloat(rawInputs.snow_nycbc_minimum_roof_snow_load) || 0,
+        roof_slope_degrees: parseFloat(rawInputs.snow_roof_slope_degrees) || 0,
+        eave_to_ridge_distance_W: parseFloat(rawInputs.snow_eave_to_ridge_distance_W) || 0,
+        winter_wind_parameter_W2: parseFloat(rawInputs.snow_winter_wind_parameter_W2) || 0,
+        upper_roof_length_lu: parseFloat(rawInputs.snow_upper_roof_length_lu) || 0,
+        height_difference_hc: parseFloat(rawInputs.snow_height_difference_hc) || 0,
+        lower_roof_length_ll: parseFloat(rawInputs.snow_lower_roof_length_ll) || 0,
+        is_roof_slippery: rawInputs.snow_is_roof_slippery === 'Yes',
+        calculate_unbalanced: rawInputs.snow_calculate_unbalanced === 'Yes',
+        calculate_drift: rawInputs.snow_calculate_drift === 'Yes',
+        calculate_sliding: rawInputs.snow_calculate_sliding === 'Yes',
+        is_simply_supported_prismatic: rawInputs.snow_is_simply_supported_prismatic === 'Yes',
+        asce_standard: rawInputs.snow_asce_standard,
+        unit_system: rawInputs.snow_unit_system,
+        risk_category: rawInputs.snow_risk_category,
+        design_method: rawInputs.snow_design_method,
+        jurisdiction: rawInputs.snow_jurisdiction,
+        surface_roughness_category: rawInputs.snow_surface_roughness_category,
+        exposure_condition: rawInputs.snow_exposure_condition,
+        thermal_condition: rawInputs.snow_thermal_condition
     };
-
-    for (const id in rawInputs) {
-        const key = id.replace('snow_', '');
-        const value = rawInputs[id];
-        if (['is_roof_slippery', 'is_simply_supported_prismatic', 'calculate_unbalanced', 'calculate_drift', 'calculate_sliding'].includes(key)) {
-            inputs[key] = value === 'Yes';
-        } else if (inputs[key] === undefined) { // Add non-numeric inputs
-            inputs[key] = value;
-        }
-    }
     
     const validation = validateInputs(inputs, 'snow');
     if (validation.errors.length > 0) {
@@ -407,18 +381,18 @@ function handleRunSnowCalculation() {
         return;
     }
 
-    setLoadingState(true);
+    setLoadingState(true, 'run-snow-calculation-btn'); // Assumes setLoadingState is in shared-utils.js
     const results = safeCalculation(
         () => snowLoadCalculator.run(inputs, validation),
         'An unexpected error occurred during the snow calculation.'
     );
     if (results.error) {
-        setLoadingState(false);
+        setLoadingState(false, 'run-snow-calculation-btn');
         renderValidationResults({ errors: [results.error] }, document.getElementById('snow-results-container'));
         return;
     }
     renderSnowResults(results);
-    setLoadingState(false);
+    setLoadingState(false, 'run-snow-calculation-btn');
 }
 
 function renderSnowResults(results) {
@@ -433,6 +407,7 @@ function renderSnowResults(results) {
 
      let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
      html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+                    <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                     <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
               </div>`;
 
@@ -449,6 +424,22 @@ function renderSnowResults(results) {
         html += renderValidationResults({ warnings, errors: [] });
     }
 
+    // --- Design Parameters Summary ---
+    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
+                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
+                <ul class="summary-list">
+                    <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
+                    <li><strong>Ground Snow Load (p<sub>g</sub>):</strong> ${inputs.ground_snow_load.toFixed(2)} ${p_unit} <span class="ref">[User Input / ASCE 7 Fig. 7.2-1]</span></li>
+                    <li><strong>Exposure Condition:</strong> ${sanitizeHTML(inputs.exposure_condition)} <span class="ref">[ASCE 7, Sec. 7.3.1]</span></li>
+                    <li><strong>Thermal Condition:</strong> ${sanitizeHTML(inputs.thermal_condition)} <span class="ref">[ASCE 7, Sec. 7.3.2]</span></li>
+                    <li><strong>Importance Factor (I<sub>s</sub>):</strong> ${intermediate.Is.toFixed(2)} <span class="ref">[ASCE 7, Table 1.5-2]</span></li>
+                    <li><strong>Exposure Factor (C<sub>e</sub>):</strong> ${intermediate.Ce.toFixed(2)} <span class="ref">[ASCE 7, Table 7.3-1]</span></li>
+                    <li><strong>Thermal Factor (C<sub>t</sub>):</strong> ${intermediate.Ct.toFixed(2)} <span class="ref">[ASCE 7, Table 7.3-2]</span></li>
+                    <li><strong>Slope Factor (C<sub>s</sub>):</strong> ${intermediate.Cs.toFixed(3)} <span class="ref">[ASCE 7, Fig. 7.4-1]</span></li>
+                    <li><strong>Flat Roof Snow Load (p<sub>f</sub>):</strong> ${intermediate.pf.toFixed(2)} ${p_unit} <span class="ref">[ASCE 7, Eq. 7.3-1]</span></li>
+                </ul>
+             </div>`;
+
     html += `
         <div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
             <h3 class="text-xl font-semibold text-center mb-4">Balanced Snow Load (${inputs.design_method})</h3>
@@ -463,7 +454,7 @@ function renderSnowResults(results) {
                     <h4>Balanced Snow Load Breakdown</h4>
                     <ul>
                         <li>Flat Roof Snow Load (p<sub>f</sub>) = 0.7 * C<sub>e</sub> * C<sub>t</sub> * I<sub>s</sub> * p<sub>g</sub></li>
-                        <li>p<sub>f</sub> = 0.7 * ${intermediate.Ce.toFixed(2)} * ${intermediate.Ct.toFixed(2)} * ${intermediate.Is.toFixed(2)} * ${inputs.ground_snow_load} = <b>${intermediate.pf.toFixed(2)} ${p_unit}</b></li>
+                        <li>p<sub>f</sub> = 0.7 * ${intermediate.Ce.toFixed(2)} * ${intermediate.Ct.toFixed(2)} * ${intermediate.Is.toFixed(2)} * ${sanitizeHTML(inputs.ground_snow_load)} = <b>${intermediate.pf.toFixed(2)} ${p_unit}</b></li>
                         <li>Slope Factor (C<sub>s</sub>) = <b>${intermediate.Cs.toFixed(3)}</b> (for ${inputs.roof_slope_degrees}° slope)</li>
                         <li>Calculated Roof Snow Load (p<sub>s</sub>) = p<sub>f</sub> * C<sub>s</sub> = ${intermediate.pf.toFixed(2)} * ${intermediate.Cs.toFixed(3)} = <b>${intermediate.ps_calculated.toFixed(2)} ${p_unit}</b></li>
                         ${intermediate.asce7_min_governed ? `<li>Minimum Snow Load (p<sub>min</sub>) for low-slope roofs governs: <b>${intermediate.ps_asce7.toFixed(2)} ${p_unit}</b></li>` : ''}
@@ -551,6 +542,8 @@ function renderSnowResults(results) {
         }
         html += `</div>`;
     }
+
+    html += generateSnowSummary(inputs, results.results, unbalanced, drift, sliding, p_unit);
 
     html += `</div>`;
     resultsContainer.innerHTML = html;
