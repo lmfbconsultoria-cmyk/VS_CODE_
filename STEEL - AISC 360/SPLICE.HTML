@@ -7,151 +7,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        // This script is in shared-utils.js, but needs to run early to prevent FOUC.
+        (function() {
+            const isDark = localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', isDark);
+        })();
     </script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .form-section { background-color: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); margin-bottom: 1.5rem; }
-        .diagram { border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; background-color: #f9fafb; margin-bottom: 1.5rem; }
-        input[type="number"], select { width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #d1d5db; color: #000; }
-        label { font-weight: 500; display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #374151; }
-        h2 { font-size: 1.5rem; font-weight: 600; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem; }
-        h3 { font-size: 1.25rem; font-weight: 600; color: #111827; margin-top: 1.5rem; margin-bottom: 1rem; }
-        .results-section { background-color: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); margin-top: 1.5rem;}
-        .results-section table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .results-section th, .results-section td { padding: 0.75rem; border: 1px solid #d1d5db; text-align: left;}
-        .results-section th { background-color: #f3f4f6; font-weight: 600; }
-        .results-section caption { font-size: 1.25rem; font-weight: 700; padding: 0.75rem; caption-side: top; text-align: center; } 
-        .calc-breakdown { background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;}
-        .calc-breakdown h4 { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;}
-        .calc-breakdown ul { list-style-type: disc; margin-left: 20px;}
-        /* SVG Diagram Styles */
-        .svg-dim { stroke: #4b5563; stroke-width: 0.5; fill: none; }
-        .svg-dim-text { font-size: 8px; fill: #4b5563; font-family: sans-serif; text-anchor: middle; }
-        .svg-label { font-size: 10px; fill: #1f2937; font-family: sans-serif; font-weight: bold; text-anchor: middle; }
-        .svg-plate { fill: #dbeafe; stroke: #60a5fa; stroke-width: 0.75; }
-        .svg-member { fill: #e5e7eb; stroke: #9ca3af; stroke-width: 0.75; }
-        .svg-bolt { fill: #9ca3af; stroke: #4b5563; stroke-width: 0.5; }
-        .svg-gap { fill: none; stroke: #ef4444; stroke-width: 0.5; stroke-dasharray: 2 2; }
-
-        /* Dark Mode Styles */
-        .dark body { background-color: #111827; }
-        .dark .form-section, .dark .results-section { background-color: #1f2937; }
-        .dark .diagram { background-color: #1f2937; border-color: #374151; }
-        .dark h1, .dark h2, .dark h3 { color: #f9fafb; border-color: #374151; }
-        .dark label { color: #d1d5db; }
-        .dark input[type="number"], .dark select { background-color: #374151; border-color: #4b5563; color: #f9fafb; }
-        .dark input:disabled, .dark .bg-gray-100 { background-color: #374151; opacity: 0.7; }
-        .dark .results-section th, .dark .bg-gray-200 { background-color: #374151; }
-        .dark .results-section td { border-color: #374151; }
-        .dark .calc-breakdown { background-color: #111827; border-color: #374151; }
-        .dark .svg-dim { stroke: #9ca3af; }
-        .dark .svg-dim-text { fill: #9ca3af; }
-        .dark .svg-label { fill: #d1d5db; }
-        .dark .svg-plate { fill: #1e3a8a; stroke: #3b82f6; }
-        .dark .svg-member { fill: #374151; stroke: #6b7280; }
-        .dark .svg-bolt { fill: #6b7280; stroke: #9ca3af; }
-
-        /* Ensure ALL text is black in light mode */
-        body, 
-        h1, h2, h3, h4, h5, h6,
-        p, span, div,
-        label, 
-        input, select, textarea,
-        button,
-        table, th, td,
-        .calc-breakdown,
-        .results-section,
-        .form-section {
-            color: #000000 !important;
-        }
-
-        /* Override specific grey colors in light mode */
-        .text-gray-600,
-        .text-gray-500,
-        .text-gray-400 {
-            color: #000000 !important;
-        }
-
-        /* But keep the original colors for dark mode */
-        .dark body,
-        .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
-        .dark p, .dark span, .dark div,
-        .dark label,
-        .dark input, .dark select, .dark textarea,
-        .dark button,
-        .dark table, .dark th, .dark td,
-        .dark .calc-breakdown,
-        .dark .results-section,
-        .dark .form-section {
-            color: #d1d5db !important; /* Your existing dark mode text color */
-        }
-
-        .dark .text-gray-600,
-        .dark .text-gray-500,
-        .dark .text-gray-400 {
-            color: inherit !important; /* Let dark mode handle these */
-        }
-    </style>
-    <style>
-        /* Styles for Copy-Friendly View */
-        .copy-friendly {
-            font-family: 'Times New Roman', Times, serif !important;
-            font-size: 12pt !important;
-            color: black !important;
-            background: white !important;
-        }
-        .copy-friendly * {
-            font-family: inherit !important;
-            color: inherit !important;
-            border-color: black !important;
-            background-color: transparent !important;
-        }
-        .copy-friendly h2, .copy-friendly h3, .copy-friendly h4,
-        .copy-friendly .font-bold, .copy-friendly .font-semibold,
-        .copy-friendly caption {
-            font-weight: bold !important;
-        }
-        .copy-friendly h2 { font-size: 16pt !important; }
-        .copy-friendly h3 { font-size: 14pt !important; }
-        .copy-friendly h4 { font-size: 13pt !important; }
-        .copy-friendly table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 10px 0;
-        }
-        .copy-friendly th, .copy-friendly td {
-            border: 1px solid #000;
-            padding: 4px 8px;
-            text-align: left;
-        }
-        .copy-friendly th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-        .copy-friendly button, .copy-friendly .diagram { display: none !important; } /* Hide buttons and diagrams in copied content */
-    </style>
+    <link rel="stylesheet" href="../styles.min.css">
+    <script src="../shared-utils.js" defer></script>
 </head>
-<body class="bg-gray-50 p-4 dark:bg-gray-900">
+<body class="bg-gray-50 dark:bg-gray-900 p-4">
 
 <div class="container mx-auto max-w-7xl">
-    <div class="relative text-center mb-6">
-        <h1 class="text-3xl font-bold">AISC Beam Splice Checker (AISC 360-22)</h1>
+    <header class="text-center mb-8 relative">
+        <h1 class="text-3xl md:text-4xl font-bold">AISC Beam Splice Checker (AISC 360-22)</h1>
         <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
             <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
             <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
         </button>
-    </div>
+    </header>
 
     <!-- Input Sections -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="form-section">
-            <h2 class="!mt-0">General & Member Properties</h2>
+            <h2>General & Member Properties</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="design_method">Design Method</label><select id="design_method"><option selected>ASD</option><option>LRFD</option></select></div> 
                 <div><label for="gap">Gap (in)</label><input type="number" id="gap" value="0.5"></div>
@@ -177,34 +56,38 @@
         </div>
 
         <div class="form-section">
-            <h2 class="!mt-0">Bolt Properties</h2>
-            <h3>Flange Bolts</h3>
+            <h2>Bolt Properties</h2>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Flange Bolts</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="D_fp">Bolt Dia (in)</label><input type="number" id="D_fp" value="0.75"></div> 
                 <div><label for="bolt_grade_fp">Bolt Grade</label><select id="bolt_grade_fp"><option>A325</option><option>A490</option><option>F3148</option></select></div>
                 <div class="col-span-2 flex items-center mt-2"><input id="threads_included_fp" type="checkbox" class="h-4 w-4" checked><label for="threads_included_fp" class="ml-2">Threads in Shear Plane? (checked = yes)</label></div>
             </div>
-              <h3>Web Bolts</h3>
+              <h3 class="text-lg font-semibold mt-4 mb-2">Web Bolts</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="D_wp">Bolt Dia (in)</label><input type="number" id="D_wp" value="0.75"></div>
                 <div><label for="bolt_grade_wp">Bolt Grade</label><select id="bolt_grade_wp"><option>A325</option><option>A490</option><option>F3148</option></select></div>
                 <div class="col-span-2 flex items-center mt-2"><input id="threads_included_wp" type="checkbox" class="h-4 w-4" checked><label for="threads_included_wp" class="ml-2">Threads in Shear Plane? (checked = yes)</label></div>
             </div>
+            <div class="col-span-2 flex items-center mt-4">
+                <input id="deformation_is_consideration" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <label for="deformation_is_consideration" class="ml-2 mb-0">Deformation at Bolt Hole is a Design Consideration?</label>
+            </div>
         </div>
     </div>
     
     <div class="form-section">
-        <h2 class="!mt-0">Flange Splice Plates</h2>
+        <h2>Flange Splice Plates</h2>
         <div class="diagram">
             <svg id="flange-svg" viewBox="0 0 500 250" class="w-full h-auto"></svg>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <h3>Configuration</h3>
+                <h3 class="text-lg font-semibold mt-4 mb-2">Configuration</h3>
                  <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2"><label for="num_flange_plates">Configuration</label><select id="num_flange_plates"><option value="1">1 (Outer Only)</option><option value="2" selected>2 (Outer+Inner)</option></select></div>
                 </div>
-                <h3>Outer Plate</h3>
+                <h3 class="text-lg font-semibold mt-4 mb-2">Outer Plate</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label for="flange_plate_Fy">F_y (ksi)</label><input type="number" id="flange_plate_Fy" value="36"></div>
                     <div><label for="flange_plate_Fu">F_u (ksi)</label><input type="number" id="flange_plate_Fu" value="58"></div>
@@ -213,7 +96,7 @@
                     <div class="col-span-2"><label for="L_fp">Total Length (in)</label><input type="number" id="L_fp" value="20.75"></div>
                 </div>
                  <div id="inner-flange-inputs">
-                    <h3 class="mt-4">Inner Plate</h3>
+                    <h3 class="text-lg font-semibold mt-4 mb-2">Inner Plate</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div><label for="flange_plate_Fy_inner">F_y (ksi)</label><input type="number" id="flange_plate_Fy_inner" value="36"></div>
                         <div><label for="flange_plate_Fu_inner">F_u (ksi)</label><input type="number" id="flange_plate_Fu_inner" value="58"></div>
@@ -224,7 +107,7 @@
                 </div>
             </div>
             <div>
-                 <h3>Bolt Layout</h3>
+                 <h3 class="text-lg font-semibold mt-4 mb-2">Bolt Layout</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label for="Nc_fp">Cols/Side (Nc)</label><input type="number" id="Nc_fp" value="4"></div>
                     <div><label for="Nr_fp">Rows per Side (Nr)</label><input type="number" id="Nr_fp" value="2"></div>
@@ -238,13 +121,13 @@
     </div>
     
     <div class="form-section">
-        <h2 class="!mt-0">Web Splice Plates</h2>
+        <h2>Web Splice Plates</h2>
          <div class="diagram">
             <svg id="web-svg" viewBox="0 0 500 300" class="w-full h-auto"></svg>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                 <h3>Plate Properties</h3>
+                 <h3 class="text-lg font-semibold mt-4 mb-2">Plate Properties</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label for="num_web_plates">Num Plates</label><select id="num_web_plates"><option>1</option><option selected>2</option></select></div>
                     <div></div>
@@ -256,7 +139,7 @@
                 </div>
             </div>
              <div>
-                 <h3>Bolt Layout</h3>
+                 <h3 class="text-lg font-semibold mt-4 mb-2">Bolt Layout</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label for="Nc_wp">Cols/Side (Nc)</label><input type="number" id="Nc_wp" value="4"></div>
                     <div><label for="Nr_wp">Rows (Nr)</label><input type="number" id="Nr_wp" value="4"></div>
@@ -268,14 +151,15 @@
         </div>
     </div>
 
-    <div class="text-center my-6 flex justify-center items-center gap-4 flex-wrap">
-        <button id="run-check-btn" class="bg-blue-600 text-white py-3 px-8 rounded-lg hover:bg-blue-700 text-lg font-semibold">Run Splice Check</button>
-        <button id="copy-to-word-btn" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 font-semibold">Copy Results</button>        <button id="save-inputs-btn" class="bg-teal-500 text-white py-2 px-4 rounded-lg hover:bg-teal-600 font-semibold">Save to File</button>
-        <button id="load-inputs-btn" class="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 font-semibold">Load from File</button>
+    <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
+        <button id="load-inputs-btn" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all">Load Inputs</button>
+        <input type="file" id="file-input" class="hidden" accept=".txt">
+        <button id="save-inputs-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all">Save Inputs</button>
+        <button id="run-check-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">Run Splice Check</button>
     </div>
 
-    <div id="action-feedback" class="text-center text-sm h-5 mb-4"></div>
-    <div id="results-container"></div>
+    <div id="feedback-message" class="text-center mt-2 text-sm h-5"></div>
+    <div id="results-container" class="results-container mt-10"></div>
 </div>
 
 <script>
@@ -506,21 +390,26 @@ const spliceCalculator = (() => {
     const E_MOD = 29000.0; // ksi
     const HOLE_OVERSIZE_GEOM = 1/16; // in, for bearing/prying
 
-function checkBoltShear(grade, threadsIncl, db, numPlanes = 1) {
-    const FnvMap = { "A325": {true: 54.0, false: 68.0}, "A490": {true: 68.0, false: 84.0}, "F3148": {true: 65.0, false: 81.0} };
-    const Fnv = FnvMap[grade]?.[threadsIncl] ?? 0; 
-    const Ab = PI * (db**2) / 4.0;
+function checkBoltShear(grade, threadsIncl, db, numPlanes = 1) { // AISC J3.6
+    const FnvMap = { "A325": {true: 54.0, false: 68.0}, "A490": {true: 68.0, false: 84.0}, "F3148": {true: 65.0, false: 81.0} }; // Table J3.2
+    const Fnv = FnvMap[grade]?.[threadsIncl] ?? 0;
+    const Ab = PI * (db ** 2) / 4.0;
     return { Rn: Fnv * Ab * numPlanes, phi: 0.75, omega: 2.00, Fnv, Ab, num_planes: numPlanes };
 }
 
-function checkBoltBearing(db, t_ply, Fu_ply, le, s, isEdgeBolt) {
-    // AISC 360-22 Eq J3-6a/b. Using coefficients for when hole deformation is not a design consideration.
+function checkBoltBearing(db, t_ply, Fu_ply, le, s, isEdgeBolt, deformationIsConsideration) {
+    // AISC 360-22 Eq J3-6.
+    const tearout_coeff = deformationIsConsideration ? 1.5 : 1.2;
+    const bearing_coeff = deformationIsConsideration ? 3.0 : 2.4;
     const hole_dia = db + HOLE_OVERSIZE_GEOM; // Standard hole per AISC Table J3.3
     const Lc = isEdgeBolt ? le - hole_dia / 2.0 : s - hole_dia;
     if (Lc < 0) return { Rn: 0, phi: 0.75, omega: 2.00, Lc: 0, Rn_tearout: 0, Rn_bearing: 0 }; 
 
     const Rn_tearout = 1.5 * Lc * t_ply * Fu_ply;
     const Rn_bearing = 3.0 * db * t_ply * Fu_ply;
+    return { Rn: min(Rn_tearout, Rn_bearing), phi: 0.75, omega: 2.00, Lc, Rn_tearout, Rn_bearing };
+    const Rn_tearout = tearout_coeff * Lc * t_ply * Fu_ply;
+    const Rn_bearing = bearing_coeff * db * t_ply * Fu_ply;
     return { Rn: min(Rn_tearout, Rn_bearing), phi: 0.75, omega: 2.00, Lc, Rn_tearout, Rn_bearing };
 }
 
@@ -541,7 +430,8 @@ function checkBlockShear(Anv, Agv, Ant, Fu, Fy, Ubs = 1.0) {
     const tension_term = Ubs * Fu * Ant;
     const path_rupture = (0.6 * Fu * Anv) + tension_term;
     const path_yield = (0.6 * Fy * Agv) + tension_term;
-    return { Rn: min(path_rupture, path_yield), phi: 0.75, omega: 2.00, Anv, Agv, Ant, Fu, Fy, Ubs };
+    const Rn = Math.min(path_rupture, path_yield);
+    return { Rn, phi: 0.75, omega: 2.00, Anv, Agv, Ant, Fu, Fy, Ubs, path_rupture, path_yield };
 }
 
 function checkShearYielding(Agv, Fy) {
@@ -610,8 +500,7 @@ function checkBoltShearTensionInteraction(Tu, Vu, grade, threadsIncl, db, design
         F_nt_prime = 1.3 * Fnt - (omega_v * Fnt / Fnv) * fv;
     }
     
-    F_nt_prime = max(0, F_nt_prime); // Prevent negative values
-    F_nt_prime = min(F_nt_prime, Fnt); // Cannot exceed nominal tensile strength
+    F_nt_prime = Math.min(F_nt_prime, Fnt); // Per J3.9, F'nt shall not exceed Fnt
 
     const Rn = F_nt_prime * Ab; // Nominal tensile strength adjusted for shear
     return { Rn, phi: 0.75, omega: 2.00, Fnt, Fnv, Ab, fv, F_nt_prime, Tu, Vu }; // phi/omega for tension are used
@@ -648,7 +537,7 @@ function calculateWebSpliceEccentricity(V_load, gap, Nc, Nr, S_col, S_row, S_end
 
 function checkPryingAction(t_plate, Fy_plate, b, a, p, d_bolt, d_hole, B_bolt) {
     // Per AISC Manual Part 9
-    if (p === 0 || Fy_plate === 0 || B_bolt <= 0) return { Q: 0, tc: Infinity, alpha_prime: 0 };
+    if (p <= 0 || Fy_plate <= 0 || B_bolt <= 0) return { Q: 0, tc: Infinity, alpha_prime: 0 };
 
     const b_prime = b - d_bolt / 2.0;
     const a_prime = min(a + d_bolt / 2.0, 1.25 * b_prime);
@@ -690,6 +579,180 @@ function getGeometryChecks(db, s_col, s_row, le_long, le_tran, t_thinner) {
     };
 }
 
+function generateBreakdownHtml(name, data, design_method) { // This function is used by renderResults
+    const { check, details } = data;
+    if (!check) return '';
+    let content = '';
+
+    const factor_char = design_method === 'LRFD' ? '&phi;' : '&Omega;';
+    const factor_val = design_method === 'LRFD' ? check.phi : check.omega;
+    const capacity_eq = design_method === 'LRFD' ? `&phi;R<sub>n</sub>` : `R<sub>n</sub> / &Omega;`;
+    const design_capacity = (check.Rn / (factor_val || 1.0)); 
+    const final_capacity = design_method === 'LRFD' ? check.Rn * factor_val : check.Rn / factor_val;
+    const format_list = (items) => `<ul>${items.map(i => `<li class="py-1">${i}</li>`).join('')}</ul>`;
+
+    switch (name) {
+        case 'Flange Bolt Shear':
+            content = format_list([
+                `Nominal Shear Strength per bolt (R<sub>n,bolt</sub>) = F<sub>nv</sub> * A<sub>b</sub> * n<sub>planes</sub>`,
+                `R<sub>n,bolt</sub> = ${check.Fnv.toFixed(1)} ksi * ${check.Ab.toFixed(3)} in² * ${check.num_planes} = ${details.Rn_single.toFixed(2)} kips`,
+                `Total Nominal Strength (R<sub>n</sub>) = R<sub>n,bolt</sub> * n<sub>bolts</sub>`,
+                `R<sub>n</sub> = ${details.Rn_single.toFixed(2)} kips * ${details.num_bolts} = <b>${check.Rn.toFixed(2)} kips</b>`, 
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+        
+        case 'Outer Plate GSY': case 'Inner Plate GSY':
+            content = format_list([
+                `Gross Section Yielding per AISC J4-1`,
+                `Nominal Strength (R<sub>n</sub>) = F<sub>y</sub> * A<sub>g</sub>`,
+                `R<sub>n</sub> = ${check.Fy.toFixed(1)} ksi * ${check.Ag.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Outer Plate NSF': case 'Inner Plate NSF':
+            content = format_list([
+                `Net Section Fracture per AISC J4-2`,
+                `Effective Net Area (A<sub>e</sub>) = U * A<sub>n</sub> = ${check.U.toFixed(2)} * ${check.An.toFixed(3)} in² = ${check.Ae.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = F<sub>u</sub> * A<sub>e</sub>`,
+                `R<sub>n</sub> = ${check.Fu.toFixed(1)} ksi * ${check.Ae.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Outer Plate Block Shear': case 'Inner Plate Block Shear': case 'Beam Flange Block Shear': case 'Web Plate Block Shear':
+             content = format_list([ 
+                `Block Shear Rupture per AISC J4-5`,
+                `Shear Yield Path: (0.6*F<sub>y</sub>*A<sub>gv</sub>) + U<sub>bs</sub>*F<sub>u</sub>*A<sub>nt</sub> = ${check.path_yield.toFixed(2)} kips`,
+                `Shear Rupture Path: (0.6*F<sub>u</sub>*A<sub>nv</sub>) + U<sub>bs</sub>*F<sub>u</sub>*A<sub>nt</sub> = ${check.path_rupture.toFixed(2)} kips`,
+                `Nominal Strength (R<sub>n</sub>) = min(Shear Yield Path, Shear Rupture Path)`,
+                `R<sub>n</sub> = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Outer Plate Bolt Bearing': case 'Inner Plate Bolt Bearing': case 'Beam Flange Bolt Bearing': case 'Web Plate Bolt Bearing': case 'Beam Web Bolt Bearing':
+            content = format_list([
+                `Bolt Bearing per AISC J3.10`,
+                `<strong>Edge Bolts (per bolt):</strong>`,
+                `<li class="pl-4">Clear Distance (L<sub>c</sub>) = L<sub>e</sub> - d<sub>h</sub>/2 = ${details.edge.Lc.toFixed(3)} in</li>`,
+                `<li class="pl-4">Tearout R<sub>n</sub> = 1.5 * L<sub>c</sub> * t * F<sub>u</sub> = ${details.edge.Rn_tearout.toFixed(2)} kips</li>`,
+                `<li class="pl-4">Bearing R<sub>n</sub> = 3.0 * d<sub>b</sub> * t * F<sub>u</sub> = ${details.edge.Rn_bearing.toFixed(2)} kips</li>`,
+                `<li class="pl-4">R<sub>n,edge</sub> = min(Tearout, Bearing) = ${details.edge.Rn.toFixed(2)} kips</li>`,
+                `<strong>Interior Bolts (per bolt):</strong>`,
+                `<li class="pl-4">Clear Distance (L<sub>c</sub>) = s - d<sub>h</sub> = ${details.int.Lc.toFixed(3)} in</li>`,
+                `<li class="pl-4">Tearout R<sub>n</sub> = 1.5 * L<sub>c</sub> * t * F<sub>u</sub> = ${details.int.Rn_tearout.toFixed(2)} kips</li>`,
+                `<li class="pl-4">Bearing R<sub>n</sub> = 3.0 * d<sub>b</sub> * t * F<sub>u</sub> = ${details.int.Rn_bearing.toFixed(2)} kips</li>`,
+                `<li class="pl-4">R<sub>n,int</sub> = min(Tearout, Bearing) = ${details.int.Rn.toFixed(2)} kips</li>`,
+                `<strong>Total Nominal Strength:</strong>`,
+                `<li class="pl-4">R<sub>n</sub> = n<sub>edge</sub> * R<sub>n,edge</sub> + n<sub>int</sub> * R<sub>n,int</sub></li>`, 
+                `<li class="pl-4">R<sub>n</sub> = ${details.num_edge} * ${details.edge.Rn.toFixed(2)} + ${details.num_int} * ${details.int.Rn.toFixed(2)} = ${check.Rn.toFixed(2)} kips</li>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+        
+        case 'Web Bolt Shear (Eccentricity)':
+            content = format_list([
+                `Bolt force from Direct Shear and Eccentric Moment (Elastic Method) per AISC Manual Part 7.`,
+                `Direct Shear (V) = ${details.V_load.toFixed(2)} kips`,
+                `Eccentricity (e) = ${details.eccentricity.toFixed(3)} in`,
+                `Eccentric Moment (M<sub>ecc</sub>) = V * e = ${details.M_ecc.toFixed(2)} kip-in`,
+                `Bolt Group Polar Moment of Inertia (I<sub>p</sub>) = &Sigma;(x² + y²) = ${details.Ip.toFixed(2)} in²`,
+                `<strong>Force on Critical Bolt (Demand):</strong>`,
+                `<li class="pl-4">Direct Shear (f<sub>vy</sub>) = V / n<sub>bolts</sub> = ${details.f_vy_direct.toFixed(2)} kips</li>`,
+                `<li class="pl-4">Moment Shear (f<sub>vx</sub>) = M<sub>ecc</sub> * y<sub>max</sub> / I<sub>p</sub> = ${details.f_vx_moment.toFixed(2)} kips</li>`,
+                `<li class="pl-4">Moment Shear (f<sub>vy</sub>) = M<sub>ecc</sub> * x<sub>max</sub> / I<sub>p</sub> = ${details.f_vy_moment.toFixed(2)} kips</li>`,
+                `<li class="pl-4">Resultant Force (R<sub>u</sub>) = &radic;(f<sub>vx</sub>² + (f<sub>vy,direct</sub> + f<sub>vy,moment</sub>)²) = ${data.demand.toFixed(2)} kips</li>`,
+                `<strong>Capacity of Single Bolt:</strong>`,
+                `<li class="pl-4">R<sub>n</sub> = F<sub>nv</sub> * A<sub>b</sub> * n<sub>planes</sub> = ${check.Fnv.toFixed(1)} * ${check.Ab.toFixed(3)} * ${check.num_planes} = ${check.Rn.toFixed(2)} kips</li>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Web Bolt Shear/Tension Interaction':
+            content = format_list([
+                `Bolt Shear/Tension Interaction per AISC J3.9`,
+                `Required Shear Stress (f<sub>v</sub>) = V<sub>u</sub> / A<sub>b</sub> = ${check.Vu.toFixed(2)} / ${check.Ab.toFixed(3)} = ${check.fv.toFixed(2)} ksi`, 
+                `Adjusted Tensile Strength (F'<sub>nt</sub>) = 1.3 * F<sub>nt</sub> - (${design_method === 'LRFD' ? 'F_nt / (phi_v * F_nv)' : 'Omega_v * F_nt / F_nv'}) * f<sub>v</sub> &le; F<sub>nt</sub>`,
+                `F'<sub>nt</sub> = 1.3 * ${check.Fnt} - (${design_method === 'LRFD' ? `${check.Fnt} / (0.75 * ${check.Fnv})` : `2.00 * ${check.Fnt} / ${check.Fnv}`}) * ${check.fv.toFixed(2)} = ${check.F_nt_prime.toFixed(2)} ksi`,
+                `Nominal Tensile Capacity (R<sub>n</sub>) = F'<sub>nt</sub> * A<sub>b</sub> = ${check.F_nt_prime.toFixed(2)} * ${check.Ab.toFixed(3)} = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`,
+                `Demand = Tension on critical bolt (T<sub>u</sub>) = ${check.Tu.toFixed(2)} kips`
+            ]);
+            break;
+        
+        case 'Web Plate Gross Shear Yield':
+            content = format_list([
+                `Shear Yielding of Web Plate per AISC J4.2(a)`,
+                `Gross Shear Area (A<sub>gv</sub>) = ${check.Agv.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>y</sub> * A<sub>gv</sub>`,
+                `R<sub>n</sub> = 0.6 * ${check.Fy.toFixed(1)} ksi * ${check.Agv.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Beam Web Shear Yielding':
+            content = format_list([
+                `Shear Yielding of Beam Web per AISC J4.2(a)`,
+                `Gross Shear Area (A<sub>gv</sub>) = ${check.Agv.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>y</sub> * A<sub>gv</sub>`,
+                `R<sub>n</sub> = 0.6 * ${check.Fy.toFixed(1)} ksi * ${check.Agv.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Web Plate Net Shear Rupture':
+            content = format_list([
+                `Shear Rupture of Web Plate per AISC J4.2(b)`,
+                `Net Shear Area (A<sub>nv</sub>) = ${check.Anv.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>u</sub> * A<sub>nv</sub>`,
+                `R<sub>n</sub> = 0.6 * ${check.Fu.toFixed(1)} ksi * ${check.Anv.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Beam Web Shear Rupture':
+            content = format_list([
+                `Shear Rupture of Beam Web per AISC J4.2(b)`,
+                `Net Shear Area (A<sub>nv</sub>) = ${check.Anv.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>u</sub> * A<sub>nv</sub>`,
+                `R<sub>n</sub> = 0.6 * ${check.Fu.toFixed(1)} ksi * ${check.Anv.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Beam Section Tensile Rupture':
+            content = format_list([
+                `Tensile Rupture of Beam Section per AISC D2`,
+                `Net Area (A<sub>n</sub>) = ${check.An.toFixed(3)} in²`,
+                `Shear Lag Factor (U) = ${check.U.toFixed(3)} (per AISC Table D3.1, Case 7)`,
+                `Effective Net Area (A<sub>e</sub>) = U * A<sub>n</sub> = ${check.Ae.toFixed(3)} in²`,
+                `Nominal Strength (R<sub>n</sub>) = F<sub>u</sub> * A<sub>e</sub>`,
+                `R<sub>n</sub> = ${check.Fu.toFixed(1)} ksi * ${check.Ae.toFixed(3)} in² = <b>${check.Rn.toFixed(2)} kips</b>`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        case 'Flange Bolt Prying & Tension':
+            const outer_pry = details.outer ? `Outer Plate Q = ${details.outer.Q.toFixed(2)} kips (t<sub>c</sub>=${details.outer.tc.toFixed(3)} in)` : '';
+            const inner_pry = details.inner ? `Inner Plate Q = ${details.inner.Q.toFixed(2)} kips (t<sub>c</sub>=${details.inner.tc.toFixed(3)} in)` : '';
+            content = format_list([
+                `Prying action per AISC Manual Part 9.`,
+                `Applied Tension per Bolt (B) = ${details.B_per_bolt.toFixed(2)} kips`,
+                `Prying Force (Q) = ${outer_pry} ${inner_pry ? `+ ${inner_pry}` : ''} = ${details.Q_total.toFixed(2)} kips`,
+                `Total Bolt Tension Demand = B + Q = ${data.demand.toFixed(2)} kips`,
+                `Bolt Tensile Capacity (R<sub>n</sub>) = F<sub>nt</sub> * A<sub>b</sub> = ${check.Fnt.toFixed(1)} * ${check.Ab.toFixed(3)} = ${check.Rn.toFixed(2)} kips`,
+                `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} / ${factor_val} = <b>${final_capacity.toFixed(2)} kips</b>`
+            ]);
+            break;
+
+        default: 
+            content = 'Breakdown not available for this check.';
+    }
+    return `<h4 class="font-semibold">${name}</h4>${content}`;
+}
+
 function run(rawInputs) {
     // --- PUBLIC API ---
     // Create a mutable copy of inputs for this run
@@ -705,39 +768,22 @@ function run(rawInputs) {
     
     if (inputs.develop_capacity_check) {
         // Calculate and overwrite M_load and V_load with member's design capacity
-        // --- Moment Capacity ---
         const Zx = inputs.member_Zx;
         if (Zx > 0) {
-            // Flexural Yielding Capacity (AISC F2.1)
-            const Mn_yield = inputs.member_Fy * Zx; // Plastic Moment, kip-in
-            const M_design_yield = inputs.design_method === 'LRFD' ? Mn_yield * 0.90 : Mn_yield / 1.67;
-
-            // Flexural Rupture Capacity (AISC F13)
-            const hole_dia_net_area_fp = inputs.D_fp + (1/8);
-            const nr_bolts_flange = 2 * inputs.Nr_fp;
-            const Afn = (inputs.member_bf - nr_bolts_flange * hole_dia_net_area_fp) * inputs.member_tf;
-            const Mn_rupture = inputs.member_Fu * Afn * (inputs.member_d - inputs.member_tf); // kip-in
-            const M_design_rupture = inputs.design_method === 'LRFD' ? Mn_rupture * 0.75 : Mn_rupture / 2.00;
-
-            // Use the governing (smaller) design capacity
-            M_load = min(M_design_yield, M_design_rupture) / 12.0; // Convert to kip-ft
+            const Mn_kipin = inputs.member_Fy * Zx; // Plastic Moment (AISC F2.1)
+            const phi_b = 0.90;
+            const omega_b = 1.67;
+            M_load = (inputs.design_method === 'LRFD' ? phi_b * Mn_kipin : Mn_kipin / omega_b) / 12.0;
         }
 
         const Aw = inputs.member_d * inputs.member_tw;
         if (Aw > 0) {
-            // Shear Yielding Capacity (AISC G2.1)
-            const Vn_yield = 0.6 * inputs.member_Fy * Aw;
-            const V_design_yield = inputs.design_method === 'LRFD' ? Vn_yield * 1.00 : Vn_yield / 1.50;
-
-            // Shear Rupture Capacity (AISC J4.2b)
-            const hole_dia_net_area_wp = inputs.D_wp + (1/8);
-            const Anv_beam_web = (inputs.member_d - 2 * inputs.member_tf - inputs.Nr_wp * hole_dia_net_area_wp) * inputs.member_tw;
-            const Vn_rupture = 0.6 * inputs.member_Fu * Anv_beam_web;
-            const V_design_rupture = inputs.design_method === 'LRFD' ? Vn_rupture * 0.75 : Vn_rupture / 2.00;
-
-            // Use the governing (smaller) design capacity
-            V_load = min(V_design_yield, V_design_rupture);
+            const Vn_kips = 0.6 * inputs.member_Fy * Aw; // Shear Yielding Strength, assuming Cv=1.0 (AISC G2.1)
+            const phi_v_yield = 1.00;
+            const omega_v_yield = 1.50;
+            V_load = inputs.design_method === 'LRFD' ? phi_v_yield * Vn_kips : Vn_kips / omega_v_yield;
         }
+        // The UI update should happen outside this calculation function
     }
 
     // --- Demand Calculations ---
@@ -761,7 +807,7 @@ function run(rawInputs) {
     const single_bolt_shear_fp_check = checkBoltShear(inputs.bolt_grade_fp, inputs.threads_included_fp, inputs.D_fp, num_shear_planes_fp);
     checks['Flange Bolt Shear'] = { 
         demand: total_flange_demand_tension, 
-        check: { ...single_bolt_shear_fp_check, Rn: single_bolt_shear_fp_check.Rn * num_flange_bolts_total },
+        check: { Rn: single_bolt_shear_fp_check.Rn * num_flange_bolts_total, ...single_bolt_shear_fp_check },
         details: {
             Rn_single: single_bolt_shear_fp_check.Rn,
             num_bolts: num_flange_bolts_total
@@ -787,8 +833,8 @@ function run(rawInputs) {
     const Ant_fp_simple = (bolt_pattern_height_fp - (2 * inputs.Nr_fp) * hole_dia_net_area_fp) * inputs.t_fp;
     checks['Outer Plate Block Shear'] = { demand: demand_fp_outer, check: checkBlockShear(Anv_fp, Agv_fp, Ant_fp_simple, inputs.flange_plate_Fu, inputs.flange_plate_Fy) };
     
-    const bearing_fp_plate_edge = checkBoltBearing(inputs.D_fp, inputs.t_fp, inputs.flange_plate_Fu, le_long_fp, inputs.S1_col_spacing_fp, true);
-    const bearing_fp_plate_int = checkBoltBearing(inputs.D_fp, inputs.t_fp, inputs.flange_plate_Fu, le_long_fp, inputs.S1_col_spacing_fp, false);
+    const bearing_fp_plate_edge = checkBoltBearing(inputs.D_fp, inputs.t_fp, inputs.flange_plate_Fu, le_long_fp, inputs.S1_col_spacing_fp, true, inputs.deformation_is_consideration);
+    const bearing_fp_plate_int = checkBoltBearing(inputs.D_fp, inputs.t_fp, inputs.flange_plate_Fu, le_long_fp, inputs.S1_col_spacing_fp, false, inputs.deformation_is_consideration);
     const num_edge_bolts_fp = inputs.Nr_fp * 2;
     const num_int_bolts_fp = (inputs.Nc_fp - 1) * inputs.Nr_fp * 2;
     const total_bearing_fp_plate = bearing_fp_plate_edge.Rn * num_edge_bolts_fp + bearing_fp_plate_int.Rn * num_int_bolts_fp; 
@@ -814,8 +860,8 @@ function run(rawInputs) {
         const Ant_fp_simple_inner = (bolt_pattern_height_fp - (2 * inputs.Nr_fp) * hole_dia_net_area_fp) * inputs.t_fp_inner;
         checks['Inner Plate Block Shear'] = { demand: demand_fp_inner, check: checkBlockShear(Anv_fp_inner, Agv_fp_inner, Ant_fp_simple_inner, inputs.flange_plate_Fu_inner, inputs.flange_plate_Fy_inner) };
         
-        const bearing_fp_inner_edge = checkBoltBearing(inputs.D_fp, inputs.t_fp_inner, inputs.flange_plate_Fu_inner, le_long_fp, inputs.S1_col_spacing_fp, true);
-        const bearing_fp_inner_int = checkBoltBearing(inputs.D_fp, inputs.t_fp_inner, inputs.flange_plate_Fu_inner, le_long_fp, inputs.S1_col_spacing_fp, false);
+        const bearing_fp_inner_edge = checkBoltBearing(inputs.D_fp, inputs.t_fp_inner, inputs.flange_plate_Fu_inner, le_long_fp, inputs.S1_col_spacing_fp, true, inputs.deformation_is_consideration);
+        const bearing_fp_inner_int = checkBoltBearing(inputs.D_fp, inputs.t_fp_inner, inputs.flange_plate_Fu_inner, le_long_fp, inputs.S1_col_spacing_fp, false, inputs.deformation_is_consideration);
         const total_bearing_fp_inner = bearing_fp_inner_edge.Rn * num_edge_bolts_fp + bearing_fp_inner_int.Rn * num_int_bolts_fp; 
         checks['Inner Plate Bolt Bearing'] = { 
             demand: demand_fp_inner, 
@@ -827,8 +873,8 @@ function run(rawInputs) {
         };
     }
 
-    const bearing_fp_beam_edge = checkBoltBearing(inputs.D_fp, inputs.member_tf, inputs.member_Fu, le_long_fp, inputs.S1_col_spacing_fp, true);
-    const bearing_fp_beam_int = checkBoltBearing(inputs.D_fp, inputs.member_tf, inputs.member_Fu, Infinity, inputs.S1_col_spacing_fp, false);
+    const bearing_fp_beam_edge = checkBoltBearing(inputs.D_fp, inputs.member_tf, inputs.member_Fu, le_long_fp, inputs.S1_col_spacing_fp, true, inputs.deformation_is_consideration);
+    const bearing_fp_beam_int = checkBoltBearing(inputs.D_fp, inputs.member_tf, inputs.member_Fu, Infinity, inputs.S1_col_spacing_fp, false, inputs.deformation_is_consideration);
     const num_edge_bolts_fp_beam = inputs.Nr_fp * 2;
     const num_int_bolts_fp_beam = (inputs.Nc_fp - 1) * inputs.Nr_fp * 2;
     const total_bearing_fp_beam = bearing_fp_beam_edge.Rn * num_edge_bolts_fp_beam + bearing_fp_beam_int.Rn * num_int_bolts_fp_beam; 
@@ -938,17 +984,17 @@ function run(rawInputs) {
     const Ant_wp_bs = (le_tran_wp - 0.5 * hole_dia_net_area_wp) * total_t_wp;
     checks['Web Plate Block Shear'] = { demand: V_load, check: checkBlockShear(Anv_wp_bs, Agv_wp_bs, Ant_wp_bs, inputs.web_plate_Fu, inputs.web_plate_Fy) };
     
-    const bearing_wp_plate_single_bolt = checkBoltBearing(inputs.D_wp, total_t_wp, inputs.web_plate_Fu, le_long_wp, inputs.S4_col_spacing_wp, true);
+    const bearing_wp_plate_single_bolt = checkBoltBearing(inputs.D_wp, total_t_wp, inputs.web_plate_Fu, le_long_wp, inputs.S4_col_spacing_wp, true, inputs.deformation_is_consideration);
     checks['Web Plate Bolt Bearing'] = { demand: Vu_web_bolt, check: bearing_wp_plate_single_bolt, details: { edge: bearing_wp_plate_single_bolt, int: bearing_wp_plate_single_bolt, num_edge: 1, num_int: 0 } };
     
-    const bearing_wp_beam_single_bolt = checkBoltBearing(inputs.D_wp, inputs.member_tw, inputs.member_Fu, le_long_wp, inputs.S4_col_spacing_wp, true);
+    const bearing_wp_beam_single_bolt = checkBoltBearing(inputs.D_wp, inputs.member_tw, inputs.member_Fu, le_long_wp, inputs.S4_col_spacing_wp, true, inputs.deformation_is_consideration);
     checks['Beam Web Bolt Bearing'] = { demand: Vu_web_bolt, check: bearing_wp_beam_single_bolt, details: { edge: bearing_wp_beam_single_bolt, int: bearing_wp_beam_single_bolt, num_edge: 1, num_int: 0 } };
 
     const Agv_beam_web = (inputs.member_d - 2 * inputs.member_tf) * inputs.member_tw;
     checks['Beam Web Shear Yielding'] = { demand: V_load, check: checkShearYielding(Agv_beam_web, inputs.member_Fy) };
 
     // --- Beam Member Checks ---
-    checks['Beam Flexural Rupture'] = { demand: M_load * 12, check: checkBeamFlexuralRupture(inputs.member_Sx, inputs.member_Fu, inputs.member_d, inputs.member_bf, inputs.member_tf, 2 * inputs.Nr_fp, hole_dia_net_area_fp) };
+    checks['Beam Flexural Rupture'] = { demand: M_load * 12, check: checkBeamFlexuralRupture(inputs.member_Sx, inputs.member_Fu, inputs.member_d, inputs.member_bf, inputs.member_tf, inputs.Nr_fp, hole_dia_net_area_fp) };
     const Anv_beam_web = (inputs.member_d - 2*inputs.member_tf - inputs.Nr_wp * hole_dia_net_area_wp) * inputs.member_tw;
     checks['Beam Web Shear Rupture'] = { demand: V_load, check: checkShearRupture(Anv_beam_web, inputs.member_Fu) };
 
@@ -960,7 +1006,7 @@ function run(rawInputs) {
         const An = A_gross_approx - A_holes_flange - A_holes_web;
 
         // Shear Lag Factor U per AISC Table D3.1, Case 7 (W, M, S shapes with flange connections)
-        const An_conn = 2 * (inputs.member_bf - 2 * inputs.Nr_fp * hole_dia_net_area_fp) * inputs.member_tf;
+        const An_conn = 2 * (inputs.member_bf - inputs.Nr_fp * hole_dia_net_area_fp) * inputs.member_tf;
         const Ag_conn = 2 * inputs.member_bf * inputs.member_tf;
         const U = Ag_conn > 0 ? An_conn / Ag_conn : 1.0;
         
@@ -979,272 +1025,15 @@ function run(rawInputs) {
     const min_le_wp = geomChecks['Web Bolts'].edge_dist_long.min;
     geomChecks['Web Bolts'].edge_dist_gap = { actual: edge_dist_gap_wp, min: min_le_wp, pass: edge_dist_gap_wp >= min_le_wp };
 
-    const demand_calcs = {
-        moment_arm_flange,
-        flange_force_from_moment,
-        Mn_kipin: inputs.develop_capacity_check ? (inputs.member_Fy * inputs.member_Zx) : null,
-        Vn_kips: inputs.develop_capacity_check ? (0.6 * inputs.member_Fy * (inputs.member_d * inputs.member_tw)) : null,
-    };
-
-
-    return { checks, geomChecks, inputs, final_loads: { M_load, V_load }, demand_calcs };
+    return { checks, geomChecks, inputs, final_loads: { M_load, V_load } };
 }
 
 return { run };
 })();
 
-function generateBreakdownHtml(name, data, design_method) { // This function is used by renderResults
-    const { check, details } = data;
-    if (!check) return '';
-    let content = '';
-
-    const factor_char = design_method === 'LRFD' ? '&phi;' : '&Omega;';
-    const factor_val = design_method === 'LRFD' ? check.phi : check.omega;
-    const capacity_eq = design_method === 'LRFD' ? `&phi;R<sub>n</sub>` : `R<sub>n</sub> / &Omega;`;
-    const design_capacity = design_method === 'LRFD' ? check.Rn * (factor_val || 1.0) : check.Rn / (factor_val || 1.0);
-    const design_capacity_str = `Design Capacity = ${capacity_eq} = ${check.Rn.toFixed(2)} ${design_method === 'LRFD' ? `&times; ${factor_val}` : `/ ${factor_val}`} = ${design_capacity.toFixed(2)}`;
-
-    const format_list = (items) => `<ul>${items.map(i => `<li class="py-1">${i}</li>`).join('')}</ul>`;
-
-    switch (name) {
-        case 'Flange Bolt Shear':
-            content = format_list([
-                `Nominal Shear Strength per bolt (R<sub>n,bolt</sub>) = F<sub>nv</sub> * A<sub>b</sub> * n<sub>planes</sub>`,
-                `R<sub>n,bolt</sub> = ${check.Fnv.toFixed(1)} ksi * ${check.Ab.toFixed(3)} in² * ${check.num_planes} = ${details.Rn_single.toFixed(2)} kips`,
-                `Total Nominal Strength (R<sub>n</sub>) = R<sub>n,bolt</sub> * n<sub>bolts</sub>`,
-                `R<sub>n</sub> = ${details.Rn_single.toFixed(2)} kips * ${details.num_bolts} = ${check.Rn.toFixed(2)} kips`, 
-                `${design_capacity_str} kips`
-            ]);
-            break;
-        
-        case 'Outer Plate GSY': case 'Inner Plate GSY':
-            content = format_list([
-                `Gross Section Yielding per AISC J4-1`,
-                `Nominal Strength (R<sub>n</sub>) = F<sub>y</sub> * A<sub>g</sub>`,
-                `R<sub>n</sub> = ${check.Fy.toFixed(1)} ksi * ${check.Ag.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Outer Plate NSF': case 'Inner Plate NSF':
-            content = format_list([
-                `Net Section Fracture per AISC J4-2`,
-                `Effective Net Area (A<sub>e</sub>) = U * A<sub>n</sub> = ${check.U.toFixed(2)} * ${check.An.toFixed(3)} in² = ${check.Ae.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = F<sub>u</sub> * A<sub>e</sub>`,
-                `R<sub>n</sub> = ${check.Fu.toFixed(1)} ksi * ${check.Ae.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Outer Plate Block Shear': case 'Inner Plate Block Shear': case 'Beam Flange Block Shear': case 'Web Plate Block Shear':
-             content = format_list([ 
-                `Block Shear Rupture per AISC J4-5`,
-                `Shear Yield: 0.6 * F<sub>y</sub> * A<sub>gv</sub> = 0.6 * ${check.Fy} * ${check.Agv.toFixed(3)} = ${(0.6 * check.Fy * check.Agv).toFixed(2)} kips`,
-                `Shear Rupture: 0.6 * F<sub>u</sub> * A<sub>nv</sub> = 0.6 * ${check.Fu} * ${check.Anv.toFixed(3)} = ${(0.6 * check.Fu * check.Anv).toFixed(2)} kips`,
-                `Tension Rupture: U<sub>bs</sub> * F<sub>u</sub> * A<sub>nt</sub> = ${check.Ubs} * ${check.Fu} * ${check.Ant.toFixed(3)} = ${(check.Ubs * check.Fu * check.Ant).toFixed(2)} kips`,
-                `R<sub>n</sub> = min(Shear Yield, Shear Rupture) + Tension Rupture`,
-                `R<sub>n</sub> = min(${(0.6 * check.Fy * check.Agv).toFixed(2)}, ${(0.6 * check.Fu * check.Anv).toFixed(2)}) + ${(check.Ubs * check.Fu * check.Ant).toFixed(2)} = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Outer Plate Bolt Bearing': case 'Inner Plate Bolt Bearing': case 'Beam Flange Bolt Bearing': case 'Web Plate Bolt Bearing': case 'Beam Web Bolt Bearing':
-            content = format_list([
-                `Bolt Bearing per AISC J3.10`,
-                `<strong>Edge Bolts (per bolt):</strong>`,
-                `<li class="pl-4">Clear Distance (L<sub>c</sub>) = L<sub>e</sub> - d<sub>h</sub>/2 = ${details.edge.Lc.toFixed(3)} in</li>`,
-                `<li class="pl-4">Tearout R<sub>n</sub> = 1.5 * L<sub>c</sub> * t * F<sub>u</sub> = ${details.edge.Rn_tearout.toFixed(2)} kips</li>`,
-                `<li class="pl-4">Bearing R<sub>n</sub> = 3.0 * d<sub>b</sub> * t * F<sub>u</sub> = ${details.edge.Rn_bearing.toFixed(2)} kips</li>`,
-                `<li class="pl-4">R<sub>n,edge</sub> = min(Tearout, Bearing) = ${details.edge.Rn.toFixed(2)} kips</li>`,
-                `<strong>Interior Bolts (per bolt):</strong>`,
-                `<li class="pl-4">Clear Distance (L<sub>c</sub>) = s - d<sub>h</sub> = ${details.int.Lc.toFixed(3)} in</li>`,
-                `<li class="pl-4">Tearout R<sub>n</sub> = 1.5 * L<sub>c</sub> * t * F<sub>u</sub> = ${details.int.Rn_tearout.toFixed(2)} kips</li>`,
-                `<li class="pl-4">Bearing R<sub>n</sub> = 3.0 * d<sub>b</sub> * t * F<sub>u</sub> = ${details.int.Rn_bearing.toFixed(2)} kips</li>`,
-                `<li class="pl-4">R<sub>n,int</sub> = min(Tearout, Bearing) = ${details.int.Rn.toFixed(2)} kips</li>`,
-                `<strong>Total Nominal Strength:</strong>`,
-                `<li class="pl-4">R<sub>n</sub> = n<sub>edge</sub> * R<sub>n,edge</sub> + n<sub>int</sub> * R<sub>n,int</sub></li>`, 
-                `<li class="pl-4">R<sub>n</sub> = ${details.num_edge} * ${details.edge.Rn.toFixed(2)} + ${details.num_int} * ${details.int.Rn.toFixed(2)} = ${check.Rn.toFixed(2)} kips</li>`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-        
-        case 'Web Bolt Shear (Eccentricity)':
-            content = format_list([
-                `Bolt force from Direct Shear and Eccentric Moment (Elastic Method) per AISC Manual Part 7.`,
-                `Direct Shear (V) = ${details.V_load.toFixed(2)} kips`,
-                `Eccentricity (e) = ${details.eccentricity.toFixed(3)} in`,
-                `Eccentric Moment (M<sub>ecc</sub>) = V * e = ${details.M_ecc.toFixed(2)} kip-in`,
-                `Bolt Group Polar Moment of Inertia (I<sub>p</sub>) = &Sigma;(x² + y²) = ${details.Ip.toFixed(2)} in²`,
-                `<strong>Force on Critical Bolt (Demand):</strong>`,
-                `<li class="pl-4">Direct Shear (f<sub>vy</sub>) = V / n<sub>bolts</sub> = ${details.f_vy_direct.toFixed(2)} kips</li>`,
-                `<li class="pl-4">Moment Shear (f<sub>vx</sub>) = M<sub>ecc</sub> * y<sub>max</sub> / I<sub>p</sub> = ${details.f_vx_moment.toFixed(2)} kips</li>`,
-                `<li class="pl-4">Moment Shear (f<sub>vy</sub>) = M<sub>ecc</sub> * x<sub>max</sub> / I<sub>p</sub> = ${details.f_vy_moment.toFixed(2)} kips</li>`,
-                `<li class="pl-4">Resultant Force (R<sub>u</sub>) = &radic;(f<sub>vx</sub>² + (f<sub>vy,direct</sub> + f<sub>vy,moment</sub>)²) = ${data.demand.toFixed(2)} kips</li>`,
-                `<strong>Capacity of Single Bolt:</strong>`,
-                `<li class="pl-4">R<sub>n</sub> = F<sub>nv</sub> * A<sub>b</sub> * n<sub>planes</sub> = ${check.Fnv.toFixed(1)} * ${check.Ab.toFixed(3)} * ${check.num_planes} = ${check.Rn.toFixed(2)} kips</li>`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Web Bolt Shear/Tension Interaction':
-            content = format_list([
-                `Bolt Shear/Tension Interaction per AISC J3.9`,
-                `Required Shear Stress (f<sub>v</sub>) = V<sub>u</sub> / A<sub>b</sub> = ${check.Vu.toFixed(2)} / ${check.Ab.toFixed(3)} = ${check.fv.toFixed(2)} ksi`, 
-                `Adjusted Tensile Strength (F'<sub>nt</sub>) = 1.3 * F<sub>nt</sub> - (${design_method === 'LRFD' ? 'F_nt / (phi_v * F_nv)' : 'Omega_v * F_nt / F_nv'}) * f<sub>v</sub> &le; F<sub>nt</sub>`,
-                `F'<sub>nt</sub> = 1.3 * ${check.Fnt} - (${design_method === 'LRFD' ? `${check.Fnt} / (0.75 * ${check.Fnv})` : `2.00 * ${check.Fnt} / ${check.Fnv}`}) * ${check.fv.toFixed(2)} = ${check.F_nt_prime.toFixed(2)} ksi`,
-                `Nominal Tensile Capacity (R<sub>n</sub>) = F'<sub>nt</sub> * A<sub>b</sub> = ${check.F_nt_prime.toFixed(2)} * ${check.Ab.toFixed(3)} = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`,
-                `Demand = Tension on critical bolt (T<sub>u</sub>) = ${check.Tu.toFixed(2)} kips`
-            ]);
-            break;
-        
-        case 'Web Plate Gross Shear Yield':
-            content = format_list([
-                `Shear Yielding of Web Plate per AISC J4.2(a)`,
-                `Gross Shear Area (A<sub>gv</sub>) = ${check.Agv.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>y</sub> * A<sub>gv</sub>`,
-                `R<sub>n</sub> = 0.6 * ${check.Fy.toFixed(1)} ksi * ${check.Agv.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Beam Web Shear Yielding':
-            content = format_list([
-                `Shear Yielding of Beam Web per AISC J4.2(a)`,
-                `Gross Shear Area (A<sub>gv</sub>) = ${check.Agv.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>y</sub> * A<sub>gv</sub>`,
-                `R<sub>n</sub> = 0.6 * ${check.Fy.toFixed(1)} ksi * ${check.Agv.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Web Plate Net Shear Rupture':
-            content = format_list([
-                `Shear Rupture of Web Plate per AISC J4.2(b)`,
-                `Net Shear Area (A<sub>nv</sub>) = ${check.Anv.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>u</sub> * A<sub>nv</sub>`,
-                `R<sub>n</sub> = 0.6 * ${check.Fu.toFixed(1)} ksi * ${check.Anv.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Beam Web Shear Rupture':
-            content = format_list([
-                `Shear Rupture of Beam Web per AISC J4.2(b)`,
-                `Net Shear Area (A<sub>nv</sub>) = ${check.Anv.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = 0.6 * F<sub>u</sub> * A<sub>nv</sub>`,
-                `R<sub>n</sub> = 0.6 * ${check.Fu.toFixed(1)} ksi * ${check.Anv.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Beam Section Tensile Rupture':
-            content = format_list([
-                `Tensile Rupture of Beam Section per AISC D2`,
-                `Net Area (A<sub>n</sub>) = ${check.An.toFixed(3)} in²`,
-                `Shear Lag Factor (U) = ${check.U.toFixed(3)} (per AISC Table D3.1, Case 7)`,
-                `Effective Net Area (A<sub>e</sub>) = U * A<sub>n</sub> = ${check.Ae.toFixed(3)} in²`,
-                `Nominal Strength (R<sub>n</sub>) = F<sub>u</sub> * A<sub>e</sub>`,
-                `R<sub>n</sub> = ${check.Fu.toFixed(1)} ksi * ${check.Ae.toFixed(3)} in² = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        case 'Beam Flexural Rupture':
-            content = format_list([
-                `Flexural Rupture per AISC F13`,
-                `Net Flange Area (A<sub>fn</sub>) = (b<sub>f</sub> - n&times;d<sub>h</sub>) &times; t<sub>f</sub> = ${check.Afn.toFixed(3)} in²`,
-                `Tensile Capacity (T<sub>n</sub>) = F<sub>u</sub> &times; A<sub>fn</sub> = ${check.Fu} &times; ${check.Afn.toFixed(3)} = ${check.Tn.toFixed(2)} kips`,
-                `Lever Arm (z) = d - t<sub>f</sub> = ${check.z_est.toFixed(3)} in`,
-                `Nominal Moment (M<sub>n</sub>) = T<sub>n</sub> &times; z = ${check.Tn.toFixed(2)} &times; ${check.z_est.toFixed(3)} = ${check.Rn.toFixed(2)} kip-in`,
-                `${design_capacity_str} kip-in`
-            ]);
-            break;
-
-        case 'Flange Bolt Prying & Tension':
-            const outer_pry = details.outer ? `Outer Plate Q = ${details.outer.Q.toFixed(2)} kips (t<sub>c</sub>=${details.outer.tc.toFixed(3)} in)` : '';
-            const inner_pry = details.inner ? `Inner Plate Q = ${details.inner.Q.toFixed(2)} kips (t<sub>c</sub>=${details.inner.tc.toFixed(3)} in)` : '';
-            content = format_list([
-                `Prying action per AISC Manual Part 9.`,
-                `Applied Tension per Bolt (B) = ${details.B_per_bolt.toFixed(2)} kips`,
-                `Prying Force (Q) = ${outer_pry} ${inner_pry ? `+ ${inner_pry}` : ''} = ${details.Q_total.toFixed(2)} kips`,
-                `Total Bolt Tension Demand = B + Q = ${data.demand.toFixed(2)} kips`,
-                `Bolt Tensile Capacity (R<sub>n</sub>) = F<sub>nt</sub> * A<sub>b</sub> = ${check.Fnt.toFixed(1)} * ${check.Ab.toFixed(3)} = ${check.Rn.toFixed(2)} kips`,
-                `${design_capacity_str} kips`
-            ]);
-            break;
-
-        default: 
-            content = 'Breakdown not available for this check.';
-    }
-    return `<h4 class="font-semibold">${name}</h4>${content}`;
-}
-
 function renderResults(results) {
-    const { checks, geomChecks, inputs, demand_calcs, final_loads } = results;
-    let html = ``;
-
-    // --- Splice Layout Summary ---
-    html += `<div class="results-section">
-                <h2 class="!mt-0">Splice Layout Summary</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h3 class="text-lg font-semibold">Flange Splice</h3>
-                        <div class="mt-2 space-y-1 text-sm">
-                            <p>Configuration: ${inputs.num_flange_plates} Plate${inputs.num_flange_plates > 1 ? 's' : ''}</p>
-                            <p>Outer Plate: ${inputs.H_fp}" &times; ${inputs.t_fp}" &times; ${inputs.L_fp * 2}" (F<sub>y</sub>=${inputs.flange_plate_Fy} ksi)</p>
-                            ${inputs.num_flange_plates === 2 ? `<p>Inner Plate: ${inputs.H_fp_inner}" &times; ${inputs.t_fp_inner}" &times; ${inputs.L_fp_inner * 2}" (F<sub>y</sub>=${inputs.flange_plate_Fy_inner} ksi)</p>` : ''}
-                            <p>Bolts: (${inputs.Nc_fp * inputs.Nr_fp * 2}) ${inputs.D_fp}" &Oslash; ${inputs.bolt_grade_fp} bolts</p>
-                            <p>Layout: ${inputs.Nc_fp * inputs.Nr_fp * 2} bolts - ${inputs.Nc_fp * 2} total cols &times; ${inputs.Nr_fp} rows per side</p>
-                            <p>Column spacing: ${inputs.S1_col_spacing_fp}",</p>
-                            <p>Gage: ${inputs.g_gage_fp}"</p>
-                            <p>Row spacing: ${inputs.S2_row_spacing_fp}"</p>
-                            <p>First bolt distance: ${inputs.S3_end_dist_fp}"</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold">Web Splice</h3>
-                        <div class="mt-2 space-y-1 text-sm">
-                            <p>Configuration: ${inputs.num_web_plates} Plate${inputs.num_web_plates > 1 ? 's' : ''}</p>
-                            <p>Plate: ${inputs.H_wp}" &times; ${inputs.t_wp}" &times; ${inputs.L_wp * 2}" (F<sub>y</sub>=${inputs.web_plate_Fy} ksi)</p>
-                            <p>Bolts: (${2 * inputs.Nc_wp * inputs.Nr_wp}) ${inputs.D_wp}" &Oslash; ${inputs.bolt_grade_wp} bolts</p>
-                            <p>Layout: ${2 * inputs.Nc_wp * inputs.Nr_wp} bolts - ${inputs.Nc_wp * 2} total cols &times; ${inputs.Nr_wp} rows</p>
-                            <p>Column spacing: ${inputs.S4_col_spacing_wp}",</p>
-                            <p>Row spacing: ${inputs.S5_row_spacing_wp}"</p>
-                            <p>First bolt distance: ${inputs.S6_end_dist_wp}"</p>
-                        </div>
-                    </div>
-                </div>
-             </div>`;
-
-    // --- Applied Load Calculation Section ---
-    html += `<div class="results-section">
-                <h2 class="!mt-0">Applied Load Calculations</h2>
-                <div class="calc-breakdown">`;
-    if (inputs.develop_capacity_check) {
-        html += `<h4 class="font-semibold">Member Capacity Development (${inputs.design_method})</h4>
-                 <ul>`;
-        if (inputs.design_method === 'LRFD') {
-            html += `<li>Design Moment (M<sub>u</sub>) = &phi;M<sub>n</sub> = &phi;F<sub>y</sub>Z<sub>x</sub> = 0.90 &times; ${inputs.member_Fy} ksi &times; ${inputs.member_Zx} in³ = ${(demand_calcs.Mn_kipin * 0.9).toFixed(2)} kip-in = ${final_loads.M_load.toFixed(2)} kip-ft</li>
-                     <li>Design Shear (V<sub>u</sub>) = &phi;V<sub>n</sub> = &phi;(0.6&times;F<sub>y</sub>&times;A<sub>w</sub>) = 1.0 &times; 0.6 &times; ${inputs.member_Fy} ksi &times; ${(inputs.member_d * inputs.member_tw).toFixed(3)} in² = ${final_loads.V_load.toFixed(2)} kips</li>`;
-        } else { // ASD
-            html += `<li>Allowable Moment (M<sub>a</sub>) = M<sub>n</sub>/&Omega; = F<sub>y</sub>Z<sub>x</sub>/&Omega; = (${inputs.member_Fy} ksi &times; ${inputs.member_Zx} in³) / 1.67 = ${(demand_calcs.Mn_kipin / 1.67).toFixed(2)} kip-in = ${final_loads.M_load.toFixed(2)} kip-ft</li>
-                     <li>Allowable Shear (V<sub>a</sub>) = V<sub>n</sub>/&Omega; = (0.6&times;F<sub>y</sub>&times;A<sub>w</sub>)/&Omega; = (0.6 &times; ${inputs.member_Fy} ksi &times; ${(inputs.member_d * inputs.member_tw).toFixed(3)} in²) / 1.50 = ${final_loads.V_load.toFixed(2)} kips</li>`;
-        }
-        html += `</ul><hr class="my-4">`;
-    }
-    html += `<h4 class="font-semibold">Flange Force Calculation (Lever Arm Method)</h4>
-             <ul>
-                <li>Lever Arm (d<sub>arm</sub>) = d - t<sub>f</sub> = ${inputs.member_d} in - ${inputs.member_tf} in = ${demand_calcs.moment_arm_flange.toFixed(3)} in</li>
-                <li>Force from Moment (P<sub>M</sub>) = M<sub>load</sub> / d<sub>arm</sub> = ${final_loads.M_load.toFixed(2)} kip-ft &times; 12 / ${demand_calcs.moment_arm_flange.toFixed(3)} in = ${demand_calcs.flange_force_from_moment.toFixed(2)} kips</li>
-                <li>Force from Axial (P<sub>A</sub>) = Axial / 2 = ${inputs.Axial_load} kips / 2 = ${(inputs.Axial_load/2).toFixed(2)} kips</li>
-                <li class="font-bold mt-2">Total Tension Flange Demand = P<sub>M</sub> + P<sub>A</sub> = ${demand_calcs.flange_force_from_moment.toFixed(2)} + ${(inputs.Axial_load/2).toFixed(2)} = ${(demand_calcs.flange_force_from_moment + inputs.Axial_load/2).toFixed(2)} kips</li>
-                <li class="font-bold">Total Compression Flange Demand = P<sub>M</sub> - P<sub>A</sub> = ${demand_calcs.flange_force_from_moment.toFixed(2)} - ${(inputs.Axial_load/2).toFixed(2)} = ${(demand_calcs.flange_force_from_moment - inputs.Axial_load/2).toFixed(2)} kips</li>
-             </ul>
-             </div>
-             </div>`;
-
-    html += `<div class="results-section"><h2 class="!mt-0">Geometry & Spacing Checks</h2>
+    const { checks, geomChecks, inputs } = results;
+    let html = `<div class="results-section"><h2 class="!mt-0">Geometry & Spacing Checks</h2>
                 <table><thead><tr><th>Item</th><th>Actual (in)</th><th>Limit (in)</th><th>Status</th></tr></thead><tbody>`;
     const addGeomRow = (name, data, isMaxCheck = false) => {
         const status = data.pass ? '<span class="text-green-600 font-semibold">Pass</span>' : '<span class="text-red-600 font-semibold">Fail</span>';
@@ -1252,6 +1041,9 @@ function renderResults(results) {
         const limit_label = isMaxCheck ? 'Maximum' : 'Minimum';
         html += `<tr><td>${name} (${limit_label})</td><td>${data.actual.toFixed(3)}</td><td>${limit_val.toFixed(3)}</td><td>${status}</td></tr>`;
     };
+
+    html += `<table><caption class="font-bold text-center bg-gray-200 dark:bg-gray-700 p-2">Geometry & Spacing Checks (AISC J3)</caption>
+             <thead><tr><th>Item</th><th>Actual (in)</th><th>Limit (in)</th><th>Status</th></tr></thead><tbody>`;
 
     addGeomRow('Flange Bolt Edge Distance (Long.)', geomChecks['Flange Bolts'].edge_dist_long);
     addGeomRow('Flange Bolt Edge Distance (Tran.)', geomChecks['Flange Bolts'].edge_dist_tran);
@@ -1267,11 +1059,10 @@ function renderResults(results) {
     addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].spacing_row);
     addGeomRow('Web Bolt Spacing (Pitch)', geomChecks['Web Bolts'].max_spacing_col, true);
     addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].max_spacing_row, true);
-    html += `</tbody></table></div>`;
+    html += `</tbody></table>`;
 
-    html += `<div class="results-section"><h2 class="!mt-0">Strength Checks (${inputs.design_method})</h2>
-             <table class="text-sm"><caption class="text-black dark:text-gray-600">kips, in, ksi units</caption>
-             <thead><tr><th class="w-2/5">Limit State</th><th>Demand</th><th>Capacity</th><th>Ratio</th><th>Status</th></tr></thead><tbody>`;
+    html += `<table class="mt-6"><caption class="font-bold text-center bg-gray-200 dark:bg-gray-700 p-2">Strength Checks (${inputs.design_method})</caption>
+             <thead class="text-sm"><tr><th class="w-2/5">Limit State</th><th>Demand</th><th>Capacity</th><th>Ratio</th><th>Status</th></tr></thead><tbody>`;
     let checkCounter = 0;
     const addRow = (name, data) => { 
         if (!data || !data.check) return;
@@ -1282,15 +1073,15 @@ function renderResults(results) {
         
         const capacity = Rn || 0;
         const design_capacity = inputs.design_method === 'LRFD' ? capacity * (phi || 0.75) : capacity / (omega || 2.00);
-        const ratio = design_capacity > 0 ? Math.abs(demand) / design_capacity : Infinity;
+        const ratio = design_capacity > 0 ? abs(demand) / design_capacity : Infinity;
 
-        const status = ratio <= 1.0 ? '<span class="text-green-700 font-semibold">Pass</span>' : '<span class="text-red-700 font-semibold">Fail</span>';
+        const status = ratio <= 1.0 ? '<span class="text-green-600 font-semibold">Pass</span>' : '<span class="text-red-600 font-semibold">Fail</span>';
         const breakdownHtml = generateBreakdownHtml(name, data, inputs.design_method);
-        html += `<tr>
-                    <td>${name} <button data-toggle-id="${detailId}" class="text-blue-600 text-xs ml-2 font-semibold">[Show]</button></td>
+        html += `<tr class="border-t dark:border-gray-700">
+                    <td>${name} <button data-toggle-id="${detailId}" class="toggle-details-btn">[Show]</button></td>
                     <td>${demand.toFixed(2)}</td><td>${design_capacity.toFixed(2)}</td><td>${ratio.toFixed(3)}</td><td>${status}</td>
                    </tr>
-                   <tr id="${detailId}" style="display: none;"> 
+                   <tr id="${detailId}" class="details-row"> 
                      <td colspan="5" class="p-0"><div class="calc-breakdown">${breakdownHtml}</div></td>
                    </tr>`;
     };
@@ -1299,22 +1090,22 @@ function renderResults(results) {
     const webChecks = Object.fromEntries(Object.entries(checks).filter(([k]) => k.includes('Web')));
     const memberChecks = Object.fromEntries(Object.entries(checks).filter(([k]) => k.includes('Beam') && !k.includes('Flange') && !k.includes('Web')));
 
-    html += `<tr><td colspan="5" class="bg-gray-200 font-bold text-center">Flange Splice Checks</td></tr>`;
+    html += `<tr><td colspan="5" class="bg-gray-100 dark:bg-gray-700 font-bold text-center">Flange Splice Checks</td></tr>`;
     Object.entries(flangeChecks).forEach(([name, data]) => addRow(name, data));
 
-    html += `<tr><td colspan="5" class="bg-gray-200 font-bold text-center">Web Splice Checks</td></tr>`;
+    html += `<tr><td colspan="5" class="bg-gray-100 dark:bg-gray-700 font-bold text-center">Web Splice Checks</td></tr>`;
     Object.entries(webChecks).forEach(([name, data]) => addRow(name, data));
 
-    html += `<tr><td colspan="5" class="bg-gray-200 font-bold text-center">Member Checks at Splice</td></tr>`;
+    html += `<tr><td colspan="5" class="bg-gray-100 dark:bg-gray-700 font-bold text-center">Member Checks at Splice</td></tr>`;
     Object.entries(memberChecks).forEach(([name, data]) => addRow(name, data));
 
-    html += `</tbody></table></div>`;
+    html += `</tbody></table></div>`; // End of results-section div
     document.getElementById('results-container').innerHTML = html;
 }
 
 const inputIds = [
     'design_method', 'gap', 'member_d', 'member_bf', 'member_tf', 'member_tw', 'member_Fy', 'member_Fu',
-    'member_Zx', 'member_Sx', 'M_load', 'V_load', 'Axial_load', 'develop_capacity_check', 'g_gage_fp',
+    'member_Zx', 'member_Sx', 'M_load', 'V_load', 'Axial_load', 'develop_capacity_check', 'deformation_is_consideration', 'g_gage_fp',
     'num_flange_plates', 'flange_plate_Fy', 'flange_plate_Fu', 'H_fp', 't_fp', 'L_fp',
     'flange_plate_Fy_inner', 'flange_plate_Fu_inner', 'H_fp_inner', 't_fp_inner', 'L_fp_inner',
     'Nc_fp', 'Nr_fp', 'S1_col_spacing_fp', 'S2_row_spacing_fp', 'S3_end_dist_fp',
@@ -1352,160 +1143,12 @@ function handleRunCheck() {
     renderResults(results);
 }
 
-function showFeedback(message, isError = false) {
-    const feedbackEl = document.getElementById('action-feedback');
-    if (!feedbackEl) return;
-    feedbackEl.textContent = message;
-    feedbackEl.style.color = isError ? '#dc2626' : 'green';
-    setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
-}
-
-function handleSaveInputs() {
-    try {
-        const inputsToSave = {};
-        inputIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                inputsToSave[id] = (el.type === 'checkbox') ? el.checked : el.value;
-            }
-        });
-        const dataStr = JSON.stringify(inputsToSave, null, 2); // Pretty print JSON
-        const blob = new Blob([dataStr], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'splice-inputs.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showFeedback('Inputs downloaded as splice-inputs.txt');
-    } catch (error) {
-        showFeedback('Failed to save inputs to file.', true);
-        console.error("Error saving inputs:", error);
-    }
-}
-
-function handleLoadInputs() {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.txt,.json';
-    fileInput.style.display = 'none';
-
-    fileInput.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const inputsToLoad = JSON.parse(event.target.result);
-                inputIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && inputsToLoad[id] !== undefined) {
-                        el.type === 'checkbox' ? el.checked = inputsToLoad[id] : el.value = inputsToLoad[id];
-                        if (id === 'num_flange_plates' || id === 'develop_capacity_check') el.dispatchEvent(new Event('change'));
-                    }
-                });
-                showFeedback(`Inputs loaded from ${file.name} successfully!`);
-                handleRunCheck(); // Re-run calculation after loading
-            } catch (err) {
-                showFeedback(`Failed to load inputs from ${file.name}. File may be corrupt.`, true);
-                console.error("Error parsing saved splice checker data:", err);
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    document.body.removeChild(fileInput);
-}
-
-// Simple, reliable text copying function
-function copyTextToClipboard(text) {
-    // Create a temporary textarea element
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.top = '0';
-    textArea.style.left = '0';
-    textArea.style.width = '2em';
-    textArea.style.height = '2em';
-    textArea.style.padding = '0';
-    textArea.style.border = 'none';
-    textArea.style.outline = 'none';
-    textArea.style.boxShadow = 'none';
-    textArea.style.background = 'transparent';
-    textArea.style.opacity = '0';
-    
-    document.body.appendChild(textArea);
-    
-    try {
-        // Select and copy
-        textArea.focus();
-        textArea.select();
-        textArea.setSelectionRange(0, 99999); // For mobile devices
-        
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        
-        if (successful) {
-            showFeedback('✓ Results copied to clipboard!');
-        } else {
-            showFeedback('Copy failed. Please select the text manually.', true);
-        }
-    } catch (err) {
-        document.body.removeChild(textArea);
-        showFeedback('Copy not supported. Please select the text manually.', true);
-    }
-}
-
-// Fallback: Show text in a selectable area
-function showSelectableTextFallback() {
-    const resultsContainer = document.getElementById('results-container');
-    const textContent = resultsContainer.textContent || resultsContainer.innerText;
-    
-    // Create a selectable text area
-    const textArea = document.createElement('textarea');
-    textArea.value = textContent;
-    textArea.style.width = '100%';
-    textArea.style.height = '300px';
-    textArea.style.marginTop = '20px';
-    textArea.style.padding = '10px';
-    textArea.style.border = '2px solid #ccc';
-    textArea.style.borderRadius = '5px';
-    textArea.style.fontFamily = 'monospace';
-    textArea.style.resize = 'vertical';
-    
-    // Add instructions
-    const instructions = document.createElement('div');
-    instructions.innerHTML = `
-        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px;">
-            <strong>Manual Copy Instructions:</strong>
-            <ol style="margin: 5px 0; padding-left: 20px;">
-                <li>Select all text in the box below (Ctrl+A)</li>
-                <li>Copy the selected text (Ctrl+C)</li>
-                <li>Paste into Word or your document (Ctrl+V)</li>
-            </ol>
-        </div>
-    `;
-    
-    // Insert above results
-    resultsContainer.parentNode.insertBefore(instructions, resultsContainer);
-    resultsContainer.parentNode.insertBefore(textArea, resultsContainer);
-    
-    // Auto-select the text
-    textArea.focus();
-    textArea.select();
-    
-    showFeedback('Please copy the text from the box below', true);
-}
-
 // --- Attach Event Listeners ---
 document.getElementById('run-check-btn').addEventListener('click', handleRunCheck);
+document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
+document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile());
+document.getElementById('file-input').addEventListener('change', (e) => handleLoadInputs(e));
+document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
 document.getElementById('num_flange_plates').addEventListener('change', (e) => {
     document.getElementById('inner-flange-inputs').style.display = e.target.value === '2' ? 'block' : 'none';
@@ -1517,103 +1160,57 @@ document.getElementById('develop_capacity_check').addEventListener('change', fun
     const isDisabled = this.checked;
     M_load_input.disabled = isDisabled;
     V_load_input.disabled = isDisabled;
-    M_load_input.classList.toggle('bg-gray-100', isDisabled);
-    V_load_input.classList.toggle('bg-gray-100', isDisabled);
+    M_load_input.classList.toggle('bg-gray-200', isDisabled);
+    M_load_input.classList.toggle('dark:bg-gray-700', isDisabled);
+    V_load_input.classList.toggle('bg-gray-200', isDisabled);
+    V_load_input.classList.toggle('dark:bg-gray-700', isDisabled);
 });
 
 document.getElementById('results-container').addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-toggle-id]');
+    const button = event.target.closest('.toggle-details-btn');
     if (button) {
         const detailId = button.dataset.toggleId;
         const row = document.getElementById(detailId);
         if (row) {
-            row.style.display = row.style.display === 'none' ? '' : 'none';
-            button.textContent = row.style.display === 'none' ? '[Show]' : '[Hide]';
+            row.classList.toggle('is-visible');
+            button.textContent = row.classList.contains('is-visible') ? '[Hide]' : '[Show]';
         }
+    }
+    if (event.target.id === 'copy-report-btn') {
+        handleCopyToClipboard('results-container', 'feedback-message');
     }
 });
 
-document.getElementById('copy-to-word-btn').addEventListener('click', () => {
-    const resultsContainer = document.getElementById('results-container');
+function handleSaveInputs() {
+    const inputs = gatherInputsFromIds(inputIds);
+    saveInputsToFile(inputs, 'splice-inputs.txt');
+    showFeedback('Inputs saved to splice-inputs.txt', false, 'feedback-message');
+}
 
-    if (!resultsContainer || !resultsContainer.innerHTML.trim()) {
-        showFeedback('No results to copy.', true);
-        return;
-    }
-
-    try {
-        // Create a clone to manipulate for copying
-        const clone = resultsContainer.cloneNode(true);
-
-        // Make all detail rows visible in the clone
-        const detailsRows = clone.querySelectorAll('tr[id^="details-"]');
-        detailsRows.forEach(row => {
-            row.style.display = ''; // Remove inline style to make it visible
-        });
-
-        // Remove all buttons from the clone
-        const buttons = clone.querySelectorAll('button');
-        buttons.forEach(button => button.remove());
-
-        // Create a wrapper for the content to be copied
-        const copyWrapper = document.createElement('div');
-        copyWrapper.className = 'copy-friendly';
-        copyWrapper.appendChild(clone);
-
-        // Use the Clipboard API to copy rich text
-        const htmlBlob = new Blob([copyWrapper.innerHTML], { type: 'text/html' });
-        navigator.clipboard.write([new ClipboardItem({ 'text/html': htmlBlob })]).then(() => {
-            showFeedback('Results copied to clipboard!');
-        }).catch(err => {
-            console.error('Failed to copy results: ', err);
-            showFeedback('Copy failed. See console for details.', true);
-        });
-
-    } catch (error) {
-        console.error('Copy error:', error);
-        showFeedback('Copy failed. Please see console for details.', true);
-    }
-});
-
-document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
-document.getElementById('load-inputs-btn').addEventListener('click', handleLoadInputs);
-
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-    const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-
-    // Show the correct icon on page load
-    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        themeToggleLightIcon.classList.remove('hidden');
-    } else {
-        themeToggleDarkIcon.classList.remove('hidden');
-    }
-
-    themeToggleBtn.addEventListener('click', function() {
-        // toggle icons inside button
-        themeToggleDarkIcon.classList.toggle('hidden');
-        themeToggleLightIcon.classList.toggle('hidden');
-
-        // if set via local storage previously
-        if (localStorage.getItem('color-theme')) {
-            if (localStorage.getItem('color-theme') === 'light') {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('color-theme', 'dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('color-theme', 'light');
-            }
-        // if NOT set via local storage previously
-        } else {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('color-theme', 'light');
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('color-theme', 'dark');
-            }
+function handleLoadInputs(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const inputs = JSON.parse(e.target.result);
+            inputIds.forEach(id => {
+                if (document.getElementById(id) && inputs[id] !== undefined) {
+                    const el = document.getElementById(id);
+                    if (el.type === 'checkbox') el.checked = inputs[id];
+                    else el.value = inputs[id];
+                }
+            });
+            handleRunCheck();
+            showFeedback('Inputs loaded successfully!', false, 'feedback-message');
+        } catch (err) {
+            console.error(err);
+            showFeedback('Failed to read or parse file.', true, 'feedback-message');
         }
-    });
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset file input
+});
 
 // --- Initial Setup ---
 document.getElementById('num_flange_plates').dispatchEvent(new Event('change'));
@@ -1630,6 +1227,7 @@ webInputsToWatch.forEach(id => {
 
 handleRunCheck(); // Run on page load
 });
+
 </script>
 
 </body>
