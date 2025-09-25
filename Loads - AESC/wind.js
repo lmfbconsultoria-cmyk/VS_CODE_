@@ -392,12 +392,14 @@ function calculateVelocityPressure(Kz, Kzt, Kd, Ke, V, standard, riskCat, units)
     const constant = units === 'imperial' ? 0.00256 : 0.613;
     
     let qz, ref_note;
-    if (standard === 'ASCE 7-16') {
+    if (standard === 'ASCE 7-22') {
+        // ASCE 7-22 includes Iw directly in the velocity pressure equation.
+        qz = constant * safeKz * safeKzt * safeKd * safeKe * Iw * (safeV * safeV); 
+        ref_note = `ASCE 7-22 Eq. 26.10-1 (Iw = ${Iw.toFixed(2)} from ${iw_ref})`;
+    } else { // ASCE 7-16 and other fallbacks
+        // ASCE 7-16 does NOT include Iw in the velocity pressure equation. It's applied later in load combinations.
         qz = constant * safeKz * safeKzt * safeKd * safeKe * (safeV * safeV);
         ref_note = "ASCE 7-16 Eq. 26.10-1";
-    } else {
-        qz = constant * safeKz * safeKzt * safeKd * safeKe * Iw * (safeV * safeV);
-        ref_note = `ASCE 7-22 Eq. 26.10-1 (Iw = ${Iw.toFixed(2)} from ${iw_ref})`;
     }
     
     // Final validation
@@ -1035,39 +1037,44 @@ function renderRoofPressureChart(canvasId, pressureData, building_dimension, des
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
 
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: `Roof Suction (${units.p_unit})`,
-                data: data,
-                borderColor: '#3b82f6', // blue-500
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: `Pressure Distribution (Length: ${building_dimension} ${units.h_unit})`
-                },
-                legend: { display: false }
+    try {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: `Roof Suction (${units.p_unit})`,
+                    data: data,
+                    borderColor: '#3b82f6', // blue-500
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }]
             },
-            scales: {
-                x: {
-                    title: { display: true, text: `Distance from Windward Edge (${units.h_unit})` }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Pressure Distribution (Length: ${building_dimension} ${units.h_unit})`
+                    },
+                    legend: { display: false }
                 },
-                y: {
-                    title: { display: true, text: `Pressure (${units.p_unit})` }
+                scales: {
+                    x: {
+                        title: { display: true, text: `Distance from Windward Edge (${units.h_unit})` }
+                    },
+                    y: {
+                        title: { display: true, text: `Pressure (${units.p_unit})` }
+                    }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error('Chart.js initialization failed:', error);
+        ctx.parentElement.innerHTML = `<div class="text-center text-red-500">Chart could not be rendered.</div>`;
+    }
 }
 
 function generateCandCDiagram(inputs, candc) {
@@ -1181,29 +1188,33 @@ function generateWindSummary(inputs, directional_results, candc, p_unit) {
     let gov_candc_pos = { value: -Infinity, zone: 'N/A' };
     let gov_candc_neg = { value: Infinity, zone: 'N/A' };
 
-    if (inputs.enclosure_classification === 'Open' && directional_results.open_roof) {
-        directional_results.open_roof.forEach(r => {
-            const p_pos = r.p_pos; // Values are already factored in the main run function
-            const p_neg = r.p_neg;
-            if (p_pos > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: p_pos, surface: r.surface };
-            if (p_neg < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: p_neg, surface: r.surface };
-        });
-    } else if (directional_results) {
+    // --- MWFRS Summary Logic ---
+    if (directional_results) {
         Object.values(directional_results).forEach(resultSet => {
+            if (!Array.isArray(resultSet)) return;
             resultSet.forEach(r => {
-                const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
-                const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
-                if (p_pos > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: p_pos, surface: r.surface };
-                if (p_neg < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: p_neg, surface: r.surface };
+                // Get the final ASD or LRFD values
+                const val1 = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
+                const val2 = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+
+                // Check both calculated pressures for each surface against the overall max/min
+                if (val1 > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: val1, surface: r.surface };
+                if (val2 > gov_mwfrs_pos.value) gov_mwfrs_pos = { value: val2, surface: r.surface };
+                
+                if (val1 < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: val1, surface: r.surface };
+                if (val2 < gov_mwfrs_neg.value) gov_mwfrs_neg = { value: val2, surface: r.surface };
             });
         });
     }
 
+    // --- C&C Summary Logic ---
     if (candc && candc.applicable && candc.pressures) {
         for (const zone in candc.pressures) {
             const data = candc.pressures[zone];
-            const p_pos = inputs.design_method === 'ASD' ? data.p_pos * 0.6 : data.p_pos;
-            const p_neg = inputs.design_method === 'ASD' ? data.p_neg * 0.6 : data.p_neg;
+            // Use the final calculated pressures directly
+            const p_pos = inputs.design_method === 'ASD' ? data.p_pos * 0.6 : data.p_pos; // ASD factor applied once
+            const p_neg = inputs.design_method === 'ASD' ? data.p_neg * 0.6 : data.p_neg; // ASD factor applied once
+            
             if (p_pos > gov_candc_pos.value) gov_candc_pos = { value: p_pos, zone };
             if (p_neg < gov_candc_neg.value) gov_candc_neg = { value: p_neg, zone };
         }
@@ -1243,25 +1254,47 @@ function renderWindResults(results) {
     if (warnings && warnings.length > 0) {
         html += renderValidationResults({ warnings, errors: [] });
     }
-    
-    // --- Design Parameters Summary ---
-    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
-                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
-                <ul class="summary-list">
+
+    // --- 1. DESIGN PARAMETERS ---
+    html += `<div class="mt-6">
+                <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <ul class="list-disc list-inside space-y-1">
                     <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
-                    <li><strong>Basic Wind Speed (V):</strong> ${inputs.V_unreduced.toFixed(1)} ${v_unit} <span class="ref">[User Input / Jurisdiction]</span></li>
-                    ${inputs.V_in !== inputs.V_unreduced ? `<li><strong>Calculation Wind Speed:</strong> ${inputs.V_in.toFixed(1)} ${v_unit} <span class="ref">[After Reductions]</span></li>` : ''}
+                    <li><strong>Basic Design Wind Speed (V):</strong> ${inputs.V_unreduced.toFixed(1)} ${v_unit.toUpperCase()} <span class="ref">[User Input / Jurisdiction]</span></li>
                     <li><strong>Exposure Category:</strong> ${sanitizeHTML(inputs.exposure_category)} <span class="ref">[ASCE 7, Sec. 26.7]</span></li>
-                    <li><strong>Mean Roof Height (h):</strong> ${inputs.mean_roof_height} ${h_unit}</li>
+                    <li><strong>Building Height (h):</strong> ${inputs.mean_roof_height} ${h_unit.toUpperCase()}</li>
                     <li><strong>Wind Directionality Factor (K<sub>d</sub>):</strong> ${intermediate.Kd.toFixed(2)} <span class="ref">[${intermediate.Kd_ref}]</span></li>
                     <li><strong>Topographic Factor (K<sub>zt</sub>):</strong> ${inputs.topographic_factor_Kzt.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.8]</span></li>
                     <li><strong>Ground Elevation Factor (K<sub>e</sub>):</strong> ${intermediate.Ke.toFixed(2)} <span class="ref">[${intermediate.ke_ref}]</span></li>
                     <li><strong>Gust-Effect Factor (G):</strong> ${inputs.gust_effect_factor_g.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.11]</span></li>
-                    <li><strong>Velocity Pressure Exp. Coeff. (K<sub>z</sub>):</strong> ${intermediate.Kz.toFixed(2)} <span class="ref">[${intermediate.Kz_ref}]</span></li>
-                    <li><strong>Internal Pressure Coeff. (GC<sub>pi</sub>):</strong> &plusmn;${inputs.GCpi_abs.toFixed(2)} <span class="ref">[${intermediate.GCpi_ref}]</span></li>
-                    <li><strong>Velocity Pressure (q<sub>h</sub>):</strong> ${intermediate.qz.toFixed(2)} ${p_unit} <span class="ref">[${intermediate.qz_ref}]</span></li>
+                    <li><strong>Velocity Pressure Exposure Coefficient (K<sub>z</sub>):</strong> ${intermediate.Kz.toFixed(2)} <span class="ref">[${intermediate.Kz_ref}]</span></li>
+                    <li><strong>Internal Pressure Coefficient (GC<sub>pi</sub>):</strong> &plusmn;${inputs.GCpi_abs.toFixed(2)} <span class="ref">[${intermediate.GCpi_ref}]</span></li>
+                    ${inputs.temporary_construction === 'Yes' ? `<li><strong>Reduction Factor for Temporary Construction:</strong> 0.8 <span class="ref">[NYC BC, SEC. 1619.3.3]</span></li>` : ''}
                 </ul>
              </div>`;
+
+    // --- 2. DETAILED CALCULATION BREAKDOWN ---
+    html += `<div class="mt-6">
+                <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <div class="calc-breakdown">
+                    <h4 class="font-semibold uppercase text-base">a) Intermediate Calculations</h4>
+                    <ul class="list-disc list-inside space-y-2 mt-2">
+                        <li><strong>Factors:</strong> I<sub>w</sub> = ${intermediate.Iw.toFixed(2)}, K<sub>d</sub> = ${intermediate.Kd.toFixed(2)}, K<sub>zt</sub> = ${inputs.topographic_factor_Kzt.toFixed(2)}, G = ${inputs.gust_effect_factor_g.toFixed(2)}, GC<sub>pi</sub> = &plusmn;${inputs.GCpi_abs.toFixed(2)}</li>
+                        <li><strong>Exposure Constants (&alpha;, z<sub>g</sub>):</strong> ${intermediate.alpha}, ${intermediate.zg.toFixed(0)} ${h_unit}</li>
+                        <li><strong>Elevation Factor (K<sub>e</sub>):</strong>
+                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">Interpolated from ${intermediate.ke_ref} &rarr; K<sub>e</sub> = ${intermediate.Ke.toFixed(3)}</div>
+                        </li>
+                        <li><strong>Exposure Coefficient (K<sub>z</sub>):</strong>
+                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">K<sub>z</sub> = 2.01 &times; (${inputs.mean_roof_height.toFixed(2)} / ${intermediate.zg.toFixed(0)})<sup>(2 / ${intermediate.alpha})</sup> = ${intermediate.Kz.toFixed(3)}</div>
+                        </li>
+                        <li><strong>Velocity Pressure (q<sub>h</sub>):</strong>
+                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">q<sub>h</sub> = 0.00256 &times; ${intermediate.Kz.toFixed(3)} &times; ${inputs.topographic_factor_Kzt.toFixed(2)} &times; ${intermediate.Kd.toFixed(2)} &times; ${intermediate.Ke.toFixed(3)} &times; ${inputs.V_in.toFixed(1)}² ${inputs.effective_standard === 'ASCE 7-22' ? `&times; ${intermediate.Iw.toFixed(2)}` : ''} = ${intermediate.qz.toFixed(2)} ${p_unit}</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>`;
 
     // Handle Open Building Results
     if (inputs.enclosure_classification === 'Open') {
@@ -1299,8 +1332,10 @@ function renderWindResults(results) {
             <tbody class="dark:text-gray-300">`;
         
         data.forEach((r, i) => {
-            const p_pos = inputs.design_method === 'ASD' ? r.p_pos * 0.6 : r.p_pos;
-            const p_neg = inputs.design_method === 'ASD' ? r.p_neg * 0.6 : r.p_neg;
+            const p_pos = inputs.design_method === 'ASD' ? r.p_pos_asd : r.p_pos;
+            const p_neg = inputs.design_method === 'ASD' ? r.p_neg_asd : r.p_neg;
+            const asd_factor_str = inputs.design_method === 'ASD' ? ' * 0.6' : '';
+            const formula_prefix = inputs.design_method === 'ASD' ? 'p = 0.6 * qz * (G*Cp - GCpi)' : 'p = qz * (G*Cp - GCpi)';
             const detailId = `${id_prefix}-detail-${i}`;
             tableHtml += `
                 <tr>
@@ -1311,7 +1346,7 @@ function renderWindResults(results) {
                 </tr>
                 <tr id="${detailId}" class="details-row"><td colspan="4" class="p-0"><div class="calc-breakdown">
                         <h4>Calculation for ${r.surface}</h4>
-                        <ul><li>p = qz * (G*Cp - GCpi) = ${intermediate.qz.toFixed(2)} * (${sanitizeHTML(inputs.gust_effect_factor_g)}*${r.cp.toFixed(2)} - &plusmn;${inputs.GCpi_abs})</li></ul>
+                        <ul><li>${formula_prefix} = ${intermediate.qz.toFixed(2)} * (${sanitizeHTML(inputs.gust_effect_factor_g)}*${r.cp.toFixed(2)} - &plusmn;${inputs.GCpi_abs})${asd_factor_str}</li></ul>
                     </div></td></tr>`;
         });
         tableHtml += `</tbody></table>`;

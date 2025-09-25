@@ -126,16 +126,35 @@
 
           <div class="form-section">
             <h2>Lateral Loads</h2>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Windward Wall</div>
                     <div>
-                        <label for="combo_maximum_wind_load_wmax" class="block text-sm font-medium mb-1">Max Wind (Wmax)</label>
-                        <input type="number" id="combo_maximum_wind_load_wmax" value="-3.32">
+                        <label for="combo_wind_windward_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
+                        <input type="number" id="combo_wind_windward_w_max" value="15.0">
                     </div>
                      <div>
-                        <label for="combo_minimum_wind_load_wmin" class="block text-sm font-medium mb-1">Min Wind (Wmin)</label>
-                        <input type="number" id="combo_minimum_wind_load_wmin" value="-18.57">
+                        <label for="combo_wind_windward_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
+                        <input type="number" id="combo_wind_windward_w_min" value="3.5">
+                    </div>
+                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Leeward Wall</div>
+                     <div>
+                        <label for="combo_wind_leeward_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
+                        <input type="number" id="combo_wind_leeward_w_max" value="8.8">
                     </div>
                      <div>
+                        <label for="combo_wind_leeward_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
+                        <input type="number" id="combo_wind_leeward_w_min" value="-21.5">
+                    </div>
+                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Sidewall</div>
+                     <div>
+                        <label for="combo_wind_sidewall_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
+                        <input type="number" id="combo_wind_sidewall_w_max" value="0">
+                    </div>
+                     <div>
+                        <label for="combo_wind_sidewall_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
+                        <input type="number" id="combo_wind_sidewall_w_min" value="-18.0">
+                    </div>
+                     <div class="md:col-span-2">
                         <label for="combo_seismic_load_e" class="block text-sm font-medium mb-1">Seismic Load (E)</label>
                         <input type="number" id="combo_seismic_load_e" value="0">
                     </div>

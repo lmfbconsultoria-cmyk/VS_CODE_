@@ -85,6 +85,52 @@ function setLoadingState(isLoading, buttonId) {
 }
 
 /**
+ * Validates a set of inputs against a predefined set of rules.
+ * @param {object} inputs - The input values to validate.
+ * @param {object} rules - The validation rules object.
+ * @returns {{errors: string[], warnings: string[]}} - An object containing arrays of error and warning messages.
+ */
+function validateInputs(inputs, rules) {
+    const errors = [];
+    const warnings = [];
+
+    if (rules) {
+        for (const [key, rule] of Object.entries(rules)) {
+            const value = inputs[key];
+            const label = rule.label || key;
+
+            if (rule.required && (value === undefined || value === '' || (typeof value === 'number' && isNaN(value)))) {
+                errors.push(`${label} is required.`);
+                continue;
+            }
+            if (typeof value === 'number' && !isNaN(value)) {
+                if (rule.min !== undefined && value < rule.min) errors.push(`${label} must be at least ${rule.min}.`);
+                if (rule.max !== undefined && value > rule.max) errors.push(`${label} must be no more than ${rule.max}.`);
+            }
+        }
+    }
+    return { errors, warnings };
+}
+
+/**
+ * Renders validation errors and warnings into an HTML string.
+ * @param {{errors?: string[], warnings?: string[]}} validation - The validation result object.
+ * @param {HTMLElement} [container] - Optional. The container element to set the innerHTML of.
+ * @returns {string} - The generated HTML string.
+ */
+function renderValidationResults(validation, container) {
+    let html = '';
+    if (validation.errors && validation.errors.length > 0) {
+        html += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4"><p class="font-bold">Input Errors Found:</p><ul class="list-disc list-inside mt-2">${validation.errors.map(e => `<li>${e}</li>`).join('')}</ul><p class="mt-2">Please correct the errors and run the check again.</p></div>`;
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+        html += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md my-4"><p class="font-bold">Warnings:</p><ul class="list-disc list-inside mt-2">${validation.warnings.map(w => `<li>${w}</li>`).join('')}</ul></div>`;
+    }
+    if (container) container.innerHTML = html;
+    return html;
+}
+
+/**
  * Sanitizes a string to prevent XSS by escaping HTML special characters.
  * @param {string | number} str - The string or number to sanitize.
  * @returns {string} The sanitized string.

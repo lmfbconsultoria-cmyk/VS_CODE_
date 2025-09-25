@@ -289,8 +289,8 @@ function run(inputs, validation) {
              }
          }
          const { Is, Ce, Ct } = getSnowFactors(inputs.risk_category, inputs.exposure_condition, inputs.thermal_condition, inputs.surface_roughness_category);
-         const Cs = calculateSlopeFactor(inputs.roof_slope_degrees, inputs.is_roof_slippery, Ct, inputs.asce_standard);
-         const pf = 0.7 * Ce * Ct * Is * inputs.ground_snow_load;
+         const Cs = calculateSlopeFactor(inputs.roof_slope_degrees || 0, inputs.is_roof_slippery, Ct || 1.0, inputs.asce_standard);
+         const pf = 0.7 * (Ce || 1.0) * (Ct || 1.0) * (Is || 1.0) * (inputs.ground_snow_load || 0);
          let ps_calculated = Cs * pf;
          
          let ps_min_asce7 = 0;
@@ -403,6 +403,8 @@ function renderSnowResults(results) {
      const { inputs, intermediate, is_nycbc_min_governed, unbalanced, drift, sliding, warnings } = results;
      const { ps_balanced_nominal } = results.results;
      const p_unit = inputs.unit_system === 'imperial' ? 'psf' : 'kPa';
+     const f_unit = inputs.unit_system === 'imperial' ? 'plf' : 'kN/m';
+     const l_unit_long = inputs.unit_system === 'imperial' ? 'feet' : 'meters';
      const l_unit = inputs.unit_system === 'imperial' ? 'ft' : 'm';
 
      let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
@@ -424,43 +426,57 @@ function renderSnowResults(results) {
         html += renderValidationResults({ warnings, errors: [] });
     }
 
-    // --- Design Parameters Summary ---
-    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
-                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
-                <ul class="summary-list">
+    // --- 1. DESIGN PARAMETERS ---
+    html += `<div class="mt-6">
+                <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <ul class="list-disc list-inside space-y-1">
                     <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
                     <li><strong>Ground Snow Load (p<sub>g</sub>):</strong> ${inputs.ground_snow_load.toFixed(2)} ${p_unit} <span class="ref">[User Input / ASCE 7 Fig. 7.2-1]</span></li>
                     <li><strong>Exposure Condition:</strong> ${sanitizeHTML(inputs.exposure_condition)} <span class="ref">[ASCE 7, Sec. 7.3.1]</span></li>
                     <li><strong>Thermal Condition:</strong> ${sanitizeHTML(inputs.thermal_condition)} <span class="ref">[ASCE 7, Sec. 7.3.2]</span></li>
                     <li><strong>Importance Factor (I<sub>s</sub>):</strong> ${intermediate.Is.toFixed(2)} <span class="ref">[ASCE 7, Table 1.5-2]</span></li>
-                    <li><strong>Exposure Factor (C<sub>e</sub>):</strong> ${intermediate.Ce.toFixed(2)} <span class="ref">[ASCE 7, Table 7.3-1]</span></li>
-                    <li><strong>Thermal Factor (C<sub>t</sub>):</strong> ${intermediate.Ct.toFixed(2)} <span class="ref">[ASCE 7, Table 7.3-2]</span></li>
-                    <li><strong>Slope Factor (C<sub>s</sub>):</strong> ${intermediate.Cs.toFixed(3)} <span class="ref">[ASCE 7, Fig. 7.4-1]</span></li>
-                    <li><strong>Flat Roof Snow Load (p<sub>f</sub>):</strong> ${intermediate.pf.toFixed(2)} ${p_unit} <span class="ref">[ASCE 7, Eq. 7.3-1]</span></li>
                 </ul>
              </div>`;
 
-    html += `
-        <div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
-            <h3 class="text-xl font-semibold text-center mb-4">Balanced Snow Load (${inputs.design_method})</h3>
-            <div class="text-center">
-                <p class="text-4xl font-bold">${ps_balanced_nominal.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
-            </div>
-            <div class="text-center mt-4">
-                <button data-toggle-id="snow-balanced-details" class="toggle-details-btn text-base">[Show Calculation]</button>
-            </div>
-            <div id="snow-balanced-details" class="details-row is-visible">
-                <div class="calc-breakdown mt-4">
-                    <h4>Balanced Snow Load Breakdown</h4>
-                    <ul>
-                        <li>Flat Roof Snow Load (p<sub>f</sub>) = 0.7 * C<sub>e</sub> * C<sub>t</sub> * I<sub>s</sub> * p<sub>g</sub></li>
-                        <li>p<sub>f</sub> = 0.7 * ${intermediate.Ce.toFixed(2)} * ${intermediate.Ct.toFixed(2)} * ${intermediate.Is.toFixed(2)} * ${sanitizeHTML(inputs.ground_snow_load)} = <b>${intermediate.pf.toFixed(2)} ${p_unit}</b></li>
-                        <li>Slope Factor (C<sub>s</sub>) = <b>${intermediate.Cs.toFixed(3)}</b> (for ${inputs.roof_slope_degrees}° slope)</li>
-                        <li>Calculated Roof Snow Load (p<sub>s</sub>) = p<sub>f</sub> * C<sub>s</sub> = ${intermediate.pf.toFixed(2)} * ${intermediate.Cs.toFixed(3)} = <b>${intermediate.ps_calculated.toFixed(2)} ${p_unit}</b></li>
-                        ${intermediate.asce7_min_governed ? `<li>Minimum Snow Load (p<sub>min</sub>) for low-slope roofs governs: <b>${intermediate.ps_asce7.toFixed(2)} ${p_unit}</b></li>` : ''}
+    // --- 2. DETAILED CALCULATION BREAKDOWN ---
+    html += `<div class="mt-6">
+                <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <div class="calc-breakdown">
+                    <h4 class="font-semibold uppercase text-base">a) Balanced Snow Load Calculation</h4>
+                    <ul class="list-disc list-inside space-y-2 mt-2">
+                        <li><strong>Factors:</strong> I<sub>s</sub> = ${intermediate.Is.toFixed(2)}, C<sub>e</sub> = ${intermediate.Ce.toFixed(2)}, C<sub>t</sub> = ${intermediate.Ct.toFixed(2)}, C<sub>s</sub> = ${intermediate.Cs.toFixed(3)}</li>
+                        <li><strong>Flat Roof Snow Load (p<sub>f</sub>):</strong>
+                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">p<sub>f</sub> = 0.7 &times; C<sub>e</sub> &times; C<sub>t</sub> &times; I<sub>s</sub> &times; p<sub>g</sub> = 0.7 &times; ${intermediate.Ce.toFixed(2)} &times; ${intermediate.Ct.toFixed(2)} &times; ${intermediate.Is.toFixed(2)} &times; ${inputs.ground_snow_load.toFixed(2)} = <b>${intermediate.pf.toFixed(2)} ${p_unit}</b></div>
+                        </li>
+                        <li><strong>Sloped Roof Snow Load (p<sub>s</sub>):</strong>
+                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">p<sub>s</sub> = C<sub>s</sub> &times; p<sub>f</sub> = ${intermediate.Cs.toFixed(3)} &times; ${intermediate.pf.toFixed(2)} = <b>${intermediate.ps_calculated.toFixed(2)} ${p_unit}</b></div>
+                        </li>
+                        ${intermediate.asce7_min_governed ? `<li><strong>Minimum Snow Load (p<sub>min</sub>):</strong> <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">Low-slope roof minimum p<sub>min</sub> = I<sub>s</sub> &times; min(p<sub>g</sub>, 20) = <b>${intermediate.ps_asce7.toFixed(2)} ${p_unit}</b> governs over calculated p<sub>s</sub>.</div></li>` : ''}
+                        ${is_nycbc_min_governed ? `<li><strong>Jurisdictional Minimum:</strong> <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">NYCBC minimum of <b>${inputs.nycbc_minimum_roof_snow_load.toFixed(2)} ${p_unit}</b> governs. <span class="ref">[NYCBC, SEC. 1608.4]</span></div></li>` : ''}
                     </ul>
                 </div>
-            </div>
+            </div>`;
+
+    // --- Snow Load Diagrams ---
+    html += `<div class="mt-6">
+                <h3 class="text-xl font-bold uppercase">3. Load Case Diagrams</h3>
+                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    ${generateBalancedSnowDiagram()}
+                    ${inputs.calculate_unbalanced && unbalanced.applicable ? generateUnbalancedSnowDiagram() : ''}
+                    ${inputs.calculate_drift && drift.applicable ? generateDriftSnowDiagram(drift.hd, drift.w, l_unit) : ''}
+                </div>
+            </div>`;
+
+
+    // --- GOVERNING LOAD SUMMARY ---
+    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
+                <h3 class="text-xl font-semibold text-center mb-4">Governing Balanced Snow Load (${inputs.design_method})</h3>
+                <div class="text-center">
+                    <p class="text-4xl font-bold">${ps_balanced_nominal.toFixed(2)} <span class="text-2xl font-medium">${p_unit}</span></p>
+                </div>
         </div>`;
 
     if (inputs.calculate_unbalanced) {
@@ -531,22 +547,77 @@ function renderSnowResults(results) {
         html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
                     <h3 class="text-xl font-semibold text-center mb-4">Sliding Snow Load (ASCE 7 Sec. 7.13)</h3>`;
         if (sliding.applicable) {
-            const f_unit = inputs.unit_system === 'imperial' ? 'plf' : 'kN/m';
             html += `<div class="grid grid-cols-2 text-center">
                         <div><p>Sliding Load Intensity (p<sub>s,slide</sub>)</p><p class="font-bold text-2xl">${sliding.ps_sliding.toFixed(2)} ${p_unit}</p></div>
                         <div><p>Total Sliding Force (W<sub>s</sub>)</p><p class="font-bold text-2xl">${sliding.Ws.toFixed(2)} ${f_unit}</p></div>
                      </div>
-                     <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">This load is added to the balanced snow on the lower roof, distributed over ${sliding.distribution_width.toFixed(1)} ${l_unit}.</p>`;
+                     <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">This load is added to the balanced snow on the lower roof, distributed over a width of ${sliding.distribution_width.toFixed(1)} ${l_unit}.</p>`;
         } else {
             html += `<p class="text-center text-gray-600 dark:text-gray-400">${sliding.reason}</p>`;
         }
         html += `</div>`;
     }
 
-    html += generateSnowSummary(inputs, results.results, unbalanced, drift, sliding, p_unit);
-
     html += `</div>`;
     resultsContainer.innerHTML = html;
+}
+
+function generateBalancedSnowDiagram() {
+    return `
+        <div class="diagram">
+            <h4 class="text-center font-semibold text-sm mb-2">Balanced Snow Load</h4>
+            <svg viewBox="0 0 200 150" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                <!-- Building -->
+                <path d="M20 130 L 20 90 L 100 50 L 180 90 L 180 130 Z" class="svg-member" />
+                <!-- Snow -->
+                <polygon points="20,88 100,48 180,88 180,78 100,38 20,78" fill="#dbeafe" opacity="0.8" stroke="#60a5fa" stroke-width="0.5" />
+                <text x="100" y="70" class="svg-label" text-anchor="middle">p_s</text>
+                <!-- Ground -->
+                <line x1="10" y1="130" x2="190" y2="130" class="svg-dim" stroke-dasharray="2 2" />
+            </svg>
+            <p class="text-xs text-center mt-2">Uniform load over the entire roof surface.</p>
+        </div>`;
+}
+
+function generateUnbalancedSnowDiagram() {
+    return `
+        <div class="diagram">
+            <h4 class="text-center font-semibold text-sm mb-2">Unbalanced Snow Load</h4>
+            <svg viewBox="0 0 200 150" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                <!-- Building -->
+                <path d="M20 130 L 20 90 L 100 50 L 180 90 L 180 130 Z" class="svg-member" />
+                <!-- Wind Arrow -->
+                <path d="M10 70 L 40 70" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)" />
+                <text x="15" y="65" class="svg-dim-text">Wind</text>
+                <!-- Leeward Snow -->
+                <polygon points="100,50 180,90 180,60 100,20" fill="#dbeafe" opacity="0.8" stroke="#60a5fa" stroke-width="0.5" />
+                <text x="140" y="55" class="svg-label" text-anchor="middle">Leeward</text>
+                <!-- Windward Snow (or lack thereof) -->
+                <text x="60" y="75" class="svg-label" text-anchor="middle">Windward</text>
+                <!-- Ground -->
+                <line x1="10" y1="130" x2="190" y2="130" class="svg-dim" stroke-dasharray="2 2" />
+            </svg>
+            <p class="text-xs text-center mt-2">Wind removes snow from the windward side and deposits it on the leeward side.</p>
+        </div>`;
+}
+
+function generateDriftSnowDiagram(hd, w, l_unit) {
+    return `
+        <div class="diagram">
+            <h4 class="text-center font-semibold text-sm mb-2">Drift Surcharge Load</h4>
+            <svg viewBox="0 0 200 150" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                <!-- High Roof -->
+                <rect x="20" y="50" width="80" height="80" class="svg-member" />
+                <!-- Low Roof -->
+                <rect x="100" y="90" width="80" height="40" class="svg-member" />
+                <!-- Drift -->
+                <path d="M100 90 L 100 60 L ${100 + (w/hd * 30)} 90 Z" fill="#dbeafe" opacity="0.8" stroke="#60a5fa" stroke-width="0.5" />
+                <text x="125" y="80" class="svg-label" text-anchor="middle">Drift (p_d)</text>
+                <!-- Ground -->
+                <line x1="10" y1="130" x2="190" y2="130" class="svg-dim" stroke-dasharray="2 2" />
+            </svg>
+            <p class="text-xs text-center mt-2">Snow accumulates against a taller adjacent structure, creating a drift surcharge.</p>
+        </div>`;
 }
 
 function handleSaveSnowInputs() {

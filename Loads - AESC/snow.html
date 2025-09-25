@@ -42,7 +42,24 @@
         <div class="form-section">
             <h2>Snow Load Diagrams</h2>
             <div class="diagram">
-                <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg"><path d="M50 150 L100 150 L100 100 L200 100 L250 150 L350 150" class="svg-member" fill="none"/><path d="M100 100 L200 50 L300 100 L200 100" class="svg-member" fill="none"/><path d="M100 100 L120 80 C150 60 180 60 200 80 L200 100" fill="#dbeafe" opacity="0.7"/><text x="150" y="75" class="svg-label">Drift</text><text x="150" y="90" class="svg-dim-text">(h_d, w)</text><path d="M200 50 L250 75 L300 50" fill="#dbeafe" opacity="0.7"/><text x="250" y="60" class="svg-label">Unbalanced</text></svg>
+                <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                    <!-- High Roof -->
+                    <rect x="20" y="80" width="130" height="100" class="svg-member" />
+                    <!-- Low Roof -->
+                    <rect x="150" y="120" width="230" height="60" class="svg-member" />
+                    <!-- Roof Lines -->
+                    <path d="M20 80 L 85 40 L 150 80" fill="none" class="svg-member" stroke-width="2"/>
+                    
+                    <!-- Balanced Load -->
+                    <polygon points="20,78 85,38 150,78 150,70 85,30 20,70" fill="#a7f3d0" opacity="0.7" />
+                    <text x="85" y="60" class="svg-label" font-size="12">Balanced</text>
+                    <!-- Unbalanced Load -->
+                    <polygon points="85,40 150,80 150,60 85,20" fill="#fde047" opacity="0.7" />
+                    <text x="117" y="55" class="svg-label" font-size="12">Unbalanced</text>
+                    <!-- Drift Load -->
+                    <path d="M150 120 L 150 80 L 210 120 Z" fill="#fdba74" opacity="0.7" />
+                    <text x="170" y="110" class="svg-label" font-size="12">Drift</text>
+                </svg>
             </div>
         </div>
         <div class="form-section">
