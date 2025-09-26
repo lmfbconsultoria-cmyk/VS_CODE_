@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initializeApp() {
         attachEventListeners();
+        loadDataFromStorage();
     }
 
     function attachEventListeners() {
@@ -49,18 +50,41 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target.id === 'copy-report-btn') {
                 await handleCopyToClipboard('combo-results-container', 'feedback-message');
             }
+            const copyBtn = event.target.closest('.copy-section-btn');
+            if (copyBtn) {
+                const targetId = copyBtn.dataset.copyTargetId;
+                if (targetId) {
+                    await handleCopyToClipboard(targetId, 'feedback-message');
+                }
+            }
             if (event.target.id === 'print-report-btn') {
                 window.print();
-            }
-            if (event.target.id === 'copy-summary-btn') {
-                // Use the shared utility function for copying summary
-                handleCopySummaryToClipboard('combo-results-container', 'feedback-message');
             }
         });
     }
 
     initializeApp();
 });
+
+function loadDataFromStorage() {
+    const storedLoads = localStorage.getItem('loadsForCombinator');
+    if (storedLoads) {
+        try {
+            const loads = JSON.parse(storedLoads);
+            for (const id in loads) {
+                const el = document.getElementById(id);
+                if (el && loads[id] !== undefined) {
+                    el.value = loads[id];
+                }
+            }
+            showFeedback('Loads imported from another calculator!', false, 'feedback-message');
+            // Clear the storage item so it's not re-loaded on a simple refresh
+            localStorage.removeItem('loadsForCombinator');
+        } catch (e) {
+            console.error("Failed to parse loads from localStorage", e);
+        }
+    }
+}
 
 const validationRules = {
     combo: {
@@ -326,11 +350,9 @@ function renderComboResults(fullResults) {
     lastComboRunResults = fullResults;
     
     const resultsContainer = document.getElementById('combo-results-container');
-    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
-    html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
-                    <button id="copy-summary-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm">Copy Summary</button>
+    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6 report-section-copyable">`;
+    html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
-                    <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
               </div>`;
 
     html += `
@@ -371,8 +393,11 @@ function renderComboResults(fullResults) {
         { label: 'Seismic Load (E)', value: inputs.seismic_load_e }
     ];
 
-    html += `<div class="mt-6 report-section-copyable">
-                <h3 class="text-xl font-bold uppercase">1. Input Loads</h3>
+    html += `<div id="combo-inputs-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">1. Input Loads</h3>
+                    <button data-copy-target-id="combo-inputs-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <ul class="list-disc list-inside space-y-1">`;
     
@@ -389,7 +414,11 @@ function renderComboResults(fullResults) {
              </div>`;
 
     // --- Base Load Combinations (No Wind/Snow) ---
-    html += `<h3 class="text-xl font-semibold text-center mt-6">Base Load Combinations</h3>
+    html += `<div id="combo-base-section" class="report-section-copyable">
+             <div class="flex justify-between items-center mt-6">
+                <h3 class="text-xl font-semibold text-center flex-grow">Base Load Combinations</h3>
+                <button data-copy-target-id="combo-base-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+             </div>
              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-2">These combinations are constant across all scenarios.</p>
              <table class="results-container w-full mt-2 border-collapse">
                 <thead><tr><th>Combination</th><th>Formula</th><th>Result</th></tr></thead>
@@ -400,7 +429,7 @@ function renderComboResults(fullResults) {
         const value = fullResults.base_combos.results[combo];
         html += `<tr><td>${combo}</td><td>${formula.replace(/Math\.max/g, 'max').replace(/Math\.min/g, 'min')}</td><td>${value.toFixed(2)}</td></tr>`;
     }
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
 
 
     // --- Scenario-Specific Combinations ---
@@ -428,7 +457,12 @@ function renderComboResults(fullResults) {
          
          if(!res_wmax) continue;
 
-         html += `<h3 class="text-xl font-semibold text-center mt-8">${title}</h3>`;
+         html += `<div id="combo-scenario-${scenario_key}" class="report-section-copyable">
+                    <div class="flex justify-between items-center mt-8">
+                        <h3 class="text-xl font-semibold text-center flex-grow">${title}</h3>
+                        <button data-copy-target-id="combo-scenario-${scenario_key}" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    </div>
+                 `;
          html += `<table class="results-container w-full mt-2 border-collapse">
                     <thead><tr><th>Combination</th><th>Formula</th><th>Result (Max Wind)</th><th>Result (Min Wind)</th></tr></thead>
                     <tbody>`;
@@ -474,6 +508,7 @@ function renderComboResults(fullResults) {
             }
             html += `</tbody></table>`;
         }
+        html += `</div>`; // Close scenario section
     }
 
     html += generateComboSummary(all_gov_data, fullResults.inputs.design_method, p_unit);

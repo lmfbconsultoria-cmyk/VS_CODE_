@@ -60,14 +60,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('rain_drain_type').dispatchEvent(new Event('change'));
 
         document.body.addEventListener('click', async (event) => {
-            if (event.target.id === 'copy-report-btn') {
-                await handleCopyToClipboard('rain-results-container', 'feedback-message');
+            const copyBtn = event.target.closest('.copy-section-btn');
+            if (copyBtn) {
+                const targetId = copyBtn.dataset.copyTargetId;
+                if (targetId) {
+                    await handleCopyToClipboard(targetId, 'feedback-message');
+                }
             }
             if (event.target.id === 'print-report-btn') {
                 window.print();
             }
-            if (event.target.id === 'copy-summary-btn') {
-                await handleCopySummaryToClipboard('rain-results-container', 'feedback-message');
+            if (event.target.id === 'send-to-combos-btn' && lastRainRunResults) {
+                sendRainToCombos(lastRainRunResults);
             }
         });
     }
@@ -203,11 +207,11 @@ function renderRainResults(results) {
     const a_unit = inputs.unit_system === 'imperial' ? 'ft²' : 'm²';
     const factor = inputs.unit_system === 'imperial' ? '5.2' : '0.0098';
 
-    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
-    html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6 report-section-copyable">`;
+    html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
+                    <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
-                    <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
-              </div>`;
+               </div>`;
 
     html += `
         <div class="text-center border-b pb-4">
@@ -224,8 +228,11 @@ function renderRainResults(results) {
     const finalLoad = (inputs.design_method === 'ASD') ? R_asd : R_strength;
 
     // --- Design Parameters Summary ---
-    html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
-                <h3 class="text-xl font-semibold text-center mb-4">Design Parameters</h3>
+    html += `<div id="rain-params-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-center flex-grow">Design Parameters</h3>
+                    <button data-copy-target-id="rain-params-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
                 <ul class="summary-list">
                     <li><strong>Tributary Area (A):</strong> ${inputs.tributary_area.toFixed(0)} ${a_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
                     <li><strong>Rainfall Intensity (i):</strong> ${inputs.intensity.toFixed(2)} ${i_unit} <span class="ref">[Plumbing Code / ASCE 7, C8.3]</span></li>
@@ -236,9 +243,16 @@ function renderRainResults(results) {
                 </ul>
              </div>`;
 
-    html += generateRainSummary(inputs, results.results, p_unit, dh_calc_note);
-    html += `<div class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4 mt-6">
-            <h3 class="text-xl font-semibold text-center mb-4">Calculation Breakdown</h3><ul class="space-y-2">
+    html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+             <div id="rain-summary-section">
+                ${generateRainSummary(inputs, results.results, p_unit, dh_calc_note)}
+             </div>
+             <div id="rain-breakdown-section" class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-center flex-grow">Calculation Breakdown</h3>
+                <button data-copy-target-id="rain-breakdown-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+            </div>
+            <ul class="space-y-2">
                 <li><strong>Formula (ASCE 7 Eq 8.3-1):</strong> R = ${factor} * (d<sub>s</sub> + d<sub>h</sub>)</li>
                 <li><strong>Static Head (d<sub>s</sub>):</strong> ${inputs.static_head.toFixed(2)} ${d_unit}</li>
                 ${inputs.dh_auto_calc ? `
@@ -257,7 +271,20 @@ function renderRainResults(results) {
              <p><strong>Strength Design Load (LRFD):</strong> 1.6 * ${R_nominal.toFixed(2)} = <strong>${R_strength.toFixed(2)} ${p_unit}</strong></p>
              <p><strong>Allowable Stress Design Load (ASD):</strong> 1.0 * ${R_nominal.toFixed(2)} = <strong>${R_asd.toFixed(2)} ${p_unit}</strong></p>
         </div>
+        </div>
      </div>`;
 
     resultsContainer.innerHTML = html;
+}
+
+function sendRainToCombos(results) {
+    if (!results || !results.results) {
+        showFeedback('No rain results to send.', true, 'feedback-message');
+        return;
+    }
+    const comboData = {
+        combo_rain_load_r: results.results.R_nominal || 0,
+    };
+    localStorage.setItem('loadsForCombinator', JSON.stringify(comboData));
+    window.location.href = 'combos.html';
 }

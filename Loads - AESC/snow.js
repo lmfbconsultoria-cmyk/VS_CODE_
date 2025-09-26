@@ -50,6 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target.id === 'print-report-btn') {
                 window.print();
             }
+            if (event.target.id === 'send-to-combos-btn' && lastSnowRunResults) {
+                sendSnowToCombos(lastSnowRunResults);
+            }
             const button = event.target.closest('.toggle-details-btn');
             if (button) {
                 const detailId = button.dataset.toggleId;
@@ -375,11 +378,10 @@ function renderSnowResults(results) {
      const l_unit = inputs.unit_system === 'imperial' ? 'ft' : 'm';
 
      let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
-     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
-                    <button id="copy-summary-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm">Copy Summary</button>
+     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
+                    <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Full Report</button>
-                    <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
-              </div>`;
+               </div>`;
 
      html += `
         <div class="text-center border-b pb-4">
@@ -395,8 +397,11 @@ function renderSnowResults(results) {
     }
 
     // --- 1. DESIGN PARAMETERS ---
-    html += `<div class="mt-6 report-section-copyable">
-                <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+    html += `<div id="snow-design-parameters-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+                    <button data-copy-target-id="snow-design-parameters-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
                  <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                  <ul class="list-disc list-inside space-y-1">
                      <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
@@ -417,10 +422,13 @@ function renderSnowResults(results) {
              </div>`;
 
     // --- 2. DETAILED CALCULATION BREAKDOWN ---
-    html += `<div class="mt-6">
-                <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+    html += `<div id="snow-calc-breakdown-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+                    <button data-copy-target-id="snow-calc-breakdown-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
-                <div class="calc-breakdown">
+                <div class="calc-breakdown mt-0">
                     <h4 class="font-semibold uppercase text-base">a) Balanced Snow Load Calculation</h4>
                     <ul class="list-disc list-inside space-y-2 mt-2">
                         <li><strong>Factors:</strong> I<sub>s</sub> = ${intermediate.Is.toFixed(2)}, C<sub>e</sub> = ${intermediate.Ce.toFixed(2)}, C<sub>t</sub> = ${intermediate.Ct.toFixed(2)}, C<sub>s</sub> = ${intermediate.Cs.toFixed(3)}</li>
@@ -441,8 +449,11 @@ function renderSnowResults(results) {
             </div>`;
 
     // --- 3. LOAD CASE DIAGRAMS ---
-    html += `<div class="mt-6">
-                <h3 class="text-xl font-bold uppercase">3. Load Case Diagrams</h3>
+    html += `<div id="snow-diagrams-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">3. Load Case Diagrams</h3>
+                    <button data-copy-target-id="snow-diagrams-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     ${generateBalancedSnowDiagram()}
@@ -453,7 +464,12 @@ function renderSnowResults(results) {
 
     // --- 4. FINAL NOMINAL SNOW LOADS ---
     if ((inputs.calculate_unbalanced && unbalanced.applicable) || (inputs.calculate_drift && drift.applicable)) {
-        html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 report-section-copyable">
+        html += `<div id="snow-summary-section" class="mt-6 report-section-copyable">
+                    <div class="flex justify-between items-center">
+                         <h3 class="text-xl font-bold uppercase">4. Governing Load Summary</h3>
+                         <button data-copy-target-id="snow-summary-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                     ${generateBalancedSnowCard(ps_balanced_nominal, p_unit)}
                  `;
 
@@ -501,14 +517,17 @@ function renderSnowResults(results) {
             }
             html += `</div>`;
         }
-
-        html += `</div>`;
+        html += `</div>`; // Close grid
+        html += `</div>`; // Close summary section
     }
 
     if (results.partial && results.partial.applicable) {
         const { partial } = results;
-        html += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6 report-section-copyable">
-                    <h3 class="text-lg font-semibold text-center mb-2">Partial Loading (ASCE 7 Sec. 7.8)</h3>
+        html += `<div id="snow-partial-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6 report-section-copyable">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold text-center flex-grow">Partial Loading (ASCE 7 Sec. 7.8)</h3>
+                        <button data-copy-target-id="snow-partial-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    </div>
                     <div class="text-center">
                         <p>Load on Adjacent Span</p>
                         <p class="font-bold text-2xl">${partial.load_on_adjacent_span.toFixed(2)} ${p_unit}</p>
@@ -521,6 +540,26 @@ function renderSnowResults(results) {
     resultsContainer.innerHTML = html;
 }
 
+function sendSnowToCombos(results) {
+    if (!results || !results.results) {
+        showFeedback('No snow results to send.', true, 'feedback-message');
+        return;
+    }
+
+    const comboData = {
+        combo_balanced_snow_load_sb: results.results.ps_balanced_nominal || 0,
+    };
+
+    if (results.unbalanced && results.unbalanced.applicable) {
+        comboData.combo_unbalanced_windward_snow_load_suw = results.unbalanced.windward_nominal || 0;
+        comboData.combo_unbalanced_leeward_snow_load_sul = (results.unbalanced.leeward_nominal || 0) + (results.unbalanced.surcharge_magnitude || 0);
+    }
+    if (results.drift && results.drift.applicable) {
+        comboData.combo_drift_surcharge_sd = results.drift.pd_nominal || 0;
+    }
+    localStorage.setItem('loadsForCombinator', JSON.stringify(comboData));
+    window.location.href = 'combos.html';
+}
 function generateBalancedSnowCard(load, unit) {
     return `
         <div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 text-center">

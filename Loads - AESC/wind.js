@@ -86,6 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     await handleCopyToClipboard(targetId, 'feedback-message');
                 }
             }
+            if (event.target.id === 'send-to-combos-btn' && lastWindRunResults) {
+                sendWindToCombos(lastWindRunResults);
+            }
             if (event.target.id === 'print-report-btn') {
                 window.print();
             }
@@ -1970,6 +1973,49 @@ function renderCandCSection(candc, inputs, units) {
     return html;
 }
 
+function sendWindToCombos(results) {
+    if (!results || !results.directional_results) {
+        showFeedback('No wind results to send.', true, 'feedback-message');
+        return;
+    }
+
+    const comboData = {};
+    const design_method = results.inputs.design_method;
+
+    // Helper to get the correct pressure (ASD or LRFD)
+    const getPressure = (result, type) => {
+        if (!result) return 0;
+        // The combo calculator expects nominal (ASD) level loads for S and W (ASCE 7-16)
+        // The wind calculator's ASD values are already nominal.
+        return type === 'pos' ? result.p_pos_asd : result.p_neg_asd;
+    };
+
+    // MWFRS - Wind Perpendicular to L
+    const mwfrs_L = results.directional_results.perp_to_L || [];
+    const ww_wall_L = mwfrs_L.find(r => r.surface.includes('Windward Wall'));
+    const lw_wall_L = mwfrs_L.find(r => r.surface.includes('Leeward Wall'));
+    const ww_roof_L = mwfrs_L.find(r => r.surface.includes('Windward Roof'));
+    const lw_roof_L = mwfrs_L.find(r => r.surface.includes('Leeward Roof'));
+
+    comboData.combo_wind_wall_ww_max = getPressure(ww_wall_L, 'pos');
+    comboData.combo_wind_wall_ww_min = getPressure(ww_wall_L, 'neg');
+    comboData.combo_wind_wall_lw_max = getPressure(lw_wall_L, 'pos');
+    comboData.combo_wind_wall_lw_min = getPressure(lw_wall_L, 'neg');
+    comboData.combo_wind_roof_ww_max = getPressure(ww_roof_L, 'pos');
+    comboData.combo_wind_roof_ww_min = getPressure(ww_roof_L, 'neg');
+    comboData.combo_wind_roof_lw_max = getPressure(lw_roof_L, 'pos');
+    comboData.combo_wind_roof_lw_min = getPressure(lw_roof_L, 'neg');
+
+    // C&C Loads
+    const candc = results.candc;
+    if (candc && candc.applicable && candc.pressures) {
+        comboData.combo_wind_cc_max = getPressure(Object.values(candc.pressures).find(p => p.p_pos > 0), 'pos');
+        comboData.combo_wind_cc_min = getPressure(Object.values(candc.pressures).reduce((min, p) => (p.p_neg < min.p_neg ? p : min)), 'neg');
+    }
+
+    localStorage.setItem('loadsForCombinator', JSON.stringify(comboData));
+    window.location.href = 'combos.html';
+}
 /**
  * Main rendering orchestrator function.
  */
@@ -1985,6 +2031,7 @@ function renderWindResults(results) {
     
     let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
+                    <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                    </div>`;
 

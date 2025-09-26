@@ -187,26 +187,27 @@ function showFeedback(message, isError = false, feedbackElId = 'feedback-message
  * @param {string} containerId - The ID of the container with the report content.
  * @param {string} feedbackElId - The ID of the feedback element.
  */
-async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
+async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message', isSummary = false) {
     const container = document.getElementById(containerId);
     if (!container || !container.innerHTML.trim()) {
         showFeedback('No report content to copy.', true, feedbackElId);
         return;
     }
 
-    // Create a clean clone to manipulate
+    // Create a clean clone to manipulate. If it's a summary, we might want to copy a specific sub-section.
     const clone = container.cloneNode(true);
+    const contentToCopy = isSummary ? (clone.querySelector('.report-section-copyable') || clone) : clone;
 
     // Prepare the clone for copying
-    clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
-    clone.querySelectorAll('button').forEach(btn => btn.remove());
-    clone.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+    contentToCopy.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
+    contentToCopy.querySelectorAll('button, .print-hidden').forEach(btn => btn.remove());
+    contentToCopy.querySelectorAll('canvas').forEach(canvas => canvas.remove());
 
     // Track conversion failures
     let conversionFailures = 0;
 
     // --- SVG to PNG Conversion (Enhanced) ---
-    const svgElements = Array.from(clone.querySelectorAll('svg'));
+    const svgElements = Array.from(contentToCopy.querySelectorAll('svg'));
     for (const svg of svgElements) {
         try {
             // Get more accurate dimensions
@@ -275,7 +276,7 @@ async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-messa
     }
 
     // --- Handle regular images ---
-    const regularImages = Array.from(clone.querySelectorAll('img'));
+    const regularImages = Array.from(contentToCopy.querySelectorAll('img'));
     for (const img of regularImages) {
         try {
             // Ensure images have proper attributes for Word
@@ -295,14 +296,14 @@ async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-messa
     }
 
     // Apply Word-compatible styles
-    applyWordCompatibleStyles(clone);
+    applyWordCompatibleStyles(contentToCopy);
 
     // Create HTML content
-    const htmlContent = createWordCompatibleHTML(clone.innerHTML);
+    const htmlContent = createWordCompatibleHTML(contentToCopy.innerHTML);
 
     try {
         const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-        const plainTextBlob = new Blob([createPlainTextFallback(clone)], { type: 'text/plain' });
+        const plainTextBlob = new Blob([createPlainTextFallback(contentToCopy)], { type: 'text/plain' });
         
         await navigator.clipboard.write([
             new ClipboardItem({
