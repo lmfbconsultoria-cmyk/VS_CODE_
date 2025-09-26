@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCE 7-16 & 7-22 Wind Load Calculator</title>
+    <title>ASCE Wind Load Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
                     <a href="combos.html" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-inactive">Load Combos</a>
                 </div>
             </div>
-            <h1 id="main-title" class="text-3xl md:text-4xl font-bold">ASCE 7-16 & 7-22 Wind Load Calculator</h1>
+            <h1 id="main-title" class="text-3xl md:text-4xl font-bold">ASCE Wind Load Calculator</h1>
             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
                 <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                 <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -202,37 +202,46 @@
                         <option value="Yes">Yes</option>
                     </select>
                 </div>
+                <div>
+                    <label for="calculate_height_varying_pressure" class="block text-sm font-medium mb-1">Calc. Height-Varying Pressure?</label>
+                    <select id="calculate_height_varying_pressure">
+                        <option value="Yes" selected>Yes (for tall buildings)</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
             </div>
         </div>
         <div class="form-section">
             <h2>Building Geometry Diagram</h2>
             <div class="diagram">
-                <svg viewBox="0 0 400 250" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/></marker>
-                    </defs>
-                    <!-- Building Isometric -->
-                    <polygon points="100,150 200,200 350,125 250,75" class="svg-plate" style="fill:#dbeafe; stroke: #60a5fa;"/>
-                    <polygon points="100,50 100,150 250,75 250, -25" class="svg-member" style="fill: #e5e7eb; stroke: #9ca3af;"/>
-                    <polygon points="250,75 350,125 350,25 250,-25" class="svg-member" style="fill: #f3f4f6; stroke: #9ca3af;"/>
+                <div class="max-w-xs mx-auto">
+                    <svg viewBox="0 0 400 250" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/></marker>
+                        </defs>
+                        <!-- Building Isometric -->
+                        <polygon points="100,150 200,200 350,125 250,75" class="svg-plate" style="fill:#dbeafe; stroke: #60a5fa;"/>
+                        <polygon points="100,50 100,150 250,75 250, -25" class="svg-member" style="fill: #e5e7eb; stroke: #9ca3af;"/>
+                        <polygon points="250,75 350,125 350,25 250,-25" class="svg-member" style="fill: #f3f4f6; stroke: #9ca3af;"/>
 
-                    <!-- Dimension Lines -->
-                    <path d="M100,45 L250,-30" class="svg-dim" stroke-dasharray="2,2"/>
-                    <path d="M255,-20 L255,85" class="svg-dim" stroke-dasharray="2,2"/>
-                    <path d="M100,155 L100,200 M200,205 L200,220" class="svg-dim"/>
-                    <path d="M100,210 L200,210" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-                    <text x="150" y="225" class="svg-dim-text">B (Width)</text>
-                    <path d="M205,200 L250,225 M355,125 L400,150" class="svg-dim"/>
-                    <path d="M227.5,212.5 L377.5,137.5" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-                    <text x="300" y="185" class="svg-dim-text">L (Length)</text>
-                    <path d="M80,50 L80,150" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-                    <text x="70" y="100" class="svg-dim-text" transform="rotate(-90 70,100)">h (Height)</text>
+                        <!-- Dimension Lines -->
+                        <path d="M100,45 L250,-30" class="svg-dim" stroke-dasharray="2,2"/>
+                        <path d="M255,-20 L255,85" class="svg-dim" stroke-dasharray="2,2"/>
+                        <path d="M100,155 L100,200 M200,205 L200,220" class="svg-dim"/>
+                        <path d="M100,210 L200,210" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+                        <text x="150" y="225" class="svg-dim-text">B (Width)</text>
+                        <path d="M205,200 L250,225 M355,125 L400,150" class="svg-dim"/>
+                        <path d="M227.5,212.5 L377.5,137.5" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+                        <text x="300" y="185" class="svg-dim-text">L (Length)</text>
+                        <path d="M80,50 L80,150" class="svg-dim" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+                        <text x="70" y="100" class="svg-dim-text" transform="rotate(-90 70,100)">h (Height)</text>
 
-                    <!-- Wind Arrow -->
-                    <path d="M50,100 L95,100" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
-                    <text x="55" y="95" class="svg-label">WIND</text>
-                    <text x="150" y="100" class="svg-label">Windward Face</text>
-                </svg>
+                        <!-- Wind Arrow -->
+                        <path d="M50,100 L95,100" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="55" y="95" class="svg-label">WIND</text>
+                        <text x="150" y="100" class="svg-label">Windward Face</text>
+                    </svg>
+                </div>
             </div>
         </div>
         <div class="form-section hidden" id="tall-building-section">

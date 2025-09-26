@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCE 7-16 & 7-22 Load Combination Calculator</title>
+    <title>ASCE Load Combination Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
@@ -29,7 +29,7 @@
                     <a href="combos.html" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors toggle-active">Load Combos</a>
                 </div>
             </div>
-            <h1 id="main-title" class="text-3xl md:text-4xl font-bold">ASCE 7-16 & 7-22 Load Combination Calculator</h1>
+            <h1 id="main-title" class="text-3xl md:text-4xl font-bold">ASCE Load Combination Calculator</h1>
             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
                 <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                 <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -126,35 +126,59 @@
 
           <div class="form-section">
             <h2>Lateral Loads</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Windward Wall</div>
-                    <div>
-                        <label for="combo_wind_windward_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
-                        <input type="number" id="combo_wind_windward_w_max" value="15.0">
-                    </div>
-                     <div>
-                        <label for="combo_wind_windward_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
-                        <input type="number" id="combo_wind_windward_w_min" value="3.5">
-                    </div>
-                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Leeward Wall</div>
-                     <div>
-                        <label for="combo_wind_leeward_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
-                        <input type="number" id="combo_wind_leeward_w_max" value="8.8">
-                    </div>
-                     <div>
-                        <label for="combo_wind_leeward_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
-                        <input type="number" id="combo_wind_leeward_w_min" value="-21.5">
-                    </div>
-                    <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">Sidewall</div>
-                     <div>
-                        <label for="combo_wind_sidewall_w_max" class="block text-sm font-medium mb-1">Max Wind (W_max)</label>
-                        <input type="number" id="combo_wind_sidewall_w_max" value="0">
-                    </div>
-                     <div>
-                        <label for="combo_wind_sidewall_w_min" class="block text-sm font-medium mb-1">Min Wind (W_min)</label>
-                        <input type="number" id="combo_wind_sidewall_w_min" value="-18.0">
-                    </div>
-                     <div class="md:col-span-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+        <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">MWFRS - Wind Perpendicular to L</div>
+        <div>
+            <label for="combo_wind_wall_ww_max" class="block text-sm font-medium mb-1">Windward Wall Max (W_max)</label>
+            <input type="number" id="combo_wind_wall_ww_max" value="15.0">
+        </div>
+        <div>
+            <label for="combo_wind_wall_ww_min" class="block text-sm font-medium mb-1">Windward Wall Min (W_min)</label>
+            <input type="number" id="combo_wind_wall_ww_min" value="3.5">
+        </div>
+        <div>
+            <label for="combo_wind_wall_lw_max" class="block text-sm font-medium mb-1">Leeward Wall Max (W_max)</label>
+            <input type="number" id="combo_wind_wall_lw_max" value="8.8">
+        </div>
+        <div>
+            <label for="combo_wind_wall_lw_min" class="block text-sm font-medium mb-1">Leeward Wall Min (W_min)</label>
+            <input type="number" id="combo_wind_wall_lw_min" value="-21.5">
+        </div>
+        <div>
+            <label for="combo_wind_roof_ww_max" class="block text-sm font-medium mb-1">Windward Roof Max (W_max)</label>
+            <input type="number" id="combo_wind_roof_ww_max" value="-5.0">
+        </div>
+        <div>
+            <label for="combo_wind_roof_ww_min" class="block text-sm font-medium mb-1">Windward Roof Min (W_min)</label>
+            <input type="number" id="combo_wind_roof_ww_min" value="-18.0">
+        </div>
+        <div>
+            <label for="combo_wind_roof_lw_max" class="block text-sm font-medium mb-1">Leeward Roof Max (W_max)</label>
+            <input type="number" id="combo_wind_roof_lw_max" value="0.0">
+        </div>
+        <div>
+            <label for="combo_wind_roof_lw_min" class="block text-sm font-medium mb-1">Leeward Roof Min (W_min)</label>
+            <input type="number" id="combo_wind_roof_lw_min" value="-15.0">
+        </div>
+        <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">C&C - Roof</div>
+        <div>
+            <label for="combo_wind_cc_max" class="block text-sm font-medium mb-1">Max C&C Pressure (W_max)</label>
+            <input type="number" id="combo_wind_cc_max" value="25.0">
+        </div>
+        <div>
+            <label for="combo_wind_cc_min" class="block text-sm font-medium mb-1">Min C&C Pressure (W_min)</label>
+            <input type="number" id="combo_wind_cc_min" value="-40.0">
+        </div>
+        <div class="md:col-span-2 font-semibold text-center text-gray-600 dark:text-gray-400">C&C - Wall</div>
+        <div>
+            <label for="combo_wind_cc_wall_max" class="block text-sm font-medium mb-1">Max C&C Wall Pressure (W_max)</label>
+            <input type="number" id="combo_wind_cc_wall_max" value="20.0">
+        </div>
+        <div>
+            <label for="combo_wind_cc_wall_min" class="block text-sm font-medium mb-1">Min C&C Wall Pressure (W_min)</label>
+            <input type="number" id="combo_wind_cc_wall_min" value="-25.0">
+        </div>
+        <div class="md:col-span-2">
                         <label for="combo_seismic_load_e" class="block text-sm font-medium mb-1">Seismic Load (E)</label>
                         <input type="number" id="combo_seismic_load_e" value="0">
                     </div>

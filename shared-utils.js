@@ -299,8 +299,15 @@ async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-messa
         }
         showFeedback(feedbackMessage, false, feedbackElId);
     } catch (err) {
-        console.error('Failed to copy results: ', err);
-        showFeedback('Copy failed. Please try again or use browser-specific copy commands.', true, feedbackElId);
+        console.warn('Modern clipboard API failed, attempting fallback:', err);
+        try {
+            // --- FALLBACK MECHANISM ---
+            await fallbackCopyToClipboard(htmlContent);
+            showFeedback('Report copied using fallback. Formatting may vary.', false, feedbackElId);
+        } catch (fallbackErr) {
+            console.error('Fallback clipboard method also failed:', fallbackErr);
+            showFeedback('Copy failed. Please select the report content manually and copy.', true, feedbackElId);
+        }
     }
 }
 
@@ -423,6 +430,111 @@ function exportAsHTMLFile(containerId, filename = 'report.html') {
 }
 
 /**
+ * Applies inline styles to an element based on its Tailwind-like classes.
+ * This is a simplified mapping for Word compatibility.
+ * @param {HTMLElement} element - The element to style.
+ */
+function applyWordCompatibleStyles(element) {
+    const classToStyleMap = {
+        // Text
+        'font-bold': 'font-weight: bold;',
+        'font-semibold': 'font-weight: 600;',
+        'font-medium': 'font-weight: 500;',
+        'text-center': 'text-align: center;',
+        'text-right': 'text-align: right;',
+        'text-sm': 'font-size: 0.875rem;',
+        'text-base': 'font-size: 1rem;',
+        'text-lg': 'font-size: 1.125rem;',
+        'text-xl': 'font-size: 1.25rem;',
+        'text-2xl': 'font-size: 1.5rem;',
+        'text-3xl': 'font-size: 1.875rem;',
+        'text-4xl': 'font-size: 2.25rem;',
+        'uppercase': 'text-transform: uppercase;',
+
+        // Colors (simplified for Word)
+        'text-red-700': 'color: #b91c1c;',
+        'text-yellow-700': 'color: #a16207;',
+        'text-blue-700': 'color: #1d4ed8;',
+        'text-gray-500': 'color: #6b7280;',
+        'text-gray-600': 'color: #4b5563;',
+
+        // Backgrounds
+        'bg-gray-50': 'background-color: #f9fafb;',
+        'bg-gray-100': 'background-color: #f3f4f6;',
+        'bg-red-100': 'background-color: #fee2e2;',
+        'bg-yellow-100': 'background-color: #fef9c3;',
+        'bg-blue-100': 'background-color: #dbeafe;',
+
+        // Borders
+        'border': 'border: 1px solid #e5e7eb;',
+        'border-b': 'border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #e5e7eb;',
+        'border-l-4': 'border-left: 4px solid;',
+        'border-red-500': 'border-color: #ef4444;',
+        'border-yellow-500': 'border-color: #eab308;',
+        'border-blue-500': 'border-color: #3b82f6;',
+        'rounded-md': 'border-radius: 0.375rem;',
+        'rounded-lg': 'border-radius: 0.5rem;',
+
+        // Padding & Margin
+        'p-4': 'padding: 1rem;',
+        'p-6': 'padding: 1.5rem;',
+        'py-2': 'padding-top: 0.5rem; padding-bottom: 0.5rem;',
+        'px-4': 'padding-left: 1rem; padding-right: 1rem;',
+        'mt-2': 'margin-top: 0.5rem;',
+        'mt-4': 'margin-top: 1rem;',
+        'mt-6': 'margin-top: 1.5rem;',
+        'mt-8': 'margin-top: 2rem;',
+        'mb-2': 'margin-bottom: 0.5rem;',
+        'mb-4': 'margin-bottom: 1rem;',
+
+        // Layout
+        'grid': 'display: grid;',
+        'grid-cols-2': 'grid-template-columns: repeat(2, minmax(0, 1fr));',
+        'gap-4': 'gap: 1rem;',
+        'gap-6': 'gap: 1.5rem;',
+        'w-full': 'width: 100%;',
+
+        // Misc
+        'list-disc': 'list-style-type: disc;',
+        'list-inside': 'list-style-position: inside;',
+    };
+
+    // Special handling for table elements
+    if (element.tagName === 'TABLE') {
+        element.style.borderCollapse = 'collapse';
+        element.style.width = '100%';
+    }
+    if (element.tagName === 'TH' || element.tagName === 'TD') {
+        element.style.border = '1px solid #cccccc';
+        element.style.padding = '8px';
+        element.style.textAlign = 'left';
+    }
+    if (element.tagName === 'TH') {
+        element.style.backgroundColor = '#f2f2f2';
+        element.style.fontWeight = 'bold';
+    }
+
+    let styleString = element.getAttribute('style') || '';
+    
+    element.classList.forEach(cls => {
+        if (classToStyleMap[cls]) {
+            styleString += classToStyleMap[cls] + ' ';
+        }
+    });
+
+    if (styleString) {
+        element.setAttribute('style', styleString.trim());
+    }
+
+    // Recursively apply to children
+    element.childNodes.forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+            applyWordCompatibleStyles(child);
+        }
+    });
+}
+
+/**
  * Creates Word-compatible HTML structure
  */
 function createWordCompatibleHTML(content) {
@@ -466,30 +578,29 @@ function createPlainTextFallback(element) {
 /**
  * Fallback method for copying when Clipboard API is not available
  */
-async function fallbackCopyToClipboard(htmlContent, element) {
-    // Create a temporary element with the content
+function fallbackCopyToClipboard(htmlContent) {
     const tempElement = document.createElement('div');
     tempElement.innerHTML = htmlContent;
     tempElement.style.position = 'fixed';
     tempElement.style.left = '-9999px';
     document.body.appendChild(tempElement);
     
-    // Select the content
-    const range = document.createRange();
-    range.selectNodeContents(tempElement);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    
-    // Execute copy command
     try {
+        const range = document.createRange();
+        range.selectNodeContents(tempElement);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
         document.execCommand('copy');
         selection.removeAllRanges();
-        document.body.removeChild(tempElement);
+        showFeedback('Report copied using fallback. Formatting may be lost.', false, 'feedback-message');
         return true;
     } catch (e) {
+        showFeedback('Copy failed. Please select and copy manually.', true, 'feedback-message');
+        return false;
+    } finally {
         document.body.removeChild(tempElement);
-        throw e;
     }
 }
 

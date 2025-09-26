@@ -56,12 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('dh_auto_calc_toggle').dispatchEvent(new Event('change'));
         document.getElementById('rain_drain_type').dispatchEvent(new Event('change'));
 
-        document.body.addEventListener('click', (event) => {
+        document.body.addEventListener('click', async (event) => {
             if (event.target.id === 'copy-report-btn') {
-                handleCopyToClipboard('rain-results-container', 'feedback-message');
+                await handleCopyToClipboard('rain-results-container', 'feedback-message');
             }
             if (event.target.id === 'print-report-btn') {
                 window.print();
+            }
+            if (event.target.id === 'copy-summary-btn') {
+                await handleCopySummaryToClipboard('rain-results-container', 'feedback-message');
             }
         });
     }

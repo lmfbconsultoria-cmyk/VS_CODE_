@@ -391,6 +391,8 @@
 
         let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-4">`;
         html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
+                    <button id="copy-summary-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm">Copy Summary</button>
+                    <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Full Report</button>
                     <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm">Copy Report</button>
                  </div>`;
         html += `<h2 class="text-2xl font-bold text-center border-b pb-2">NDS Wood Member Check Summary</h2>`;
@@ -485,7 +487,7 @@
             ['Column Stability (C<sub>P</sub>)', f.Cp.toFixed(3), 'NDS 3.7.1'],
         ];
 
-        html += `<table class="results-container mt-6">
+        html += `<table class="results-container mt-6 report-section-copyable">
                     <caption>--- NDS Adjustment Factors ---</caption>
                     <thead>
                         <tr><th>Factor</th><th>Value</th><th>Reference</th></tr>
@@ -496,7 +498,7 @@
         });
         html += `</tbody></table>`;
 
-        html += `<table class="results-container">
+        html += `<table class="results-container report-section-copyable">
                     <caption>--- Strength Checks (ASD) ---</caption>
                     <thead>
                         <tr><th>Check</th><th>Actual</th><th>Allowable</th><th>Ratio</th><th>Status</th></tr>
