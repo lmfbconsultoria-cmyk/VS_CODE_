@@ -126,7 +126,6 @@ function initializeUiToggles() {
         controller.addEventListener('change', updateUi);
         controller.addEventListener('input', updateUi);
         updateUi(); // Initial call to set the correct state on page load
-    });
     }
 }
 
