@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador de Viga de Concreto NBR 6118</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', isDark);
+        })();
+    </script>
+    <link rel="stylesheet" href="../styles.min.css">
+    <script src="../shared-utils.js" defer></script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl md:text-4xl font-bold">Verificador de Viga de Concreto (NBR 6118:2014)</h1>
+            <p class="text-lg mt-2">Verificação à flexão e ao cisalhamento para vigas retangulares.</p>
+            <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
+                </button>
+        </header>
+
+        <main id="nbr-form">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                    <div class="form-section">
+                        <h2>Propriedades dos Materiais</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="fck" class="block text-sm font-medium mb-1">Resist. do Concreto (f<sub>ck</sub>, MPa)</label>
+                                <input type="number" id="fck" value="25">
+                            </div>
+                            <div>
+                                <label for="fyk" class="block text-sm font-medium mb-1">Resist. do Aço (f<sub>yk</sub>, MPa)</label>
+                                <input type="number" id="fyk" value="500">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h2>Geometria da Viga</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="bw" class="block text-sm">Largura (b<sub>w</sub>, cm)</label><input type="number" id="bw" value="20"></div>
+                            <div><label for="h" class="block text-sm">Altura (h, cm)</label><input type="number" id="h" value="50"></div>
+                            <div><label for="c" class="block text-sm">Cobrimento (c, cm)</label><input type="number" id="c" value="3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="form-section">
+                        <h2>Armadura de Flexão</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="num_barras" class="block text-sm">N° de Barras</label><input type="number" id="num_barras" value="3"></div>
+                            <div><label for="diam_barra" class="block text-sm">Diâmetro (mm)</label><input type="number" id="diam_barra" value="16"></div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h2>Armadura de Cisalhamento</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="diam_estribo" class="block text-sm">Diâmetro (mm)</label><input type="number" id="diam_estribo" value="6.3"></div>
+                            <div><label for="pernas_estribo" class="block text-sm">N° de Ramos</label><input type="number" id="pernas_estribo" value="2"></div>
+                            <div><label for="s_estribo" class="block text-sm">Espaçamento (s, cm)</label><input type="number" id="s_estribo" value="15"></div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h2>Esforços de Cálculo (ELU)</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="Msd" class="block text-sm font-medium mb-1">Momento (M<sub>Sd</sub>, kN·m)</label>
+                                <input type="number" id="Msd" value="100">
+                            </div>
+                            <div>
+                                <label for="Vsd" class="block text-sm font-medium mb-1">Cortante (V<sub>Sd</sub>, kN)</label>
+                                <input type="number" id="Vsd" value="80">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1">
+                    <div class="form-section">
+                        <h2>Resumo dos Resultados</h2>
+                        <div id="summary-results" class="space-y-3">
+                            <p class="text-center text-gray-500">Clique em "Verificar" para ver os resultados.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-center">
+                <button id="run-check-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700">Verificar</button>
+            </div>
+        </main>
+
+        <div id="results-container" class="mt-10 results-container"></div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('run-check-btn').addEventListener('click', runNbrCheck);
+        initializeTheme();
+    });
+
+    function runNbrCheck() {
+        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+        const inputs = {
+            fck: getVal('fck'), fyk: getVal('fyk'), bw: getVal('bw'), h: getVal('h'), c: getVal('c'),
+            num_barras: getVal('num_barras'), diam_barra: getVal('diam_barra'),
+            diam_estribo: getVal('diam_estribo'), pernas_estribo: getVal('pernas_estribo'), s_estribo: getVal('s_estribo'),
+            Msd: getVal('Msd') * 100, Vsd: getVal('Vsd')
+        };
+        const results = calculateNbr6118(inputs);
+        renderNbrResults(inputs, results);
+    }
+
+    function calculateNbr6118(i) {
+        const res = {};
+        const gamma_c = 1.4, gamma_s = 1.15;
+        const fcd = i.fck / gamma_c;
+        const fyd = i.fyk / gamma_s;
+
+        // Flexão
+        const d = i.h - i.c - (i.diam_estribo / 10) - (i.diam_barra / 20);
+        const As = i.num_barras * (Math.PI * (i.diam_barra / 10)**2 / 4);
+        const x = (As * fyd) / (0.85 * fcd * 0.8 * i.bw);
+        const x_d_ratio = x / d;
+        res.dominio = x_d_ratio <= 0.45 ? '2 ou 3 (Dúctil)' : '4 ou 5 (Frágil)';
+        const Mrd = As * fyd * (d - 0.4 * x);
+        res.Mrd = Mrd;
+        res.d = d; res.As = As; res.x = x; res.x_d_ratio = x_d_ratio;
+        
+        // Cisalhamento
+        const Asw = i.pernas_estribo * (Math.PI * (i.diam_estribo / 10)**2 / 4);
+        const fctd = (0.21 * Math.pow(i.fck, 2/3)) / gamma_c;
+        const Vc = 0.6 * fctd * i.bw * d;
+        const Vsw = (Asw / i.s_estribo) * 0.9 * d * fyd;
+        const VRd2 = 0.27 * (1 - i.fck / 250) * fcd * i.bw * (0.9 * d);
+        res.VRd = Vc + Vsw;
+        res.Vc = Vc; res.Vsw = Vsw; res.VRd2 = VRd2;
+
+        return res;
+    }
+
+    function renderNbrResults(inputs, results) {
+        const summaryContainer = document.getElementById('summary-results');
+        const resultsContainer = document.getElementById('results-container');
+        
+        const M_ratio = results.Mrd > 0 ? inputs.Msd / results.Mrd : Infinity;
+        const V_ratio = results.VRd > 0 ? inputs.Vsd / results.VRd : Infinity;
+        const V_max_ratio = results.VRd2 > 0 ? inputs.Vsd / results.VRd2 : Infinity;
+        const getStatus = (ratio) => ratio <= 1.0 ? `<span class="pass">OK</span>` : `<span class="fail">NÃO OK</span>`;
+
+        summaryContainer.innerHTML = `
+            <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
+                <p class="flex justify-between"><span>Flexão (M<sub>Sd</sub> / M<sub>Rd</sub>):</span> <strong class="${M_ratio <= 1.0 ? 'text-green-600' : 'text-red-600'}">${M_ratio.toFixed(3)}</strong></p>
+            </div>
+            <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
+                <p class="flex justify-between"><span>Cisalhamento (V<sub>Sd</sub> / V<sub>Rd</sub>):</span> <strong class="${V_ratio <= 1.0 ? 'text-green-600' : 'text-red-600'}">${V_ratio.toFixed(3)}</strong></p>
+            </div>
+             <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
+                <p class="flex justify-between"><span>Biela Comprimida (V<sub>Sd</sub> / V<sub>Rd2</sub>):</span> <strong class="${V_max_ratio <= 1.0 ? 'text-green-600' : 'text-red-600'}">${V_max_ratio.toFixed(3)}</strong></p>
+            </div>
+        `;
+
+        resultsContainer.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-bold text-center border-b pb-2">Relatório de Verificação Detalhado (NBR 6118)</h2>
+                <table class="w-full mt-4">
+                    <caption>Verificações de Cálculo (ELU)</caption>
+                    <thead><tr><th>Verificação</th><th>Solicitante (Sd)</th><th>Resistente (Rd)</th><th>Ratio</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>Flexão</td>
+                            <td>${(inputs.Msd / 100).toFixed(2)} kN·m</td>
+                            <td>${(results.Mrd / 100).toFixed(2)} kN·m</td>
+                            <td>${M_ratio.toFixed(3)}</td>
+                            <td>${getStatus(M_ratio)}</td>
+                        </tr>
+                        <tr>
+                            <td>Cisalhamento</td>
+                            <td>${inputs.Vsd.toFixed(2)} kN</td>
+                            <td>${results.VRd.toFixed(2)} kN</td>
+                            <td>${V_ratio.toFixed(3)}</td>
+                            <td>${getStatus(V_ratio)}</td>
+                        </tr>
+                         <tr>
+                            <td>Verif. Biela Comprimida</td>
+                            <td>${inputs.Vsd.toFixed(2)} kN</td>
+                            <td>${results.VRd2.toFixed(2)} kN</td>
+                            <td>${V_max_ratio.toFixed(3)}</td>
+                            <td>${getStatus(V_max_ratio)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="calc-breakdown mt-4">
+                    <h4>Detalhes da Flexão</h4>
+                    <ul>
+                        <li>Altura Útil (d): ${results.d.toFixed(2)} cm</li>
+                        <li>Área de Aço (A<sub>s</sub>): ${results.As.toFixed(2)} cm²</li>
+                        <li>Linha Neutra (x): ${results.x.toFixed(2)} cm</li>
+                        <li>Relação x/d: ${results.x_d_ratio.toFixed(3)} (${results.dominio})</li>
+                    </ul>
+                </div>
+                <div class="calc-breakdown mt-4">
+                    <h4>Detalhes do Cisalhamento</h4>
+                    <ul>
+                        <li>Contribuição do Concreto (V<sub>c</sub>): ${results.Vc.toFixed(2)} kN</li>
+                        <li>Contribuição dos Estribos (V<sub>sw</sub>): ${results.Vsw.toFixed(2)} kN</li>
+                        <li>Resistência Máxima (V<sub>Rd2</sub>): ${results.VRd2.toFixed(2)} kN</li>
+                    </ul>
+                </div>
+            </div>`;
+    }
+    </script>
+</body>
+</html>
