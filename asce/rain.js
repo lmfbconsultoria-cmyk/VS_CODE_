@@ -236,14 +236,12 @@ function sendRainToCombos(results) {
         showFeedback('No rain results to send.', true, 'feedback-message');
         return;
     }
-    const comboData = {
+    const comboLoads = {
         combo_rain_load_r: results.results.R_nominal || 0,
     };
-    const dataToSend = {
+    sendDataToCombos({
+        loads: comboLoads,
         source: 'Rain Calculator',
-        type: 'Rain',
-        loads: comboData
-    };
-    localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
-    window.location.href = 'combos.html';
+        type: 'Rain'
+    });
 }

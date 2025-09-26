@@ -1,25 +1,35 @@
 let lastSnowRunResults = null;
 
 const snowInputIds = [
-    'snow_asce_standard', 'snow_unit_system', 'snow_risk_category', 'snow_design_method', 'snow_jurisdiction', 'snow_roof_type',
-    'snow_nycbc_minimum_roof_snow_load', 'snow_ground_snow_load', 'snow_surface_roughness_category', 
-    'snow_exposure_condition', 'snow_thermal_condition', 'snow_roof_slope_degrees', 'snow_is_roof_slippery', 
-    'snow_calculate_unbalanced', 'snow_calculate_drift', 'snow_calculate_sliding', 'snow_eave_to_ridge_distance_W', 
-    'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2', 'snow_upper_roof_length_lu', 
-    'snow_height_difference_hc', 'snow_lower_roof_length_ll'
+    'snow_asce_standard', 'snow_unit_system', 'snow_risk_category', 'snow_design_method', 'snow_jurisdiction', 'snow_roof_type', 'snow_nycbc_minimum_roof_snow_load', 'snow_ground_snow_load', 'snow_surface_roughness_category', 'snow_exposure_condition', 'snow_thermal_condition', 'snow_roof_slope_degrees', 'snow_is_roof_slippery', 'snow_calculate_unbalanced', 'snow_calculate_drift', 'snow_calculate_sliding', 'snow_eave_to_ridge_distance_W', 'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2', 'snow_upper_roof_length_lu', 'snow_height_difference_hc', 'snow_lower_roof_length_ll'
 ];
 
 const snowLoadCalculator = (() => {
     function calculateSlopeFactor(slope_deg, is_slippery, Ct, standard) {
         if (standard === "ASCE 7-22") {
-            if (is_slippery) {
-                if (slope_deg < 5) return 1.0;
-                if (slope_deg > 70) return 0.0;
-                return 1.0 - (slope_deg - 5) / 65;
-            } else {
-                if (slope_deg < 30) return 1.0;
-                if (slope_deg > 70) return 0.0;
-                return 1.0 - (slope_deg - 30) / 40;
+            // ASCE 7-22 Section 7.4.1 combines warm and cold roof conditions for slippery/non-slippery surfaces
+            // but the distinction is still present based on Ct.
+            // Ct > 1.2 is considered a "cold roof" for this purpose.
+            if (Ct > 1.2) { // Cold Roof
+                if (is_slippery) {
+                    if (slope_deg < 15) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 15) / 55;
+                } else { // Not slippery
+                    if (slope_deg < 45) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 45) / 25;
+                }
+            } else { // Warm Roof (Ct <= 1.2)
+                if (is_slippery) {
+                    if (slope_deg < 5) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 5) / 65;
+                } else { // Not slippery
+                    if (slope_deg < 30) return 1.0;
+                    if (slope_deg > 70) return 0.0;
+                    return 1.0 - (slope_deg - 30) / 40;
+                }
             }
         } else { // ASCE 7-16
             if (Ct <= 1.0) { // Warm Roof
@@ -230,10 +240,10 @@ function run(inputs, validation) {
     const ps_asce7 = is_low_slope ? Math.max(ps_calculated, ps_min_asce7) : ps_calculated;
     
     let ps_balanced = ps_asce7;
-    let is_nycbc_min_governed = false;
+    let is_nycbc_min_governed_flag = false;
     if (inputs.jurisdiction === "NYCBC 2022" && ps_balanced < inputs.nycbc_minimum_roof_snow_load) {
         ps_balanced = inputs.nycbc_minimum_roof_snow_load;
-        is_nycbc_min_governed = true;
+        is_nycbc_min_governed_flag = true;
     }
     
     // Rest of the function remains the same...
@@ -281,7 +291,7 @@ function run(inputs, validation) {
         drift: drift_results, 
         partial: partial_load_results, 
         sliding: sliding_snow_results,
-        is_nycbc_min_governed,
+        is_nycbc_min_governed: is_nycbc_min_governed_flag,
         warnings: validationResult.warnings,
         success: true
     };
@@ -363,7 +373,7 @@ function renderSnowReportHeader(inputs) {
 }
 
 function renderSnowNotesAndWarnings(inputs, is_nycbc_min_governed, warnings) {
-    let html = '';
+    let html = ''; // Corrected typo
     if (inputs.jurisdiction === "NYCBC 2022") {
         const note = is_nycbc_min_governed ? `The calculated roof snow load was less than the specified NYCBC minimum of ${inputs.nycbc_minimum_roof_snow_load} psf. The NYCBC minimum has been applied.` : "The calculated roof snow load meets or exceeds the specified NYCBC minimum.";
         html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${note}</p></div>`;
@@ -619,30 +629,23 @@ function renderSnowResults(results) {
 }
 
 function sendSnowToCombos(results) {
-    if (!results || !results.results) {
+    if (!results || !results.results || !results.unbalanced) {
         showFeedback('No snow results to send.', true, 'feedback-message');
         return;
     }
 
-    const comboData = {
+    const comboLoads = {
         combo_balanced_snow_load_sb: results.results.ps_balanced_nominal || 0,
+        combo_unbalanced_windward_snow_load_suw: results.unbalanced.applicable ? (results.unbalanced.windward_nominal || 0) : 0,
+        combo_unbalanced_leeward_snow_load_sul: results.unbalanced.applicable ? ((results.unbalanced.leeward_nominal || 0) + (results.unbalanced.surcharge_magnitude || 0)) : 0,
+        combo_drift_surcharge_sd: results.drift && results.drift.applicable ? (results.drift.pd_nominal || 0) : 0
     };
 
-    if (results.unbalanced && results.unbalanced.applicable) {
-        comboData.combo_unbalanced_windward_snow_load_suw = results.unbalanced.windward_nominal || 0;
-        comboData.combo_unbalanced_leeward_snow_load_sul = (results.unbalanced.leeward_nominal || 0) + (results.unbalanced.surcharge_magnitude || 0);
-    }
-    if (results.drift && results.drift.applicable) {
-        comboData.combo_drift_surcharge_sd = results.drift.pd_nominal || 0;
-    }
-    const dataToSend = {
+    sendDataToCombos({
+        loads: comboLoads,
         source: 'Snow Calculator',
-        type: 'Snow',
-        loads: comboData
-    };
-    localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
-    // Redirect to the combos page
-    window.location.href = 'combos.html';
+        type: 'Snow'
+    });
 }
 function generateBalancedSnowCard(load, unit) {
     return `

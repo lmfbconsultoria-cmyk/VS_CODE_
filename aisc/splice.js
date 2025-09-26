@@ -377,7 +377,7 @@ function checkPryingAction(t_plate, Fy_plate, b, a, p, d_bolt, d_hole, B_bolt) {
 
     const rho = b_prime / a_prime;
     const delta = 1 - (d_hole / p);
-
+    if (delta === 0) return { Q: Infinity, tc: 0, alpha_prime: 0 };
     if (delta < 0) return { Q: Infinity, tc: 0, alpha_prime: 0 }; // Invalid geometry
 
     // Critical thickness

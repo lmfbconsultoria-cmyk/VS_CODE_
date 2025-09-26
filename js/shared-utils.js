@@ -745,6 +745,26 @@ function loadInputsFromLocalStorage(storageKey, inputIds, onComplete) {
 }
 
 /**
+ * Sends data from a calculator to the load combination page.
+ * It stores the data in localStorage and redirects the user.
+ * @param {object} config - The configuration object.
+ * @param {object} config.loads - The key-value pairs of loads to send.
+ * @param {string} config.source - The name of the source calculator (e.g., "Wind Calculator").
+ * @param {string} config.type - The type of loads (e.g., "Wind", "Snow").
+ * @param {string} [config.feedbackElId='feedback-message'] - The ID of the feedback element.
+ * @param {string} [config.destinationUrl='combos.html'] - The URL to redirect to.
+ */
+function sendDataToCombos(config) {
+    const { loads, source, type, feedbackElId = 'feedback-message', destinationUrl = 'combos.html' } = config;
+    if (!loads || Object.keys(loads).length === 0) {
+        showFeedback(`No ${type} loads to send.`, true, feedbackElId);
+        return;
+    }
+    const dataToSend = { source, type, loads };
+    localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
+    window.location.href = destinationUrl;
+}
+/**
  * Creates a standardized calculation handler to reduce boilerplate code.
  * This function encapsulates the common pattern: gather, validate, calculate, render.
  * @param {object} config - The configuration object for the handler.
@@ -804,9 +824,7 @@ function createCalculationHandler(config) {
 
             const calculationResult = await step('Running calculation...', () => {
                 // Pass validation object to calculator if it accepts more than one argument
-                return calculatorFunction.length > 1 
-                    ? calculatorFunction(inputs, validation) 
-                    : calculatorFunction(inputs);
+                return calculatorFunction(inputs, validation);
             });
 
             if (calculationResult.error) {
