@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInputsFromLocalStorage('nbr7190-inputs', nbr7190InputIds);
 
     const handleSaveInputs = createSaveInputsHandler(nbr7190InputIds, 'nbr7190-inputs.txt');
-    const handleLoadInputs = createLoadInputsHandler(nbr7190InputIds, handleRunNbr7190Check);
+    const handleLoadInputs = createLoadInputsHandler(nbr7190InputIds);
     document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
     document.getElementById('file-input').addEventListener('change', handleLoadInputs);

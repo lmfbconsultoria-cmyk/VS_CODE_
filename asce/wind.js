@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create file-based handlers
         const handleSaveWindInputs = createSaveInputsHandler(windInputIds, 'wind-inputs.txt');
-        const handleLoadWindInputs = createLoadInputsHandler(windInputIds, handleRunWindCalculation);
+        const handleLoadWindInputs = createLoadInputsHandler(windInputIds);
 
         // Attach handlers to buttons
         document.getElementById('run-calculation-btn').addEventListener('click', handleRunWindCalculation);

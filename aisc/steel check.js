@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('save-inputs-btn').addEventListener('click', createSaveInputsHandler(steelCheckInputIds, 'steel-check-inputs.txt'));
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
-    document.getElementById('file-input').addEventListener('change', createLoadInputsHandler(steelCheckInputIds, handleRunSteelCheck));
+    document.getElementById('file-input').addEventListener('change', createLoadInputsHandler(steelCheckInputIds));
 
     // The aiscShapeDatabase is defined later in the script, so it's available in the handler.
     document.getElementById('section_type').addEventListener('change', updateGeometryInputsUI);

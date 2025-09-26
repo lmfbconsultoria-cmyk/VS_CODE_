@@ -993,8 +993,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Attach Event Listeners ---
     loadInputsFromLocalStorage('splice-inputs', inputIds, handleRunCheck);
 
-    const handleSaveInputs = createSaveInputsHandler(inputIds, 'splice-inputs.txt', 'feedback-message');
-    const handleLoadInputs = createLoadInputsHandler(inputIds, handleRunCheck, 'feedback-message');
+    const handleSaveInputs = createSaveInputsHandler(inputIds, 'splice-inputs.txt');
+    const handleLoadInputs = createLoadInputsHandler(inputIds, null, 'feedback-message');
 
     document.getElementById('run-check-btn').addEventListener('click', handleRunCheck);
     document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);

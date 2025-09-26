@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInputsFromLocalStorage('aci-concrete-inputs', aciInputIds);
     
     const handleSaveInputs = createSaveInputsHandler(aciInputIds, 'aci-concrete-inputs.txt');
-    const handleLoadInputs = createLoadInputsHandler(aciInputIds, handleRunAciCheck);
+    const handleLoadInputs = createLoadInputsHandler(aciInputIds);
     document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
     document.getElementById('file-input').addEventListener('change', handleLoadInputs);

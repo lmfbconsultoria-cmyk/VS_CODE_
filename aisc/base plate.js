@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('run-steel-check-btn').addEventListener('click', handleRunBasePlateCheck);
     const handleSaveInputs = createSaveInputsHandler(basePlateInputIds, 'baseplate-inputs.txt');
-    const handleLoadInputs = createLoadInputsHandler(basePlateInputIds, handleRunBasePlateCheck);
+    const handleLoadInputs = createLoadInputsHandler(basePlateInputIds);
     document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
     document.getElementById('file-input').addEventListener('change', handleLoadInputs);

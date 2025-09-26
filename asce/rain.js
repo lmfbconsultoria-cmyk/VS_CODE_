@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('run-rain-calculation-btn').addEventListener('click', handleRunRainCalculation);
     document.getElementById('save-rain-inputs-btn').addEventListener('click', createSaveInputsHandler(rainInputIds, 'rain-inputs.txt'));
     document.getElementById('load-rain-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('rain-file-input'));
-    document.getElementById('rain-file-input').addEventListener('change', createLoadInputsHandler(rainInputIds, handleRunRainCalculation));
+    document.getElementById('rain-file-input').addEventListener('change', createLoadInputsHandler(rainInputIds));
 
     // UI interaction for city selector
     document.getElementById('rain_city_selector').addEventListener('change', (event) => {

@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initializeSharedUI();
         const handleSaveComboInputs = createSaveInputsHandler(comboInputIds, 'combo-inputs.txt');
-        const handleLoadComboInputs = createLoadInputsHandler(comboInputIds, handleRunComboCalculation);
+        const handleLoadComboInputs = createLoadInputsHandler(comboInputIds);
 
         document.getElementById('run-combo-calculation-btn').addEventListener('click', handleRunComboCalculation);
         document.getElementById('save-combo-inputs-btn').addEventListener('click', handleSaveComboInputs);

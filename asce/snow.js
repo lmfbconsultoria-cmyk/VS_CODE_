@@ -336,9 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('run-snow-calculation-btn').addEventListener('click', handleRunSnowCalculation);
         document.getElementById('save-snow-inputs-btn').addEventListener('click', createSaveInputsHandler(snowInputIds, 'snow-inputs.txt'));
         document.getElementById('load-snow-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('snow-file-input'));
-        document.getElementById('snow-file-input').addEventListener('change', createLoadInputsHandler(snowInputIds, handleRunSnowCalculation));
+        document.getElementById('snow-file-input').addEventListener('change', createLoadInputsHandler(snowInputIds));
 
-        loadInputsFromLocalStorage('snow-calculator-inputs', snowInputIds, handleRunSnowCalculation);
+        // CORRECTED: Removed the callback to prevent auto-run on load
+        loadInputsFromLocalStorage('snow-calculator-inputs', snowInputIds);
     }, 50); // A small delay to ensure DOM is ready after injection
 });
 
