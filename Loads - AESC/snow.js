@@ -28,9 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initializeTheme();
+        const handleSaveSnowInputs = createSaveInputsHandler(snowInputIds, 'snow-inputs.txt');
+        const handleLoadSnowInputs = createLoadInputsHandler(snowInputIds, handleRunSnowCalculation);
+
         document.getElementById('run-snow-calculation-btn').addEventListener('click', handleRunSnowCalculation);
         document.getElementById('save-snow-inputs-btn').addEventListener('click', handleSaveSnowInputs);
-        document.getElementById('load-snow-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('snow-file-input'));
+        document.getElementById('load-snow-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('snow-file-input')); // initiateLoad is already generic
         document.getElementById('snow-file-input').addEventListener('change', handleLoadSnowInputs);
 
         attachDebouncedListeners(snowInputIds, handleRunSnowCalculation);
@@ -67,50 +70,6 @@ const validationRules = {
         'ground_snow_load': { min: 0, max: 300, required: true, label: 'Ground Snow Load' }
     }
 };
-
-function validateInputs(inputs, type) {
-    const rules = validationRules[type];
-    const errors = [];
-    const warnings = [];
-
-    if (rules) {
-        for (const [key, rule] of Object.entries(rules)) {
-            const value = inputs[key];
-            const label = rule.label || key;
-
-            if (rule.required && (value === undefined || value === '' || (typeof value === 'number' && isNaN(value)))) {
-                errors.push(`${label} is required.`);
-                continue;
-            }
-            if (typeof value === 'number') {
-                if (rule.min !== undefined && value < rule.min) errors.push(`${label} must be at least ${rule.min}.`);
-                if (rule.max !== undefined && value > rule.max) errors.push(`${label} must be no more than ${rule.max}.`);
-            }
-        }
-    }
-    return { errors, warnings };
-}
-
-function renderValidationResults(validation, container) {
-    let html = '';
-    if (validation.errors && validation.errors.length > 0) {
-        html += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Input Errors Found:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.errors.map(e => `<li>${e}</li>`).join('')}</ul>
-                    <p class="mt-2">Please correct the errors and run the check again.</p>
-                 </div>`;
-    }
-    if (validation.warnings && validation.warnings.length > 0) {
-        html += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Warnings:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
-                 </div>`;
-    }
-    if (container) {
-        container.innerHTML = html;
-    }
-    return html;
-}
 
 const snowLoadCalculator = (() => {
     function getSnowFactors(risk, exposure, thermal, surface_roughness) {
@@ -383,7 +342,7 @@ function handleRunSnowCalculation() {
         thermal_condition: rawInputs.snow_thermal_condition
     };
     
-    const validation = validateInputs(inputs, 'snow');
+    const validation = validateInputs(inputs, validationRules.snow);
     if (validation.errors.length > 0) {
         renderValidationResults(validation, document.getElementById('snow-results-container'));
         return;
@@ -623,35 +582,4 @@ function generateDriftSnowDiagram(hd, w, l_unit) {
             </svg>
             <p class="text-xs text-center mt-2">Snow accumulates against a taller adjacent structure, creating a drift surcharge.</p>
         </div>`;
-}
-
-function handleSaveSnowInputs() {
-    const inputs = gatherInputsFromIds(snowInputIds);
-    saveInputsToFile(inputs, 'snow-inputs.txt');
-    showFeedback('Snow inputs saved to snow-inputs.txt', false, 'feedback-message');
-}
-
-function handleLoadSnowInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            snowInputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && inputs[id] !== undefined) {
-                    if (el.type === 'checkbox') el.checked = inputs[id];
-                    else el.value = inputs[id];
-                }
-            });
-            showFeedback('Snow inputs loaded successfully!', false, 'feedback-message');
-            handleRunSnowCalculation();
-        } catch (err) {
-            showFeedback('Failed to load snow inputs. Data may be corrupt.', true, 'feedback-message');
-            console.error("Error parsing saved data:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
 }

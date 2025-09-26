@@ -24,9 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initializeTheme();
+        const handleSaveRainInputs = createSaveInputsHandler(rainInputIds, 'rain-inputs.txt');
+        const handleLoadRainInputs = createLoadInputsHandler(rainInputIds, handleRunRainCalculation);
+
         document.getElementById('run-rain-calculation-btn').addEventListener('click', handleRunRainCalculation);
         document.getElementById('save-rain-inputs-btn').addEventListener('click', handleSaveRainInputs);
-        document.getElementById('load-rain-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('rain-file-input'));
+        document.getElementById('load-rain-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('rain-file-input')); // initiateLoad is already generic
         document.getElementById('rain-file-input').addEventListener('change', handleLoadRainInputs);
 
         attachDebouncedListeners(rainInputIds, handleRunRainCalculation);
@@ -78,50 +81,6 @@ const validationRules = {
         'intensity': { min: 0, required: true, label: 'Rainfall Intensity' }
     }
 };
-
-function validateInputs(inputs, type) {
-    const rules = validationRules[type];
-    const errors = [];
-    const warnings = [];
-
-    if (rules) {
-        for (const [key, rule] of Object.entries(rules)) {
-            const value = inputs[key];
-            const label = rule.label || key;
-
-            if (rule.required && (value === undefined || value === '' || (typeof value === 'number' && isNaN(value)))) {
-                errors.push(`${label} is required.`);
-                continue;
-            }
-            if (typeof value === 'number') {
-                if (rule.min !== undefined && value < rule.min) errors.push(`${label} must be at least ${rule.min}.`);
-                if (rule.max !== undefined && value > rule.max) errors.push(`${label} must be no more than ${rule.max}.`);
-            }
-        }
-    }
-    return { errors, warnings };
-}
-
-function renderValidationResults(validation, container) {
-    let html = '';
-    if (validation.errors && validation.errors.length > 0) {
-        html += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Input Errors Found:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.errors.map(e => `<li>${e}</li>`).join('')}</ul>
-                    <p class="mt-2">Please correct the errors and run the check again.</p>
-                 </div>`;
-    }
-    if (validation.warnings && validation.warnings.length > 0) {
-        html += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Warnings:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
-                 </div>`;
-    }
-    if (container) {
-        container.innerHTML = html;
-    }
-    return html;
-}
 
 const rainLoadCalculator = (() => {
     function run(inputs) {
@@ -198,7 +157,7 @@ function handleRunRainCalculation() {
         drain_type: rawInputs.rain_drain_type
     };
     
-    const validation = validateInputs(inputs, 'rain');
+    const validation = validateInputs(inputs, validationRules.rain);
     if (validation.errors.length > 0) {
         renderValidationResults(validation, document.getElementById('rain-results-container'));
         return;
@@ -301,35 +260,4 @@ function renderRainResults(results) {
      </div>`;
 
     resultsContainer.innerHTML = html;
-}
-
-function handleSaveRainInputs() {
-    const inputs = gatherInputsFromIds(rainInputIds);
-    saveInputsToFile(inputs, 'rain-inputs.txt');
-    showFeedback('Rain inputs saved to rain-inputs.txt', false, 'feedback-message');
-}
-
-function handleLoadRainInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            rainInputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && inputs[id] !== undefined) {
-                    if (el.type === 'checkbox') el.checked = inputs[id];
-                    else el.value = inputs[id];
-                }
-            });
-            showFeedback('Rain inputs loaded successfully!', false, 'feedback-message');
-            handleRunRainCalculation();
-        } catch (err) {
-            showFeedback('Failed to load rain inputs. Data may be corrupt.', true, 'feedback-message');
-            console.error("Error parsing saved data:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
 }

@@ -85,6 +85,24 @@ function setLoadingState(isLoading, buttonId) {
 }
 
 /**
+ * Performs linear interpolation for a given value within a dataset.
+ * This is commonly used for looking up values in normative tables.
+ * @param {number} x - The point at which to evaluate the interpolated value.
+ * @param {number[]} xp - The array of x-coordinates of the data points.
+ * @param {number[]} fp - The array of y-coordinates of the data points.
+ * @returns {number} The interpolated y-value.
+ */
+function interpolate(x, xp, fp) {
+    if (x <= xp[0]) return fp[0];
+    if (x >= xp[xp.length - 1]) return fp[fp.length - 1];
+    let i = 0;
+    while (x > xp[i + 1]) i++;
+    const x1 = xp[i], y1 = fp[i];
+    const x2 = xp[i + 1], y2 = fp[i + 1];
+    return y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
+}
+
+/**
  * Validates a set of inputs against a predefined set of rules.
  * @param {object} inputs - The input values to validate.
  * @param {object} rules - The validation rules object.
@@ -656,4 +674,53 @@ function saveInputsToFile(data, filename) {
  */
 function initiateLoadInputsFromFile(fileInputId = 'file-input') {
     document.getElementById(fileInputId)?.click();
+}
+
+/**
+ * Creates a generic "save inputs" event handler.
+ * @param {string[]} inputIds - The array of input IDs to gather values from.
+ * @param {string} filename - The default filename for the saved file.
+ * @param {string} [feedbackElId='feedback-message'] - The ID of the feedback element.
+ * @returns {function} An event handler function.
+ */
+function createSaveInputsHandler(inputIds, filename, feedbackElId = 'feedback-message') {
+    return function() {
+        const inputs = gatherInputsFromIds(inputIds);
+        saveInputsToFile(inputs, filename);
+        showFeedback(`Inputs saved to ${filename}`, false, feedbackElId);
+    };
+}
+
+/**
+ * Creates a generic "load inputs" event handler for a file input.
+ * @param {string[]} inputIds - The array of input IDs to populate.
+ * @param {function} onComplete - A callback function to run after inputs are loaded (e.g., re-run calculation).
+ * @param {string} [feedbackElId='feedback-message'] - The ID of the feedback element.
+ * @returns {function} An event handler function that takes the file input event.
+ */
+function createLoadInputsHandler(inputIds, onComplete, feedbackElId = 'feedback-message') {
+    return function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const inputs = JSON.parse(e.target.result);
+                inputIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && inputs[id] !== undefined) {
+                        el.type === 'checkbox' ? (el.checked = inputs[id]) : (el.value = inputs[id]);
+                    }
+                });
+                showFeedback('Inputs loaded successfully!', false, feedbackElId);
+                if (typeof onComplete === 'function') onComplete();
+            } catch (err) {
+                showFeedback('Failed to load inputs. Data may be corrupt.', true, feedbackElId);
+                console.error("Error parsing saved data:", err);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset file input
+    };
 }

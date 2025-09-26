@@ -33,9 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initializeTheme();
+        const handleSaveComboInputs = createSaveInputsHandler(comboInputIds, 'combo-inputs.txt');
+        const handleLoadComboInputs = createLoadInputsHandler(comboInputIds, handleRunComboCalculation);
+
         document.getElementById('run-combo-calculation-btn').addEventListener('click', handleRunComboCalculation);
         document.getElementById('save-combo-inputs-btn').addEventListener('click', handleSaveComboInputs);
-        document.getElementById('load-combo-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('combo-file-input'));
+        document.getElementById('load-combo-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('combo-file-input')); // initiateLoad is already generic
         document.getElementById('combo-file-input').addEventListener('change', handleLoadComboInputs);
 
         attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
@@ -477,35 +480,4 @@ function renderComboResults(fullResults) {
 
     html += `</div>`;
     resultsContainer.innerHTML = html;
-}
-
-function handleSaveComboInputs() { // This function is not used in the provided HTML, but keeping it for consistency
-    const inputs = gatherInputsFromIds(comboInputIds);
-    saveInputsToFile(inputs, 'combo-inputs.txt');
-    showFeedback('Load combo inputs saved to combo-inputs.txt', false, 'feedback-message');
-}
-
-function handleLoadComboInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            comboInputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && inputs[id] !== undefined) {
-                    if (el.type === 'checkbox') el.checked = inputs[id];
-                    else el.value = inputs[id];
-                }
-            });
-            showFeedback('Load combo inputs loaded successfully!', false, 'feedback-message');
-            handleRunComboCalculation();
-        } catch (err) {
-            showFeedback('Failed to load combo inputs. Data may be corrupt.', true, 'feedback-message');
-            console.error("Error parsing saved data:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
 }

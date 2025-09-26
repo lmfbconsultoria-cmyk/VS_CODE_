@@ -45,9 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initializeTheme(); // Set initial theme state
+        const handleSaveWindInputs = createSaveInputsHandler(windInputIds, 'wind-inputs.txt');
+        const handleLoadWindInputs = createLoadInputsHandler(windInputIds, handleRunWindCalculation);
+
         document.getElementById('run-calculation-btn').addEventListener('click', handleRunWindCalculation);
-        document.getElementById('save-inputs-btn').addEventListener('click', () => handleSaveWindInputs());
-        document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('wind-file-input'));
+        document.getElementById('save-inputs-btn').addEventListener('click', handleSaveWindInputs);
+        document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('wind-file-input')); // initiateLoad is already generic
         document.getElementById('wind-file-input').addEventListener('change', (e) => handleLoadWindInputs(e));
 
         attachDebouncedListeners(windInputIds, handleRunWindCalculation);
@@ -107,18 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // =================================================================================
 const windLoadCalculator = (() => {
     // --- PRIVATE HELPER & CALCULATION FUNCTIONS ---
-// Linear interpolation for normative tables
-// Reference: ASCE 7-16/22, used in several tables (e.g., Table 26.9-1, 26.10-1)
-function interpolate(x, xp, fp) {
-        if (x <= xp[0]) return fp[0];
-        if (x >= xp[xp.length - 1]) return fp[fp.length - 1];
-        let i = 0;
-        while (x > xp[i + 1]) i++;
-        const x1 = xp[i], y1 = fp[i];
-        const x2 = xp[i + 1], y2 = fp[i + 1];
-        return y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
-    }
-
 // Internal pressure coefficient GCpi
 // Reference: ASCE 7-16/22 Table 26.13-1
 function getInternalPressureCoefficient(enclosureClass) {
@@ -996,41 +987,6 @@ const validationRules = {
     }
 };
 
-function validateInputs(inputs, type) {
-    const rules = validationRules[type];
-    const errors = [];
-    const warnings = [];
-
-    if (rules) {
-        for (const [key, rule] of Object.entries(rules)) {
-            const value = inputs[key];
-            const label = rule.label || key;
-
-            if (rule.required && (value === undefined || value === '' || (typeof value === 'number' && isNaN(value)))) {
-                errors.push(`${label} is required.`);
-                continue;
-            }
-            if (typeof value === 'number') {
-                if (rule.min !== undefined && value < rule.min) errors.push(`${label} must be at least ${rule.min}.`);
-                if (rule.max !== undefined && value > rule.max) errors.push(`${label} must be no more than ${rule.max}.`);
-            }
-        }
-    }
-
-    // Add specific, inter-dependent validation logic
-    if (type === 'wind') {
-        if (['gable', 'hip'].includes(inputs.roof_type) && inputs.roof_slope_deg > 45) {
-            errors.push("Gable/hip roof slope must be <= 45° for this calculator's implementation of ASCE 7 Fig 27.3-2.");
-        }
-        const isImperial = inputs.unit_system === 'imperial';
-        const vRange = isImperial ? [85, 200] : [38, 90];
-        if (inputs.basic_wind_speed < vRange[0] || inputs.basic_wind_speed > vRange[1]) {
-            warnings.push(`Wind speed ${inputs.basic_wind_speed} ${isImperial ? 'mph' : 'm/s'} is outside the typical ASCE 7 range (${vRange[0]}-${vRange[1]}).`);
-        }
-    }
-    return { errors, warnings };
-}
-
 /**
  * Gathers all wind-related inputs from the DOM.
  * @returns {object} An object containing all the input values.
@@ -1045,7 +1001,19 @@ function gatherWindInputs() {
  * @returns {object} An object containing arrays of errors and warnings.
  */
 function validateWindInputs(inputs) {
-    return validateInputs(inputs, 'wind');
+    const { errors, warnings } = validateInputs(inputs, validationRules.wind);
+
+    // Add specific, inter-dependent validation logic here
+    if (['gable', 'hip'].includes(inputs.roof_type) && inputs.roof_slope_deg > 45) {
+        errors.push("Gable/hip roof slope must be <= 45° for this calculator's implementation of ASCE 7 Fig 27.3-2.");
+    }
+    const isImperial = inputs.unit_system === 'imperial';
+    const vRange = isImperial ? [85, 200] : [38, 90];
+    if (inputs.basic_wind_speed < vRange[0] || inputs.basic_wind_speed > vRange[1]) {
+        warnings.push(`Wind speed ${inputs.basic_wind_speed} ${isImperial ? 'mph' : 'm/s'} is outside the typical ASCE 7 range (${vRange[0]}-${vRange[1]}).`);
+    }
+
+    return { errors, warnings };
 }
 
 /**
@@ -1069,7 +1037,7 @@ function handleRunWindCalculation() {
     const inputs = gatherInputsFromIds(windInputIds);
 
     // 2. Validate Inputs
-    const validation = validateInputs(inputs, 'wind');
+    const validation = validateWindInputs(inputs);
     if (validation.errors.length > 0) {
         renderValidationResults(validation, document.getElementById('results-container'));
         return;
@@ -1090,27 +1058,6 @@ function handleRunWindCalculation() {
     }
     renderWindResults(results);
     setLoadingState(false, 'run-calculation-btn');
-}
-
-function renderValidationResults(validation, container) {
-    let html = '';
-    if (validation.errors && validation.errors.length > 0) {
-        html += `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Input Errors Found:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.errors.map(e => `<li>${e}</li>`).join('')}</ul>
-                    <p class="mt-2">Please correct the errors and run the check again.</p>
-                 </div>`;
-    }
-    if (validation.warnings && validation.warnings.length > 0) {
-        html += `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md my-4">
-                    <p class="font-bold">Warnings:</p>
-                    <ul class="list-disc list-inside mt-2">${validation.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
-                 </div>`;
-    }
-    if (container) {
-        container.innerHTML = html;
-    }
-    return html;
 }
 
 function renderRoofPressureChart(canvasId, pressureData, building_dimension, design_method, units) { // This function was missing in the original context
@@ -2076,35 +2023,4 @@ function renderWindResults(results) {
         renderRoofPressureChart('roofChartL', roofPressureDist_L, inputs.building_length_L, inputs.design_method, units);
         renderRoofPressureChart('roofChartB', roofPressureDist_B, inputs.building_width_B, inputs.design_method, units);
     }
-}
-
-function handleSaveWindInputs() {
-    const inputs = gatherInputsFromIds(windInputIds);
-    saveInputsToFile(inputs, 'wind-inputs.txt');
-    showFeedback('Inputs saved to wind-inputs.txt', false, 'feedback-message');
-}
-
-function handleLoadWindInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            windInputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && inputs[id] !== undefined) {
-                    if (el.type === 'checkbox') el.checked = inputs[id];
-                    else el.value = inputs[id];
-                }
-            });
-            showFeedback('Wind inputs loaded successfully!', false, 'feedback-message');
-            handleRunWindCalculation(); // Optionally re-run calculation
-        } catch (err) {
-            showFeedback('Failed to load inputs. Data may be corrupt.', true, 'feedback-message');
-            console.error("Error parsing saved data:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Reset file input to allow re-loading the same file
 }
