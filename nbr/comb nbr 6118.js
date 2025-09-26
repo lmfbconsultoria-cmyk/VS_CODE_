@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addLoadBtn.addEventListener('click', addLoadRow);
     generateReportBtn.addEventListener('click', generateReportHandler);
-    initializeTheme();
+    initializeSharedUI();
 
     // Add initial row
     addLoadRow();

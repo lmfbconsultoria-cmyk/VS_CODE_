@@ -23,61 +23,37 @@ const windInputIds = [
 // =================================================================================
 //  UI INJECTION & INITIALIZATION
 // =================================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    
-    function initializeApp() {
-        attachEventListeners();
-        addRangeIndicators();
-        loadInputsFromLocalStorage('wind-calculator-inputs', windInputIds, handleRunWindCalculation);
-    }
+document.addEventListener('DOMContentLoaded', () => {    
+    // 1. Create the main calculation handler first, so it's available to other functions.
+    const handleRunWindCalculation = createCalculationHandler({
+        inputIds: windInputIds,
+        storageKey: 'wind-calculator-inputs',
+        validatorFunction: validateWindInputs,
+        calculatorFunction: windLoadCalculator.run,
+        renderFunction: renderWindResults,
+        resultsContainerId: 'results-container',
+        feedbackElId: 'feedback-message', // Explicitly pass feedback element ID
+        buttonId: 'run-calculation-btn'
+    });
 
     // --- EVENT HANDLERS ---
     function attachEventListeners() {
-        function attachDebouncedListeners(ids, handler) {
-            const debouncedHandler = debounce(handler, 500);
-            ids.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    // 'input' for text/number, 'change' for select/checkbox
-                    el.addEventListener('input', debouncedHandler);
-                    el.addEventListener('change', debouncedHandler);
-                }
-            });
-        }
-
-        initializeTheme(); // Set initial theme state
-        const handleSaveWindInputs = createSaveInputsHandler(windInputIds, 'wind-inputs.txt');
-        const handleLoadWindInputs = createLoadInputsHandler(windInputIds, handleRunWindCalculation);
-
-        document.getElementById('run-calculation-btn').addEventListener('click', handleRunWindCalculation);
-        document.getElementById('save-inputs-btn').addEventListener('click', handleSaveWindInputs);
-        document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('wind-file-input')); // initiateLoad is already generic
-        document.getElementById('wind-file-input').addEventListener('change', (e) => handleLoadWindInputs(e));
-
-        // attachDebouncedListeners(windInputIds, handleRunWindCalculation);
-
-        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-
-        document.getElementById('enclosure_classification').addEventListener('change', (event) => {
-            const isOpen = event.target.value === 'Open';
-            document.getElementById('open-building-options').classList.toggle('hidden', !isOpen);
-        });
-        document.getElementById('enclosure_classification').dispatchEvent(new Event('change'));
-
         document.getElementById('mean_roof_height').addEventListener('input', (event) => {
             const h = parseFloat(event.target.value) || 0;
             const is_imp = document.getElementById('unit_system').value === 'imperial';
             const limit = is_imp ? 60 : 18.3;
             document.getElementById('tall-building-section').classList.toggle('hidden', h <= limit);
         });
-        document.getElementById('mean_roof_height').dispatchEvent(new Event('input'));
 
-        document.getElementById('building_flexibility').addEventListener('change', (event) => {
-            const isFlexible = event.target.value === 'Flexible';
-            document.getElementById('flexible-building-inputs').classList.toggle('hidden', !isFlexible);
-        });
-        document.getElementById('building_flexibility').dispatchEvent(new Event('change'));
+        // Create file-based handlers
+        const handleSaveWindInputs = createSaveInputsHandler(windInputIds, 'wind-inputs.txt');
+        const handleLoadWindInputs = createLoadInputsHandler(windInputIds, handleRunWindCalculation);
 
+        // Attach handlers to buttons
+        document.getElementById('run-calculation-btn').addEventListener('click', handleRunWindCalculation);
+        document.getElementById('save-inputs-btn').addEventListener('click', handleSaveWindInputs);
+        document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('wind-file-input'));
+        document.getElementById('wind-file-input').addEventListener('change', (e) => handleLoadWindInputs(e));
 
         document.body.addEventListener('click', async (event) => {
             const copyBtn = event.target.closest('.copy-section-btn');
@@ -108,13 +84,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    initializeApp();
-    
+    // 3. Define the main app initialization function.
+    function initializeApp() {
+        initializeSharedUI();
+        attachEventListeners();
+        addRangeIndicators();
+        // Use a small timeout to ensure all elements are ready before triggering a calculation from localStorage
+        setTimeout(() => {
+            loadInputsFromLocalStorage('wind-calculator-inputs', windInputIds);
+        }, 100);
+    }
+
+    // 4. Run the app.
+    initializeApp();    
 }); // END DOMContentLoaded
 
 // =================================================================================
 //  WIND LOAD CALCULATOR LOGIC
 // =================================================================================
+
 const windLoadCalculator = (() => {
     // --- PRIVATE HELPER & CALCULATION FUNCTIONS ---
 // Internal pressure coefficient GCpi
@@ -202,7 +190,7 @@ function getInternalPressureCoefficient(enclosureClass) {
     const h_over_L = dim_parallel_to_wind > 0 ? h / dim_parallel_to_wind : 0;
     
     if (h_over_L <= 0.8) { // Note: ASCE 7-16 Fig 27.3-1 uses h/L, not h/B
-        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.7, -0.5, -0.3, -0.2, 0.0, 0.2, 0.4]);
+        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.7, -0.5, -0.3, -0.2, 0.0, 0.2, 0.4]); // This was missing a value in the original code
         cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20], [-0.3, -0.5, -0.6]);
     } else {
         cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.9, -0.7, -0.4, -0.3, -0.2, 0.0, 0.4]);
@@ -736,11 +724,10 @@ function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi) {
     function calculateGustEffectFactor(inputs, intermediate) { // Refactored for readability
         if (inputs.building_flexibility !== 'Flexible' || !inputs.fundamental_period) {
             return { G: 0.85, ref: "ASCE 7-16 Sec. 26.11.1 (Rigid Structure)" };
-        }
-    
-        const { V_in, unit_system, mean_roof_height, building_length_L, building_width_B, exposure_category } = inputs;
-        const { alpha, zg } = intermediate;
-        const n1 = 1 / inputs.fundamental_period;
+        } // Corrected validation
+        const { V_in, unit_system, mean_roof_height, building_length_L, building_width_B, exposure_category, fundamental_period } = inputs;
+        const { alpha, zg } = intermediate; // Defensive destructuring
+        const n1 = fundamental_period > 0 ? 1 / fundamental_period : 0;
 
         const { b_bar, c, l, epsilon_bar } = getGustCalculationConstants(exposure_category, unit_system);
 
@@ -902,7 +889,12 @@ function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi) {
         const [Ke, ke_ref] = calculateKe(inputs.ground_elevation, inputs.unit_system, effective_standard);
         const { Kz, alpha, zg, ref_note: kz_ref } = calculateKz(inputs.mean_roof_height, inputs.exposure_category, inputs.unit_system); // Kz at roof height h
         const { qz, ref_note: qz_ref } = calculateVelocityPressure(Kz, inputs.topographic_factor_Kzt, Kd, Ke, v_input, effective_standard, inputs.risk_category, inputs.unit_system);
-        const [Iw, iw_ref] = getImportanceFactor(inputs.risk_category, effective_standard);
+        const [Iw, iw_ref] = getImportanceFactor(inputs.risk_category, effective_standard); // Defensive destructuring
+        const kzResult = calculateKz(inputs.mean_roof_height, inputs.exposure_category, inputs.unit_system);
+        const Kz_val = kzResult.Kz || 1.0;
+        const alpha_val = kzResult.alpha || 0;
+        const zg_val = kzResult.zg || 0;
+        const kz_ref_val = kzResult.ref_note || "Error: Kz calculation failed";
         
         const intermediate_for_G = { alpha, zg, Kz, Iw };
         const { G, ref: g_ref } = calculateGustEffectFactor({ ...inputs, V_in: v_input }, intermediate_for_G);
@@ -1037,53 +1029,24 @@ function validateWindInputs(inputs) {
  * @returns {object} The complete results object from the calculation.
  */
 function performWindCalculation(inputs, validation) { // This function was missing in the original context
-    return safeCalculation( // safeCalculation is in shared-utils.js
-        () => windLoadCalculator.run(inputs, validation),
-        'An unexpected error occurred during the wind calculation.'
-    );
-}
-
-/**
- * Orchestrates the wind calculation process: gather, validate, calculate, and render.
- */
-function handleRunWindCalculation() {
-    // 1. Gather Inputs
-    const inputs = gatherInputsFromIds(windInputIds);
-
-    // 2. Validate Inputs
-    const validation = validateWindInputs(inputs);
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('results-container'));
-        return;
+    try {
+        return windLoadCalculator.run(inputs, validation);
+    } catch (error) {
+        console.error('An unexpected error occurred during the wind calculation.', error);
+        return { errors: ['An unexpected error occurred during the wind calculation. Check console for details.'], warnings: [] };
     }
-
-    // 3. Perform Calculation
-    setLoadingState(true, 'run-calculation-btn');
-    const results = safeCalculation(
-        () => windLoadCalculator.run(inputs, validation),
-        'An unexpected error occurred during the wind calculation.'
-    );
-
-    // 4. Render Results
-    if (results.error) {
-        setLoadingState(false, 'run-calculation-btn');
-        renderValidationResults({ errors: [results.error] }, document.getElementById('results-container'));
-        return;
-    }
-
-    // Save successful inputs to local storage
-    saveInputsToLocalStorage('wind-calculator-inputs', inputs);
-    renderWindResults(results);
-    setLoadingState(false, 'run-calculation-btn');
 }
-
 function renderRoofPressureChart(canvasId, pressureData, building_dimension, design_method, units) { // This function was missing in the original context
     const factor = design_method === 'ASD' ? 0.6 : 1.0;
     const labels = pressureData.map(p => p.distance.toFixed(1));
     const data = pressureData.map(p => (p.p_neg * factor).toFixed(2));
 
     const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+    if (!ctx || typeof Chart === 'undefined') {
+        console.warn('Chart.js not available or canvas not found');
+        if (ctx) ctx.parentElement.innerHTML = `<div class="text-center text-red-500">Chart.js library not loaded.</div>`;
+        return;
+    }
 
     try {
         new Chart(ctx, {
@@ -2027,58 +1990,71 @@ function sendWindToCombos(results) {
         return;
     }
 
-    const comboData = {};
-    const design_method = results.inputs.design_method;
-
-    // Helper to get the correct pressure (ASD or LRFD)
-    const getPressure = (result, type) => {
-        if (!result) return 0;
-        // The combo calculator expects nominal (ASD) level loads for S and W (ASCE 7-16)
-        // The wind calculator's ASD values are already nominal.
-        return type === 'pos' ? result.p_pos_asd : result.p_neg_asd;
+    const comboData = {
+        combo_wind_wall_ww_max: 0, combo_wind_wall_ww_min: 0,
+        combo_wind_wall_lw_max: 0, combo_wind_wall_lw_min: 0,
+        combo_wind_roof_ww_max: 0, combo_wind_roof_ww_min: 0,
+        combo_wind_roof_lw_max: 0, combo_wind_roof_lw_min: 0,
+        combo_wind_cc_max: 0, combo_wind_cc_min: 0,
+        combo_wind_cc_wall_max: 0, combo_wind_cc_wall_min: 0,
     };
 
-    // MWFRS - Wind Perpendicular to L
-    const mwfrs_L = results.directional_results.perp_to_L || [];
-    const ww_wall_L = mwfrs_L.find(r => r.surface.includes('Windward Wall'));
-    const lw_wall_L = mwfrs_L.find(r => r.surface.includes('Leeward Wall'));
-    const ww_roof_L = mwfrs_L.find(r => r.surface.includes('Windward Roof'));
-    const lw_roof_L = mwfrs_L.find(r => r.surface.includes('Leeward Roof'));
+    // Helper to find the most critical (max absolute) nominal pressures from all MWFRS directions
+    const getGoverningMwfrsPressure = (surface_name) => {
+        let max_abs_pressure = { p_pos_asd: 0, p_neg_asd: 0 };
+        let max_abs_val = -1;
 
-    comboData.combo_wind_wall_ww_max = getPressure(ww_wall_L, 'pos');
-    comboData.combo_wind_wall_ww_min = getPressure(ww_wall_L, 'neg');
-    comboData.combo_wind_wall_lw_max = getPressure(lw_wall_L, 'pos');
-    comboData.combo_wind_wall_lw_min = getPressure(lw_wall_L, 'neg');
-    comboData.combo_wind_roof_ww_max = getPressure(ww_roof_L, 'pos');
-    comboData.combo_wind_roof_ww_min = getPressure(ww_roof_L, 'neg');
-    comboData.combo_wind_roof_lw_max = getPressure(lw_roof_L, 'pos');
-    comboData.combo_wind_roof_lw_min = getPressure(lw_roof_L, 'neg');
+        for (const dir in results.directional_results) {
+            const resultSet = results.directional_results[dir] || [];
+            const surfaceResult = resultSet.find(r => r.surface.includes(surface_name));
+            if (surfaceResult) {
+                const current_max_abs = Math.max(Math.abs(surfaceResult.p_pos_asd), Math.abs(surfaceResult.p_neg_asd));
+                if (current_max_abs > max_abs_val) {
+                    max_abs_val = current_max_abs;
+                    max_abs_pressure = surfaceResult;
+                }
+            }
+        }
+        return { max: max_abs_pressure.p_pos_asd, min: max_abs_pressure.p_neg_asd };
+    };
+
+    // Get governing MWFRS pressures
+    const ww_wall = getGoverningMwfrsPressure('Windward Wall');
+    const lw_wall = getGoverningMwfrsPressure('Leeward Wall');
+    const ww_roof = getGoverningMwfrsPressure('Windward Roof');
+    const lw_roof = getGoverningMwfrsPressure('Leeward Roof');
+
+    comboData.combo_wind_wall_ww_max = ww_wall.max;
+    comboData.combo_wind_wall_ww_min = ww_wall.min;
+    comboData.combo_wind_wall_lw_max = lw_wall.max;
+    comboData.combo_wind_wall_lw_min = lw_wall.min;
+    comboData.combo_wind_roof_ww_max = ww_roof.max;
+    comboData.combo_wind_roof_ww_min = ww_roof.min;
+    comboData.combo_wind_roof_lw_max = lw_roof.max;
+    comboData.combo_wind_roof_lw_min = lw_roof.min;
 
     // C&C Loads
     const candc = results.candc;
     if (candc && candc.applicable && candc.pressures) {
-        let cc_roof_max = -Infinity, cc_roof_min = Infinity;
-        let cc_wall_max = -Infinity, cc_wall_min = Infinity;
-
         for (const [zone, pressureData] of Object.entries(candc.pressures)) {
-            const p_asd_pos = pressureData.p_pos * 0.6;
-            const p_asd_neg = pressureData.p_neg * 0.6;
+            // The combo calculator expects nominal (ASD) level loads.
+            // For C&C, the ASD pressure is 0.6 * LRFD pressure.
+            const p_asd_pos = pressureData.p_pos * 0.6; // p_pos is LRFD level
+            const p_asd_neg = pressureData.p_neg * 0.6; // p_neg is LRFD level
+            
             if (zone.toLowerCase().includes('wall')) {
-                if (p_asd_pos > cc_wall_max) cc_wall_max = p_asd_pos;
-                if (p_asd_neg < cc_wall_min) cc_wall_min = p_asd_neg;
+                comboData.combo_wind_cc_wall_max = Math.max(comboData.combo_wind_cc_wall_max, p_asd_pos);
+                comboData.combo_wind_cc_wall_min = Math.min(comboData.combo_wind_cc_wall_min, p_asd_neg);
             } else { // roof
-                if (p_asd_pos > cc_roof_max) cc_roof_max = p_asd_pos;
-                if (p_asd_neg < cc_roof_min) cc_roof_min = p_asd_neg;
+                comboData.combo_wind_cc_max = Math.max(comboData.combo_wind_cc_max, p_asd_pos);
+                comboData.combo_wind_cc_min = Math.min(comboData.combo_wind_cc_min, p_asd_neg);
             }
         }
-        comboData.combo_wind_cc_max = cc_roof_max > -Infinity ? cc_roof_max : 0;
-        comboData.combo_wind_cc_min = cc_roof_min < Infinity ? cc_roof_min : 0;
-        comboData.combo_wind_cc_wall_max = cc_wall_max > -Infinity ? cc_wall_max : 0;
-        comboData.combo_wind_cc_wall_min = cc_wall_min < Infinity ? cc_wall_min : 0;
     }
 
     const dataToSend = {
         source: 'Wind Calculator',
+        type: 'Wind',
         loads: comboData
     };
     localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));

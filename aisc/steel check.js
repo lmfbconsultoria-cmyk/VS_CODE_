@@ -1,4 +1,4 @@
-const inputIds = [
+const steelCheckInputIds = [
     'design_method', 'aisc_standard', 'unit_system', 'Fy', 'Fu', 'E', 'section_type',
     'd', 'bf', 'tf', 'tw', 'Ag_manual', 'I_manual', 'Sx_manual', 'Zx_manual', 'ry_manual', 'rts_manual', 'J_manual', 'Cw_manual',
     'Iy_manual', 'Sy_manual', 'Zy_manual', 'lb_bearing', 'is_end_bearing', 'k_des', 'Cm', 'Lb_input', 'K', 'Cb', 
@@ -6,30 +6,35 @@ const inputIds = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-    const runButton = document.getElementById('run-steel-check-btn');
-    runButton.addEventListener('click', handleRunSteelCheck);
+    const handleRunSteelCheck = createCalculationHandler({
+        inputIds: steelCheckInputIds,
+        storageKey: 'steel-check-inputs',
+        validationRuleKey: 'steel_check',
+        calculatorFunction: steelChecker.run,
+        renderFunction: renderSteelResults,
+        resultsContainerId: 'steel-results-container',
+        buttonId: 'run-steel-check-btn'
+    });
 
     injectHeader({
         activePage: 'steel-check',
         pageTitle: 'AISC Steel Section Design Checker',
         headerPlaceholderId: 'header-placeholder'
     });
-    injectFooter({
-        footerPlaceholderId: 'footer-placeholder'
-    });
+    injectFooter({ footerPlaceholderId: 'footer-placeholder' });
+    initializeSharedUI();
 
-    initializeTheme();
-
-    document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
+    document.getElementById('save-inputs-btn').addEventListener('click', createSaveInputsHandler(steelCheckInputIds, 'steel-check-inputs.txt'));
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
-    document.getElementById('file-input').addEventListener('change', handleLoadInputs);
+    document.getElementById('file-input').addEventListener('change', createLoadInputsHandler(steelCheckInputIds, handleRunSteelCheck));
 
     // The aiscShapeDatabase is defined later in the script, so it's available in the handler.
     document.getElementById('section_type').addEventListener('change', updateGeometryInputsUI);
     document.getElementById('num_beams').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     document.getElementById('beam_spacing').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     updateGeometryInputsUI(); // Initial call
-    loadInputsFromLocalStorage('steel-check-inputs', inputIds, handleRunSteelCheck);
+    loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds);
+    document.getElementById('run-steel-check-btn').addEventListener('click', handleRunSteelCheck);
 
     document.getElementById('steel-results-container').addEventListener('click', (event) => {
         const button = event.target.closest('.toggle-details-btn');
@@ -47,36 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
-function handleSaveInputs() {
-    const inputs = gatherInputsFromIds(inputIds);
-    saveInputsToFile(inputs, 'steel-check-inputs.txt');
-    showFeedback('Inputs saved successfully!', false, 'feedback-message');
-}
-
-function handleLoadInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            inputIds.forEach(id => {
-                if (document.getElementById(id) && inputs[id] !== undefined) {
-                    document.getElementById(id).value = inputs[id];
-                }
-            });
-            showFeedback('Inputs loaded successfully!', false, 'feedback-message');
-            updateGeometryInputsUI(); // Refresh UI for section types
-            handleRunSteelCheck(); // Re-run the check with loaded data
-        } catch (err) {
-            showFeedback('Failed to load or parse file.', true, 'feedback-message');
-            console.error("Error loading inputs:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Reset file input to allow loading the same file again
-}
 
 function calculateAndDisplayBuiltUpProperties() {
     const n_beams = parseInt(document.getElementById('num_beams').value) || 1;
@@ -217,18 +192,6 @@ function gatherInputs() {
         actual_deflection_input: getVal('actual_deflection_input'), Tu_or_Ta: getVal('Tu_or_Ta'),
         An_net: getVal('Ag_manual'), U_shear_lag: 1.0, // Assume full beam, U=1.0
     };
-}
-
-function handleRunSteelCheck() {
-    const inputs = gatherInputs();
-    const validation = validateInputs(inputs, validationRules.steel_check);
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('steel-results-container'));
-        return;
-    }
-    saveInputsToLocalStorage('steel-check-inputs', inputs);
-    const results = steelChecker.run(inputs);
-    renderSteelResults(results);
 }
 
 const steelChecker = (() => {
@@ -1395,7 +1358,7 @@ function renderSteelResults(results) {
                 For final designs, verify results using certified software or manual calculations per the current AISC Specification. 
                 Some limit states may not be fully implemented. Always consult a licensed structural engineer for critical applications. For non-uniform loading in LTB, adjust Cb manually; variable cross-sections and stiffened elements are not supported.
             </div>
-            <div class="flex justify-between items-center">
+            <div"flex justify-between items-center">
                 <h2 class="report-header text-center flex-grow">Steel Check Results (${inputs.aisc_standard})</h2>
                 <button data-copy-target-id="steel-check-summary" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Summary</button>
             </div>
@@ -1465,7 +1428,7 @@ function renderSteelResults(results) {
                         <td>${axial_ratio.toFixed(3)}</td>
                         ${getStatus(axial_ratio)}
                     </tr>
-                    <tr id="axial-details" class="details-row is-visible">
+                    <tr id="axial-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             ${axial.type === 'Compression' ? `
                                 <h4>Compression Breakdown (${axial.reference})</h4>
@@ -1497,7 +1460,7 @@ function renderSteelResults(results) {
                         <td>${flex_ratio.toFixed(3)}</td>
                         ${getStatus(flex_ratio)}
                     </tr>
-                    <tr id="flex-details" class="details-row is-visible">
+                    <tr id="flex-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Flexure Breakdown (${flexure.reference})</h4>
                             <ul>
@@ -1519,7 +1482,7 @@ function renderSteelResults(results) {
                         <td>${shear_ratio.toFixed(3)}</td>
                         ${getStatus(shear_ratio)}
                     </tr>
-                    <tr id="shear-details" class="details-row is-visible">
+                    <tr id="shear-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Shear Breakdown (${shear.reference})</h4>
                             <ul>
@@ -1538,7 +1501,7 @@ function renderSteelResults(results) {
                         <td>${interaction.ratio.toFixed(3)}</td>
                         ${getStatus(interaction.ratio)}
                     </tr>
-                    <tr id="interaction-details" class="details-row is-visible">
+                    <tr id="interaction-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Combined Axial + Flexure Breakdown (${interaction.reference})</h4>
                             <ul>
@@ -1558,7 +1521,7 @@ function renderSteelResults(results) {
                         <td>${torsion_cap > 0 ? torsion_ratio.toFixed(3) : 'N/A'}</td>
                         ${torsion_cap > 0 ? getStatus(torsion_ratio) : '<td>-</td>'}
                     </tr>
-                    <tr id="torsion-details" class="details-row is-visible">
+                    <tr id="torsion-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Torsion Breakdown (${torsion.reference})</h4>
                             <ul>
@@ -1583,7 +1546,7 @@ function renderSteelResults(results) {
                         <td>${(combined_stress_H33.ratio).toFixed(3)}</td>
                         ${getStatus(combined_stress_H33.ratio)}
                     </tr>
-                    <tr id="h33-details" class="details-row is-visible">
+                    <tr id="h33-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Combined Stress Breakdown (AISC H3.3)</h4>
                             <ul>
@@ -1602,7 +1565,7 @@ function renderSteelResults(results) {
                         <td>${(Vu / web_crippling.phiRn_or_Rn_omega).toFixed(3)}</td>
                         ${getStatus(Vu / web_crippling.phiRn_or_Rn_omega)}
                     </tr>
-                    <tr id="crippling-details" class="details-row is-visible">
+                    <tr id="crippling-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Web Crippling & Yielding Breakdown (${web_crippling.reference})</h4>
                             <ul>
@@ -1635,7 +1598,7 @@ function renderSteelResults(results) {
                         <td>${deflection.ratio.toFixed(3)}</td>
                         ${getStatus(deflection.ratio)}
                     </tr>
-                    <tr id="deflection-details" class="details-row is-visible">
+                    <tr id="deflection-details" class="details-row">
                         <td colspan="5" class="p-0"><div class="calc-breakdown">
                             <h4>Deflection Breakdown (Serviceability)</h4>
                             <ul>

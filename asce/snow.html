@@ -20,10 +20,10 @@
     <script src="../js/validation-rules.js" defer></script>
     <script src="snow.js" defer></script>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300" style="font-family: 'Inter', sans-serif;">
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <div id="header-placeholder"></div>
+        <div id="header-placeholder" style="min-height: 110px;"></div>
 
         <main id="snow-calculator-form">
              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -81,12 +81,20 @@
                                 </select>
                             </div>
                              <div>
+                                <label for="snow_roof_type" class="block text-sm font-medium mb-1">Roof Type</label>
+                                <select id="snow_roof_type">
+                                    <option value="gable_hip" selected>Gable/Hip</option>
+                                    <option value="monoslope">Monoslope</option>
+                                    <option value="arched">Arched</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label for="snow_roof_slope_degrees" class="block text-sm font-medium mb-1">Roof Slope (°)</label>
-                                <input type="number" id="snow_roof_slope_degrees" value="10">
+                                <input type="number" id="snow_roof_slope_degrees" value="10" min="0" max="90">
                             </div>
                             <div>
                                 <label for="snow_is_roof_slippery" class="block text-sm font-medium mb-1">Slippery Roof?</label>
-                                <select id="snow_is_roof_slippery">
+                                <select id="snow_is_roof_slippery" data-ui-toggle-controller data-ui-toggle-target="#sliding-snow-inputs" data-ui-toggle-condition-value="Yes">
                                     <option value="Yes">Yes</option>
                                     <option value="No" selected>No</option>
                                 </select>
@@ -176,7 +184,7 @@
                             </div>
                             <div>
                                 <label for="snow_ground_snow_load" class="block text-sm font-medium mb-1">Ground Snow Load (pg)</label>
-                                <input type="number" id="snow_ground_snow_load" value="25">
+                                <input type="number" id="snow_ground_snow_load" value="25" min="0">
                             </div>
                          </div>
                     </div>
@@ -213,7 +221,7 @@
                          </div>
                     </div>
                 </div>
-    </div>
+    </div> <!-- This was the missing closing div -->
     <div class="lg:col-span-3 mt-8 flex justify-center items-center gap-4 flex-wrap">
         <button id="load-snow-inputs-btn" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600">Load Inputs</button>
         <button id="save-snow-inputs-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">Save Inputs</button>

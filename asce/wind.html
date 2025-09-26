@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCE Wind Load Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,10 +20,10 @@
     <script src="../js/validation-rules.js" defer></script>
     <script src="wind.js" defer></script>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300" style="font-family: 'Inter', sans-serif;">
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <div id="header-placeholder"></div>
+        <div id="header-placeholder" style="min-height: 110px;"></div>
 
         <main id="calculator-form">
              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -68,7 +67,7 @@
             <h2>Building Properties</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="basic_wind_speed" class="block text-sm font-medium mb-1">Basic Wind Speed</label>
+                    <label for="basic_wind_speed" class="block text-sm font-medium mb-1">Basic Wind Speed (V)</label>
                     <input type="number" id="basic_wind_speed" value="115" min="70" max="200">
                 </div>
                 <div>
@@ -81,19 +80,22 @@
                 </div>
                 <div>
                     <label for="mean_roof_height" class="block text-sm font-medium mb-1">Mean Roof Height (h)</label>
-                    <input type="number" id="mean_roof_height" value="50">
+                    <input type="number" id="mean_roof_height" value="50" min="1">
                 </div>
                 <div>
                     <label for="building_length_L" class="block text-sm font-medium mb-1">Building Length (L)</label>
-                    <input type="number" id="building_length_L" value="100">
+                    <input type="number" id="building_length_L" value="100" min="1">
                 </div>
                 <div>
                     <label for="building_width_B" class="block text-sm font-medium mb-1">Building Width (B)</label>
-                    <input type="number" id="building_width_B" value="60">
+                    <input type="number" id="building_width_B" value="60" min="1">
                 </div>
                 <div>
                     <label for="enclosure_classification" class="block text-sm font-medium mb-1">Enclosure Class.</label>
-                    <select id="enclosure_classification">
+                    <select id="enclosure_classification"
+                            data-ui-toggle-controller
+                            data-ui-toggle-target="#open-building-options"
+                            data-ui-toggle-condition-value="Open">
                         <option value="Enclosed" selected>Enclosed</option>
                         <option value="Partially Enclosed">Partially Enclosed</option>
                         <option value="Open">Open</option>
@@ -134,7 +136,7 @@
                 </div>
                 <div>
                     <label for="roof_slope_deg" class="block text-sm font-medium mb-1">Roof Slope (degrees)</label>
-                    <input type="number" id="roof_slope_deg" value="30">
+                    <input type="number" id="roof_slope_deg" value="30" min="0" max="90">
                 </div>
              </div>
              <div id="open-building-options" class="mt-4 space-y-4 hidden">
@@ -149,9 +151,30 @@
             <h2>Components & Cladding (C&C)</h2>
             <div class="space-y-4">
                 <div>
-                    <label for="effective_wind_area" class="block text-sm font-medium mb-1">Effective Wind Area (A)</label>
+                    <label for="effective_wind_area" class="block text-sm font-medium mb-1">Effective Wind Area (A, ft² or m²)</label>
                     <input type="number" id="effective_wind_area" value="10">
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Area of the component being considered. Typically 10 to 1000 sq ft.</p>
+                </div>
+            </div>
+        </div>
+        <div class="form-section hidden" id="tall-building-section">
+            <h2>Tall Building Parameters (h > 60 ft)</h2>
+            <div class="space-y-4">
+                <div data-ui-toggle-controller
+                     data-ui-toggle-target="#flexible-building-inputs"
+                     data-ui-toggle-condition-value="Flexible"
+                     data-ui-toggle-type="visibility">
+                    <label for="building_flexibility" class="block text-sm font-medium mb-1">Building Flexibility</label>
+                    <select id="building_flexibility">
+                        <option value="Rigid" selected>Rigid (G=0.85)</option>
+                        <option value="Flexible">Flexible (Calculate G)</option>
+                    </select>
+                </div>
+                <div id="flexible-building-inputs" class="hidden pl-4 border-l-2 border-gray-300 dark:border-gray-600 space-y-4">
+                    <div>
+                        <label for="fundamental_period" class="block text-sm font-medium mb-1">Fundamental Period (T1, sec)</label>
+                        <input type="number" id="fundamental_period" value="1.0" min="0.1" max="10">
+                    </div>
                 </div>
             </div>
         </div>
@@ -230,24 +253,6 @@
                         <text x="55" y="95" class="svg-label">WIND</text>
                         <text x="150" y="100" class="svg-label">Windward Face</text>
                     </svg>
-                </div>
-            </div>
-        </div>
-        <div class="form-section hidden" id="tall-building-section">
-            <h2>Tall Building Parameters (h > 60 ft)</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="building_flexibility" class="block text-sm font-medium mb-1">Building Flexibility</label>
-                    <select id="building_flexibility">
-                        <option value="Rigid" selected>Rigid (G=0.85)</option>
-                        <option value="Flexible">Flexible (Calculate G)</option>
-                    </select>
-                </div>
-                <div id="flexible-building-inputs" class="hidden pl-4 border-l-2 border-gray-300 dark:border-gray-600 space-y-4">
-                    <div>
-                        <label for="fundamental_period" class="block text-sm font-medium mb-1">Fundamental Period (T1, sec)</label>
-                        <input type="number" id="fundamental_period" value="1.0" min="0.1" max="10">
-                    </div>
                 </div>
             </div>
         </div>

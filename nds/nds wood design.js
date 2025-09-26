@@ -1,14 +1,31 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const inputIds = [
+        'Fb_unadjusted', 'Fv_unadjusted', 'Fc_perp_unadjusted', 'Fc_unadjusted', 'E_unadjusted', 'E_min_unadjusted',
+        'b_width', 'd_depth', 'unbraced_length_L', 'effective_length_factor_K', 'bearing_length_Lb',
+        'load_duration', 'wet_service', 'temperature', 'flat_use', 'incising', 'repetitive_member', 'deflection_span', 'deflection_limit',
+        'axial_load_P', 'moment_load_M', 'shear_load_V'
+    ];
+
+    const handleRunWoodCheck = createCalculationHandler({
+        inputIds: inputIds,
+        storageKey: 'wood-design-inputs',
+        validationRuleKey: 'wood',
+        calculatorFunction: woodChecker.run,
+        renderFunction: renderWoodResults,
+        resultsContainerId: 'wood-results-container',
+        buttonId: 'run-wood-check-btn'
+    });
+
     injectHeader({ activePage: 'wood-design', pageTitle: 'NDS Wood Member Design Checker', headerPlaceholderId: 'header-placeholder' });
     injectFooter({ footerPlaceholderId: 'footer-placeholder' });
 
-    const runButton = document.getElementById('run-wood-check-btn');
-    runButton.addEventListener('click', handleRunWoodCheck);
-    document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
-    loadInputsFromLocalStorage('wood-design-inputs', inputIds, handleRunWoodCheck);
-    document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile());
-    document.getElementById('file-input').addEventListener('change', handleLoadInputs);
-    initializeTheme();
+    document.getElementById('run-wood-check-btn').addEventListener('click', handleRunWoodCheck);
+    document.getElementById('save-inputs-btn').addEventListener('click', createSaveInputsHandler(inputIds, 'wood-inputs.txt'));
+    document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
+    document.getElementById('file-input').addEventListener('change', createLoadInputsHandler(inputIds, handleRunWoodCheck));
+    initializeSharedUI(); // This was correct
+    loadInputsFromLocalStorage('wood-design-inputs', inputIds);
+
     document.getElementById('wood-results-container').addEventListener('click', (event) => {
         if (event.target.id === 'copy-report-btn') handleCopyToClipboard('wood-report-content', 'feedback-message');
         
@@ -25,92 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     });
 });
-
-function handleSaveInputs() {
-    const inputs = gatherInputsFromIds(inputIds);
-    saveInputsToFile(inputs, 'wood-inputs.txt');
-    showFeedback('Inputs saved to wood-inputs.txt', false, 'feedback-message');
-}
-
-function handleLoadInputs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const inputs = JSON.parse(e.target.result);
-            inputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && inputs[id] !== undefined) {
-                    el.value = inputs[id];
-                }
-            });
-            handleRunWoodCheck();
-        } catch (err) {
-            console.error("Failed to load inputs:", err);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Reset file input
-}
-
-const validationRules = {
-    wood: {
-        'Fb_unadjusted': { min: 0.001, required: true, label: 'Fb' },
-        'Fv_unadjusted': { min: 0.001, required: true, label: 'Fv' },
-        'Fc_unadjusted': { min: 0.001, required: true, label: 'Fc' },
-        'E_unadjusted': { min: 0.001, required: true, label: 'E' },
-        'E_min_unadjusted': { min: 0.001, required: true, label: 'E_min' },
-        'b_width': { min: 0.001, required: true, label: 'Width (b)' },
-        'd_depth': { min: 0.001, required: true, label: 'Depth (d)' },
-        'unbraced_length_L': { min: 0.001, required: true, label: 'Unbraced Length (L)' },
-        'effective_length_factor_K': { min: 0.001, required: true, label: 'K Factor' },
-    }
-};
-
-const inputIds = [
-    'Fb_unadjusted', 'Fv_unadjusted', 'Fc_perp_unadjusted', 'Fc_unadjusted', 'E_unadjusted', 'E_min_unadjusted',
-    'b_width', 'd_depth', 'unbraced_length_L', 'effective_length_factor_K', 'bearing_length_Lb',
-    'load_duration', 'wet_service', 'temperature', 'flat_use', 'incising', 'repetitive_member', 'deflection_span', 'deflection_limit',
-    'axial_load_P', 'moment_load_M', 'shear_load_V'
-];
-
-
-function handleRunWoodCheck() {
-    const inputs = gatherInputsFromIds(inputIds);
-    const validation = validateInputs(inputs, validationRules.wood);
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('wood-results-container'));
-        return;
-    }
-
-    saveInputsToLocalStorage('wood-design-inputs', inputs);
-    const wood_results = woodChecker.run(inputs);
-    renderWoodResults(wood_results, inputs);
-}
-
-function gatherInputs() {
-    const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-    const getStr = (id) => document.getElementById(id).value;
-    
-    return {
-        Fb: getVal('Fb_unadjusted'), Fv: getVal('Fv_unadjusted'), Fc_perp: getVal('Fc_perp_unadjusted'),
-        Fc: getVal('Fc_unadjusted'), E: getVal('E_unadjusted'), E_min: getVal('E_min_unadjusted'), // Base values
-        b: getVal('b_width'), d: getVal('d_depth'), Lu: getVal('unbraced_length_L') * 12, K: getVal('effective_length_factor_K'), Lb: getVal('bearing_length_Lb'), // Geometry
-        // Factors
-        CD: getVal('load_duration'),
-        is_wet: getStr('wet_service').includes('Wet'),
-        temp_cond: getStr('temperature'),
-        is_weak_axis: getStr('flat_use').includes('Weak'), // Bending Axis
-        is_incised: getStr('incising').includes('Yes'),
-        is_repetitive: getStr('repetitive_member').includes('Yes'),
-        P: getVal('axial_load_P') * 1000, 
-        M: getVal('moment_load_M') * 1000 * 12, // Convert kip-ft to lb-in
-        deflection_span: getVal('deflection_span') * 12, // Convert ft to in
-        deflection_limit_divisor: getVal('deflection_limit'),
-        V: getVal('shear_load_V') * 1000
-    };
-}
 
 const woodChecker = (() => {
     function calculate_all_factors(inputs) {
@@ -144,24 +75,41 @@ const woodChecker = (() => {
     }
 
     function run(inputs) {
-        const results = {};
-        const factors = calculate_all_factors(inputs);
+        const processedInputs = {
+            Fb: inputs.Fb_unadjusted, Fv: inputs.Fv_unadjusted, Fc_perp: inputs.Fc_perp_unadjusted,
+            Fc: inputs.Fc_unadjusted, E: inputs.E_unadjusted, E_min: inputs.E_min_unadjusted,
+            b: inputs.b_width, d: inputs.d_depth, Lu: inputs.unbraced_length_L * 12, K: inputs.effective_length_factor_K, Lb: inputs.bearing_length_Lb,
+            CD: parseFloat(inputs.load_duration),
+            is_wet: inputs.wet_service.includes('Wet'),
+            temp_cond: inputs.temperature,
+            is_weak_axis: inputs.flat_use.includes('Weak'),
+            is_incised: inputs.incising.includes('Yes'),
+            is_repetitive: inputs.repetitive_member.includes('Yes'),
+            P: inputs.axial_load_P * 1000, 
+            M: inputs.moment_load_M * 1000 * 12,
+            deflection_span: inputs.deflection_span * 12,
+            deflection_limit_divisor: inputs.deflection_limit,
+            V: inputs.shear_load_V * 1000
+        };
 
-        const E_min_prime = inputs.E_min * factors.CM_E_min * factors.Ct * factors.Ci;
-        const Fc_star = inputs.Fc * factors.CD * factors.CM_Fc * factors.Ct * factors.CF * factors.Ci;
+        const results = {};
+        const factors = calculate_all_factors(processedInputs);
+
+        const E_min_prime = processedInputs.E_min * factors.CM_E_min * factors.Ct * factors.Ci;
+        const Fc_star = processedInputs.Fc * factors.CD * factors.CM_Fc * factors.Ct * factors.CF * factors.Ci;
         results.Fc_star = Fc_star;
 
-        const Le = inputs.Lu * inputs.K;
-        const d_col = inputs.d;
+        const Le = processedInputs.Lu * processedInputs.K;
+        const d_col = processedInputs.d;
         const Le_d = d_col > 0 ? Le / d_col : 0;
         results.Le_d = Le_d;
         results.slenderness_fail_column = false;
 
         if (Le_d <= 50) {
             const c = 0.8;
-            const Fce = Le_d > 0 ? (0.822 * E_min_prime) / (Le_d**2) : Infinity;
+            const Fce = Le_d > 0 ? (0.822 * E_min_prime) / (Le_d ** 2) : Infinity;
             const ratio_cp = Fc_star > 0 ? Fce / Fc_star : 0;
-            factors.Cp = ratio_cp > 0 ? ((1 + ratio_cp) / (2 * c)) - Math.sqrt(((1 + ratio_cp) / (2 * c))**2 - (ratio_cp / c)) : 0;
+            factors.Cp = ratio_cp > 0 ? ((1 + ratio_cp) / (2 * c)) - Math.sqrt(((1 + ratio_cp) / (2 * c)) ** 2 - (ratio_cp / c)) : 0;
             results.Fce = Fce;
         } else {
             factors.Cp = 0;
@@ -169,17 +117,17 @@ const woodChecker = (() => {
             results.slenderness_fail_column = true;
         }
 
-        const [b_beam, d_beam] = inputs.is_weak_axis ? [inputs.d, inputs.b] : [inputs.b, inputs.d];
-        const Rb = b_beam > 0 ? Math.sqrt(inputs.Lu * d_beam / b_beam**2) : 0;
+        const [b_beam, d_beam] = processedInputs.is_weak_axis ? [processedInputs.d, processedInputs.b] : [processedInputs.b, processedInputs.d];
+        const Rb = b_beam > 0 ? Math.sqrt(processedInputs.Lu * d_beam / b_beam ** 2) : 0;
         results.Rb = Rb;
         results.slenderness_fail_beam = false;
 
         if (Rb <= 50) {
-            const Fb_star = inputs.Fb * factors.CD * factors.CM_Fb * factors.Ct * factors.CF * factors.Cfu * factors.Ci * factors.Cr;
+            const Fb_star = processedInputs.Fb * factors.CD * factors.CM_Fb * factors.Ct * factors.CF * factors.Cfu * factors.Ci * factors.Cr;
             results.Fb_star = Fb_star;
-            const FbE = Rb > 0 ? (1.20 * E_min_prime) / (Rb**2) : Infinity;
+            const FbE = Rb > 0 ? (1.20 * E_min_prime) / (Rb ** 2) : Infinity;
             const ratio_cl = Fb_star > 0 ? FbE / Fb_star : 0;
-            factors.CL = ratio_cl > 0 ? Math.min(1.0, ((1 + ratio_cl) / 1.9) - Math.sqrt(((1 + ratio_cl) / 1.9)**2 - (ratio_cl / 0.95))) : 0;
+            factors.CL = ratio_cl > 0 ? Math.min(1.0, ((1 + ratio_cl) / 1.9) - Math.sqrt(((1 + ratio_cl) / 1.9) ** 2 - (ratio_cl / 0.95))) : 0;
             results.FbE = FbE;
         } else {
             factors.CL = 0;
@@ -189,29 +137,29 @@ const woodChecker = (() => {
         }
 
         const adj = {};
-        adj.Fb_prime = inputs.Fb * factors.CD * factors.CM_Fb * factors.Ct * factors.CL * factors.CF * factors.Cfu * factors.Ci * factors.Cr;
-        adj.Fv_prime = inputs.Fv * factors.CD * factors.CM_Fv * factors.Ct * factors.Ci;
-        adj.Fc_perp_prime = inputs.Fc_perp * factors.CM_Fc_perp * factors.Ct * factors.Ci * factors.Cb;
+        adj.Fb_prime = processedInputs.Fb * factors.CD * factors.CM_Fb * factors.Ct * factors.CL * factors.CF * factors.Cfu * factors.Ci * factors.Cr;
+        adj.Fv_prime = processedInputs.Fv * factors.CD * factors.CM_Fv * factors.Ct * factors.Ci;
+        adj.Fc_perp_prime = processedInputs.Fc_perp * factors.CM_Fc_perp * factors.Ct * factors.Ci * factors.Cb;
         adj.Fc_prime = Fc_star * factors.Cp;
         results.adjusted = adj;
         results.factors = factors;
         results.E_min_prime = E_min_prime;
 
-        const A = inputs.b * inputs.d;
-        const Sx = (b_beam * d_beam**2) / 6;
+        const A = processedInputs.b * processedInputs.d;
+        const Sx = (b_beam * d_beam ** 2) / 6;
         const actual = {};
-        actual.fb = inputs.M * 12 / Sx;
-        actual.fv = (1.5 * inputs.V) / A;
-        actual.fc = inputs.P / A;
+        actual.fb = processedInputs.M / Sx;
+        actual.fv = (1.5 * processedInputs.V) / A;
+        actual.fc = processedInputs.P / A;
         actual.A = A;
         actual.Sx = Sx;
         results.actuals = actual;
         
         // Deflection Calculation (assuming simply supported beam with uniform load)
         const I = (b_beam * Math.pow(d_beam, 3)) / 12;
-        const E_adj = inputs.E * factors.CM_E * factors.Ct * factors.Ci;
-        const actual_deflection = (E_adj > 0 && I > 0) ? (5 * inputs.M * Math.pow(inputs.deflection_span, 2)) / (48 * E_adj * I) : Infinity;
-        const allowable_deflection = inputs.deflection_limit_divisor > 0 ? inputs.deflection_span / inputs.deflection_limit_divisor : Infinity;
+        const E_adj = processedInputs.E * factors.CM_E * factors.Ct * factors.Ci;
+        const actual_deflection = (E_adj > 0 && I > 0) ? (5 * processedInputs.M * Math.pow(processedInputs.deflection_span, 2)) / (48 * E_adj * I) : Infinity;
+        const allowable_deflection = processedInputs.deflection_limit_divisor > 0 ? processedInputs.deflection_span / processedInputs.deflection_limit_divisor : Infinity;
         results.deflection = {
             actual: actual_deflection,
             allowable: allowable_deflection,
@@ -220,7 +168,7 @@ const woodChecker = (() => {
 
         const denominator_safe = adj.Fc_prime > 0 && adj.Fb_prime > 0 && results.Fce > 0 && actual.fc < results.Fce;
         if (denominator_safe) {
-            results.interaction = Math.pow(actual.fc / adj.Fc_prime, 2) + (actual.fb / (adj.Fb_prime * (1 - (actual.fc/results.Fce))));
+            results.interaction = Math.pow(actual.fc / adj.Fc_prime, 2) + (actual.fb / (adj.Fb_prime * (1 - (actual.fc / results.Fce))));
         } else {
             results.interaction = Infinity;
         }
@@ -231,19 +179,13 @@ const woodChecker = (() => {
     return { run };
 })();
 
-function renderWoodResults(wood_results, inputs) {
+function renderWoodResults(calculationOutput) {
     const resultsContainer = document.getElementById('wood-results-container');
 
-    // Early exit if there are errors, preventing crashes.
-    if (wood_results.errors && wood_results.errors.length > 0) {
-        resultsContainer.innerHTML = `
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md my-4">
-                <p class="font-bold">Input Errors Found:</p>
-                <ul class="list-disc list-inside mt-2">${wood_results.errors.map(e => `<li>${e}</li>`).join('')}</ul>
-                <p class="mt-2">Please correct the errors and run the check again.</p>
-            </div>`;
-        return;
-    }
+    // The 'calculationOutput' is the direct result from woodChecker.run.
+    // Validation errors are handled by createCalculationHandler before this function is called.
+    const wood_results = calculationOutput; // This is the full object from the calculator
+    const inputs = wood_results.inputs; // Access inputs from the correct location
 
     let html = `<div id="wood-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-4">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">

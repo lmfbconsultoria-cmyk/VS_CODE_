@@ -19,12 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeApp() {
         attachEventListeners();
         loadDataFromStorage();
-        loadInputsFromLocalStorage('combo-calculator-inputs', comboInputIds, handleRunComboCalculation);
+        loadInputsFromLocalStorage('combo-calculator-inputs', comboInputIds);
     }
 
     function attachEventListeners() {
         function attachDebouncedListeners(ids, handler) {
-            const debouncedHandler = debounce(handler, 500);
+            const debouncedHandler = debounce(handler, 300);
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        initializeTheme();
+        initializeSharedUI();
         const handleSaveComboInputs = createSaveInputsHandler(comboInputIds, 'combo-inputs.txt');
         const handleLoadComboInputs = createLoadInputsHandler(comboInputIds, handleRunComboCalculation);
 
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-combo-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('combo-file-input')); // initiateLoad is already generic
         document.getElementById('combo-file-input').addEventListener('change', handleLoadComboInputs);
 
-        // attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
+        attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
 
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
@@ -67,43 +67,70 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
+/**
+ * Checks localStorage for any pending data from other calculators and imports it.
+ */
 function loadDataFromStorage() {
-    const storedDataJSON = localStorage.getItem('loadsForCombinator');
-    if (storedDataJSON) {
-        try {
-            const storedData = JSON.parse(storedDataJSON);
-            const loads = storedData.loads;
-            const source = storedData.source || 'another calculator';
+    const storedLoads = localStorage.getItem('loadsForCombinator');
+    if (!storedLoads) return;
 
-            for (const id in loads) {
-                const el = document.getElementById(id);
-                if (el && loads[id] !== undefined) {
-                    el.value = loads[id];
-                }
+    try {
+        const data = JSON.parse(storedLoads);
+        const { loads, source = 'another calculator', type = 'Generic' } = data;
+
+        // Get the IDs of the inputs that will be populated.
+        const importedIds = Object.keys(loads);
+
+        // Populate the input fields.
+        for (const id in loads) {
+            const el = document.getElementById(id);
+            if (el && loads[id] !== undefined) {
+                el.value = loads[id];
             }
-            displayImportBanner(source);
-            // Clear the storage item so it's not re-loaded on a simple refresh
-            localStorage.removeItem('loadsForCombinator');
-        } catch (e) {
-            console.error("Failed to parse loads from localStorage", e);
         }
+
+        // Display a banner confirming the import if a source was provided.
+        if (source) {
+            displayImportBanner(source, type, importedIds);
+        } else {
+            showFeedback('Loads imported from another calculator!', false, 'feedback-message');
+        }
+
+        // Clear the storage item so it's not re-loaded on a simple refresh.
+        localStorage.removeItem('loadsForCombinator');
+    } catch (e) {
+        console.error("Failed to parse loads from localStorage", e);
+        showFeedback('Failed to import loads. Data may be corrupt.', true, 'feedback-message');
     }
 }
 
-function displayImportBanner(source) {
+/**
+ * Displays a banner to the user confirming which loads were imported.
+ * @param {string} source - The name of the source calculator (e.g., "Wind Calculator").
+ * @param {string} type - The type of loads imported (e.g., "Wind", "Snow").
+ * @param {string[]} importedIds - The DOM IDs of the inputs that were populated.
+ */
+function displayImportBanner(source, type, importedIds) {
     const placeholder = document.getElementById('import-banner-placeholder');
     if (!placeholder) return;
 
+    // Filter out IDs that were populated with 0, as they don't represent a meaningful import.
+    const meaningfulIds = importedIds.filter(id => {
+        const el = document.getElementById(id);
+        return el && parseFloat(el.value) !== 0;
+    });
+    if (meaningfulIds.length === 0) return; // Don't show a banner if no non-zero loads were imported.
+
     const bannerHtml = `
         <div id="import-banner" class="bg-green-100 dark:bg-green-900/50 border-l-4 border-green-500 text-green-800 dark:text-green-300 p-4 rounded-md flex justify-between items-center">
-            <p>Loads from <strong>${sanitizeHTML(source)}</strong> have been imported.</p>
+            <p>${type} loads from <strong>${sanitizeHTML(source)}</strong> have been imported.</p>
             <button id="clear-imported-btn" class="text-sm font-semibold text-green-700 dark:text-green-200 hover:underline">Clear</button>
         </div>
     `;
     placeholder.innerHTML = bannerHtml;
 
     document.getElementById('clear-imported-btn').addEventListener('click', () => {
-        comboInputIds.forEach(id => {
+        meaningfulIds.forEach(id => {
             const el = document.getElementById(id);
             if (el && el.type === 'number') el.value = 0;
         });
@@ -111,32 +138,6 @@ function displayImportBanner(source) {
         showFeedback('Imported loads cleared.', false, 'feedback-message');
     });
 }
-
-const validationRules = {
-    combo: {
-        'dead_load_d': { min: 0.001, required: true, label: 'Dead Load (D)' },
-        'live_load_l': { required: false, label: 'Live Load (L)' }, // No min/max, but present
-        'roof_live_load_lr': { required: false, label: 'Roof Live Load (Lr)' },
-        'rain_load_r': { required: false, label: 'Rain Load (R)' },
-        'balanced_snow_load_sb': { required: false, label: 'Balanced Snow (Sb)' },
-        'unbalanced_windward_snow_load_suw': { required: false, label: 'Unbalanced Windward (Suw)' },
-        'unbalanced_leeward_snow_load_sul': { required: false, label: 'Unbalanced Leeward (Sul)' },
-        'drift_surcharge_sd': { required: false, label: 'Drift Surcharge (Sd)' },
-        'wind_wall_ww_max': { required: false, label: 'Windward Wall Max Wind' },
-        'wind_wall_ww_min': { required: false, label: 'Windward Wall Min Wind' },
-        'wind_wall_lw_max': { required: false, label: 'Leeward Wall Max Wind' },
-        'wind_wall_lw_min': { required: false, label: 'Leeward Wall Min Wind' },
-        'wind_roof_ww_max': { required: false, label: 'Windward Roof Max Wind' },
-        'wind_roof_ww_min': { required: false, label: 'Windward Roof Min Wind' },
-        'wind_roof_lw_max': { required: false, label: 'Leeward Roof Max Wind' },
-        'wind_roof_lw_min': { required: false, label: 'Leeward Roof Min Wind' },
-        'wind_cc_max': { required: false, label: 'C&C Max Wind' },
-        'wind_cc_min': { required: false, label: 'C&C Min Wind' },
-        'wind_cc_wall_max': { required: false, label: 'C&C Wall Max Wind' },
-        'wind_cc_wall_min': { required: false, label: 'C&C Wall Min Wind' },
-        'seismic_load_e': { required: false, label: 'Seismic Load (E)' }
-    }
-};
 
 const comboLoadCalculator = (() => {
     function calculateCombinations(loads, standard, level, method) {
@@ -238,73 +239,40 @@ const comboLoadCalculator = (() => {
     return { calculate: calculateCombinations };
 })();
 
-function handleRunComboCalculation() {
-    const inputs = {};
-    comboInputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            const key = id.replace('combo_', '');
-            if (el.type === 'number') inputs[key] = parseFloat(el.value) || 0;
-            else inputs[key] = el.value;
-        }
-    });
-
-    const validation = validateInputs(inputs, validationRules.combo);
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('combo-results-container'));
-        return;
-    }
-
-    setLoadingState(true, 'run-combo-calculation-btn'); // Assumes setLoadingState is in shared-utils.js
-    const fullResults = safeCalculation(() => {
-        const effective_standard = inputs.jurisdiction === "NYCBC 2022" ? "ASCE 7-16" : inputs.asce_standard;
-        
-        // Define scenarios for different members and load cases
+const handleRunComboCalculation = createCalculationHandler({
+    inputIds: comboInputIds,
+    storageKey: 'combo-calculator-inputs',
+    validationRuleKey: 'combo', // This will now correctly use the rules from validation-rules.js
+    calculatorFunction: (inputs) => {
+        const validation = validateInputs(inputs, validationRules.combo);
+        const effective_standard = inputs.combo_jurisdiction === "NYCBC 2022" ? "ASCE 7-16" : inputs.combo_asce_standard;
         const scenarios = {
-            // Wind on walls
-            windward_wall: { title: 'Windward Wall Analysis', S: inputs.balanced_snow_load_sb, W_max: inputs.wind_wall_ww_max, W_min: inputs.wind_wall_ww_min },
-            leeward_wall: { title: 'Leeward Wall Analysis', S: inputs.unbalanced_windward_snow_load_suw, W_max: inputs.wind_wall_lw_max, W_min: inputs.wind_wall_lw_min },
-            
-            // Wind on roof
-            windward_roof: { title: 'Windward Roof Analysis', S: inputs.unbalanced_windward_snow_load_suw, W_max: inputs.wind_roof_ww_max, W_min: inputs.wind_roof_ww_min },
-            leeward_roof: { title: 'Leeward Roof Analysis', S: inputs.unbalanced_leeward_snow_load_sul, W_max: inputs.wind_roof_lw_max, W_min: inputs.wind_roof_lw_min },
-            
-            // C&C Loads (use balanced snow as it's a uniform load)
-            cc_roof: { title: 'Components & Cladding (C&C) Roof Analysis', S: inputs.balanced_snow_load_sb, W_max: inputs.wind_cc_max, W_min: inputs.wind_cc_min }, // Renamed from 'cc'
-            cc_wall: { title: 'Components & Cladding (C&C) Wall Analysis', S: inputs.balanced_snow_load_sb, W_max: inputs.wind_cc_wall_max, W_min: inputs.wind_cc_wall_min },
-            
-            // Other load cases
-            balanced_snow: { title: 'Balanced Snow Load Analysis', S: inputs.balanced_snow_load_sb, W_max: 0, W_min: 0 },
-            unbalanced_windward_snow: { title: 'Unbalanced Windward Snow Analysis', S: inputs.unbalanced_windward_snow_load_suw, W_max: 0, W_min: 0 },
-            unbalanced_leeward_snow: { title: 'Unbalanced Leeward Snow Analysis', S: inputs.unbalanced_leeward_snow_load_sul, W_max: 0, W_min: 0 },
-            drift_surcharge: { title: 'Drift Surcharge Load Analysis', S: inputs.balanced_snow_load_sb + inputs.drift_surcharge_sd, W_max: 0, W_min: 0 },
+            windward_wall: { title: 'Windward Wall Analysis', S: inputs.combo_balanced_snow_load_sb, W_max: inputs.combo_wind_wall_ww_max, W_min: inputs.combo_wind_wall_ww_min },
+            leeward_wall: { title: 'Leeward Wall Analysis', S: inputs.combo_unbalanced_windward_snow_load_suw, W_max: inputs.combo_wind_wall_lw_max, W_min: inputs.combo_wind_wall_lw_min },
+            windward_roof: { title: 'Windward Roof Analysis', S: inputs.combo_unbalanced_windward_snow_load_suw, W_max: inputs.combo_wind_roof_ww_max, W_min: inputs.combo_wind_roof_ww_min },
+            leeward_roof: { title: 'Leeward Roof Analysis', S: inputs.combo_unbalanced_leeward_snow_load_sul, W_max: inputs.combo_wind_roof_lw_max, W_min: inputs.combo_wind_roof_lw_min },
+            cc_roof: { title: 'Components & Cladding (C&C) Roof Analysis', S: inputs.combo_balanced_snow_load_sb, W_max: inputs.combo_wind_cc_max, W_min: inputs.combo_wind_cc_min },
+            cc_wall: { title: 'Components & Cladding (C&C) Wall Analysis', S: inputs.combo_balanced_snow_load_sb, W_max: inputs.combo_wind_cc_wall_max, W_min: inputs.combo_wind_cc_wall_min },
+            balanced_snow: { title: 'Balanced Snow Analysis', S: inputs.combo_balanced_snow_load_sb, W_max: 0, W_min: 0 },
+            unbalanced_windward_snow: { title: 'Unbalanced Windward Snow Analysis', S: inputs.combo_unbalanced_windward_snow_load_suw, W_max: 0, W_min: 0 },
+            unbalanced_leeward_snow: { title: 'Unbalanced Leeward Snow Analysis', S: inputs.combo_unbalanced_leeward_snow_load_sul, W_max: 0, W_min: 0 },
+            drift_surcharge: { title: 'Drift Surcharge Load Analysis', S: inputs.combo_balanced_snow_load_sb + inputs.combo_drift_surcharge_sd, W_max: 0, W_min: 0 },
         };
-
-        const base_combo_loads = { D: inputs.dead_load_d, L: inputs.live_load_l, Lr: inputs.roof_live_load_lr, R: inputs.rain_load_r, S: 0, W: 0, E: 0, unit_system: inputs.unit_system };
-        const base_combos = comboLoadCalculator.calculate(base_combo_loads, effective_standard, inputs.input_load_level, inputs.design_method);
-
+        const base_combo_loads = { D: inputs.combo_dead_load_d, L: inputs.combo_live_load_l, Lr: inputs.combo_roof_live_load_lr, R: inputs.combo_rain_load_r, S: 0, W: 0, E: 0, unit_system: inputs.combo_unit_system };
+        const base_combos = comboLoadCalculator.calculate(base_combo_loads, effective_standard, inputs.combo_input_load_level, inputs.combo_design_method);
         const scenarios_data = {};
         for(const key in scenarios) {
             const { S, W_max, W_min } = scenarios[key];
-            const base_loads = { D: inputs.dead_load_d, L: inputs.live_load_l, Lr: inputs.roof_live_load_lr, R: inputs.rain_load_r, S, E: inputs.seismic_load_e, unit_system: inputs.unit_system };
-            scenarios_data[`${key}_wmax`] = comboLoadCalculator.calculate({ ...base_loads, W: W_max }, effective_standard, inputs.input_load_level, inputs.design_method);
-            scenarios_data[`${key}_wmin`] = comboLoadCalculator.calculate({ ...base_loads, W: W_min }, effective_standard, inputs.input_load_level, inputs.design_method);
+            const base_loads = { D: inputs.combo_dead_load_d, L: inputs.combo_live_load_l, Lr: inputs.combo_roof_live_load_lr, R: inputs.combo_rain_load_r, S, E: inputs.combo_seismic_load_e, unit_system: inputs.combo_unit_system };
+            scenarios_data[`${key}_wmax`] = comboLoadCalculator.calculate({ ...base_loads, W: W_max }, effective_standard, inputs.combo_input_load_level, inputs.combo_design_method);
+            scenarios_data[`${key}_wmin`] = comboLoadCalculator.calculate({ ...base_loads, W: W_min }, effective_standard, inputs.combo_input_load_level, inputs.combo_design_method);
         }
         return { inputs, scenarios_data, base_combos, success: true, warnings: validation.warnings };
-    }, 'An unexpected error occurred during the load combination calculation.');
-
-    if (fullResults.error) {
-        setLoadingState(false, 'run-combo-calculation-btn');
-        renderValidationResults({ errors: [fullResults.error] }, document.getElementById('combo-results-container'));
-        return;
-    }
-
-    // Save successful inputs to local storage
-    saveInputsToLocalStorage('combo-calculator-inputs', inputs);
-
-    renderComboResults(fullResults);
-    setLoadingState(false, 'run-combo-calculation-btn');
-}
+    },
+    renderFunction: renderComboResults,
+    resultsContainerId: 'combo-results-container',
+    buttonId: 'run-combo-calculation-btn'
+});
 
 function generateComboSummary(all_gov_data, design_method, p_unit) {
     const scenarios = {};
@@ -411,31 +379,31 @@ function renderComboResults(fullResults) {
 
     // --- 1. INPUT LOADS ---
     const { inputs } = fullResults;
-    const p_unit = inputs.unit_system === 'imperial' ? 'psf' : 'kPa';
+    const p_unit = inputs.combo_unit_system === 'imperial' ? 'psf' : 'kPa';
     const input_loads = [
-        { label: 'Dead Load (D)', value: inputs.dead_load_d },
-        { label: 'Live Load (L)', value: inputs.live_load_l },
-        { label: 'Roof Live (Lr)', value: inputs.roof_live_load_lr },
-        { label: 'Rain Load (R)', value: inputs.rain_load_r },
-        { label: 'Balanced Snow (Sb)', value: inputs.balanced_snow_load_sb },
-        { label: 'Unbalanced Windward (Suw)', value: inputs.unbalanced_windward_snow_load_suw },
-        { label: 'Unbalanced Leeward (Sul)', value: inputs.unbalanced_leeward_snow_load_sul },
-        { label: 'Drift Surcharge (Sd)', value: inputs.drift_surcharge_sd },
-        { label: 'Max Wind (Wmax)', value: Math.max(inputs.wind_wall_ww_max, inputs.wind_wall_lw_max, inputs.wind_roof_ww_max, inputs.wind_roof_lw_max, inputs.wind_cc_max, inputs.wind_cc_wall_max) },
-        { label: 'Min Wind (Wmin)', value: Math.min(inputs.wind_wall_ww_min, inputs.wind_wall_lw_min, inputs.wind_roof_ww_min, inputs.wind_roof_lw_min, inputs.wind_cc_min, inputs.wind_cc_wall_min) },
+        { label: 'Dead Load (D)', value: inputs.combo_dead_load_d },
+        { label: 'Live Load (L)', value: inputs.combo_live_load_l },
+        { label: 'Roof Live (Lr)', value: inputs.combo_roof_live_load_lr },
+        { label: 'Rain Load (R)', value: inputs.combo_rain_load_r },
+        { label: 'Balanced Snow (Sb)', value: inputs.combo_balanced_snow_load_sb },
+        { label: 'Unbalanced Windward (Suw)', value: inputs.combo_unbalanced_windward_snow_load_suw },
+        { label: 'Unbalanced Leeward (Sul)', value: inputs.combo_unbalanced_leeward_snow_load_sul },
+        { label: 'Drift Surcharge (Sd)', value: inputs.combo_drift_surcharge_sd },
+        { label: 'Max Wind (Wmax)', value: Math.max(inputs.combo_wind_wall_ww_max, inputs.combo_wind_wall_lw_max, inputs.combo_wind_roof_ww_max, inputs.combo_wind_roof_lw_max, inputs.combo_wind_cc_max, inputs.combo_wind_cc_wall_max) },
+        { label: 'Min Wind (Wmin)', value: Math.min(inputs.combo_wind_wall_ww_min, inputs.combo_wind_wall_lw_min, inputs.combo_wind_roof_ww_min, inputs.combo_wind_roof_lw_min, inputs.combo_wind_cc_min, inputs.combo_wind_cc_wall_min) },
         // Wind Loads (MWFRS)
-        { label: 'Windward Wall Max (W)', value: inputs.wind_wall_ww_max },
-        { label: 'Windward Wall Min (W)', value: inputs.wind_wall_ww_min },
-        { label: 'Leeward Wall Max (W)', value: inputs.wind_wall_lw_max },
-        { label: 'Leeward Wall Min (W)', value: inputs.wind_wall_lw_min },
-        { label: 'Windward Roof Max (W)', value: inputs.wind_roof_ww_max },
-        { label: 'Windward Roof Min (W)', value: inputs.wind_roof_ww_min },
-        { label: 'Leeward Roof Max (W)', value: inputs.wind_roof_lw_max },
-        { label: 'Leeward Roof Min (W)', value: inputs.wind_roof_lw_min },
+        { label: 'Windward Wall Max (W)', value: inputs.combo_wind_wall_ww_max },
+        { label: 'Windward Wall Min (W)', value: inputs.combo_wind_wall_ww_min },
+        { label: 'Leeward Wall Max (W)', value: inputs.combo_wind_wall_lw_max },
+        { label: 'Leeward Wall Min (W)', value: inputs.combo_wind_wall_lw_min },
+        { label: 'Windward Roof Max (W)', value: inputs.combo_wind_roof_ww_max },
+        { label: 'Windward Roof Min (W)', value: inputs.combo_wind_roof_ww_min },
+        { label: 'Leeward Roof Max (W)', value: inputs.combo_wind_roof_lw_max },
+        { label: 'Leeward Roof Min (W)', value: inputs.combo_wind_roof_lw_min },
         // Wind Loads (C&C)
-        { label: 'C&C Roof Max/Min (W)', value: `${inputs.wind_cc_max.toFixed(2)} / ${inputs.wind_cc_min.toFixed(2)}` },
-        { label: 'C&C Wall Max/Min (W)', value: `${inputs.wind_cc_wall_max.toFixed(2)} / ${inputs.wind_cc_wall_min.toFixed(2)}` },
-        { label: 'Seismic Load (E)', value: inputs.seismic_load_e }
+        { label: 'C&C Roof Max/Min (W)', value: `${inputs.combo_wind_cc_max.toFixed(2)} / ${inputs.combo_wind_cc_min.toFixed(2)}` },
+        { label: 'C&C Wall Max/Min (W)', value: `${inputs.combo_wind_cc_wall_max.toFixed(2)} / ${inputs.combo_wind_cc_wall_min.toFixed(2)}` },
+        { label: 'Seismic Load (E)', value: inputs.combo_seismic_load_e }
     ];
 
     html += `<div id="combo-inputs-section" class="mt-6 report-section-copyable">
@@ -540,7 +508,7 @@ function renderComboResults(fullResults) {
 
         if (pattern_load_required) {
             html += `<h4 class="text-lg font-semibold text-center mt-4">Pattern Live Load Combinations (0.75L)</h4>`;
-            html += `<p class="text-xs text-center text-gray-500 dark:text-gray-400 mb-2">Required because Live Load > ${fullResults.inputs.unit_system === 'imperial' ? '100 psf' : '4.79 kPa'} (ASCE 7-16/22 Sec. 4.3.5)</p>`;
+            html += `<p class="text-xs text-center text-gray-500 dark:text-gray-400 mb-2">Required because Live Load > ${fullResults.inputs.combo_unit_system === 'imperial' ? '100 psf' : '4.79 kPa'} (ASCE 7-16/22 Sec. 4.3.5)</p>`;
             html += `<table class="results-container w-full mt-2 border-collapse">
                     <thead><tr><th>Combination</th><th>Formula (with 0.75L)</th><th>Result (Max Wind)</th><th>Result (Min Wind)</th></tr></thead>
                     <tbody>`;
@@ -568,7 +536,7 @@ function renderComboResults(fullResults) {
         html += `</div>`; // Close scenario section
     }
 
-    html += generateComboSummary(all_gov_data, fullResults.inputs.design_method, p_unit);
+    html += generateComboSummary(all_gov_data, fullResults.inputs.combo_design_method, p_unit);
 
     html += `</div>`;
     resultsContainer.innerHTML = html;

@@ -56,13 +56,12 @@ const basePlateCalculator = (() => {
         const X = ((4 * d * bf) / ((d + bf)**2)) * (abs(Pu) / design_bearing_strength);
         const l = max(m, n, lambda * n_prime);
 
-        const t_req = l * sqrt((2 * abs(Pu)) / (0.9 * Fy * B * N));
-        const t_req_dg1 = l * sqrt((2 * f_p_max) / (0.9 * Fy));
+        const t_req = l * sqrt((2 * f_p_max) / (0.9 * Fy));
 
         checks['Plate Bending'] = {
-            demand: tp, // Demand is the provided thickness
-            check: { Rn: t_req_dg1, phi: 1.0, omega: 1.0 }, // Use Rn as required thickness for ratio calc
-            details: { m, n, l, t_req: t_req_dg1 }
+            demand: tp, // Provided thickness
+            check: { Rn: t_req, phi: 1.0, omega: 1.0 }, // Use Rn as required thickness for ratio calc
+            details: { m, n, l, t_req: t_req }
         };
 
         // --- 3. Anchor Bolt Tension (ACI 318-19 Ch. 17) ---
@@ -168,19 +167,16 @@ function renderResults(results) {
     document.getElementById('steel-results-container').innerHTML = html;
 }
 
-function handleRunBasePlateCheck() {
-    const inputs = gatherInputsFromIds(basePlateInputIds);
-    const validation = validateInputs(inputs, validationRules.baseplate);
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('steel-results-container'));
-        return;
-    }
-    
-    const results = basePlateCalculator.run(inputs);
-    renderResults(results);
-}
-
 document.addEventListener('DOMContentLoaded', () => {
+    const handleRunBasePlateCheck = createCalculationHandler({
+        inputIds: basePlateInputIds,
+        storageKey: 'baseplate-inputs',
+        validationRuleKey: 'baseplate',
+        calculatorFunction: basePlateCalculator.run,
+        renderFunction: renderResults,
+        resultsContainerId: 'steel-results-container',
+        buttonId: 'run-steel-check-btn'
+    });
     injectHeader({
         activePage: 'base-plate',
         pageTitle: 'AISC Base Plate & Anchorage Checker',
@@ -189,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     injectFooter({
         footerPlaceholderId: 'footer-placeholder'
     });
-    initializeTheme();
+    initializeSharedUI();
 
     document.getElementById('run-steel-check-btn').addEventListener('click', handleRunBasePlateCheck);
     const handleSaveInputs = createSaveInputsHandler(basePlateInputIds, 'baseplate-inputs.txt');

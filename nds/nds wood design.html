@@ -19,10 +19,10 @@
     <script src="../js/shared-utils.js" defer></script>
     <script src="nds wood design.js" defer></script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900">
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <div id="header-placeholder"></div>
+        <div id="header-placeholder" style="min-height: 110px;"></div>
 
         <main id="wood-checker-form">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -120,7 +120,10 @@
                         <div class="space-y-4">
                            <div>
                                  <label for="flat_use" class="block text-sm font-medium mb-1">Bending Axis</label>
-                                 <select id="flat_use">
+                                 <select id="flat_use"
+                                         data-ui-toggle-controller
+                                         data-ui-toggle-target="#repetitive-member-container"
+                                         data-ui-toggle-condition-value="Strong Axis">
                                      <option value="Strong Axis" selected>Strong Axis</option>
                                      <option value="Weak Axis">Weak Axis</option>
                                  </select>
@@ -132,7 +135,7 @@
                                      <option value="Yes">Yes</option>
                                  </select>
                              </div>
-                             <div>
+                             <div id="repetitive-member-container">
                                  <label for="repetitive_member" class="block text-sm font-medium mb-1">Repetitive Member</label>
                                  <select id="repetitive_member">
                                      <option value="No" selected>No</option>

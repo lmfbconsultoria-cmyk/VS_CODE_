@@ -218,8 +218,6 @@ function drawWebDiagram() {
 }
 
 // --- Main Calculator Logic (DOM interaction and event handling) ---
-document.addEventListener('DOMContentLoaded', () => {
-
 const spliceCalculator = (() => {
     // --- PRIVATE HELPER & CALCULATION FUNCTIONS ---
     const { PI, sqrt, min, max, abs } = Math;
@@ -692,7 +690,6 @@ function run(rawInputs) {
 
 return { run };
 })();
-
 function generateBreakdownHtml(name, data, design_method) { // This function is used by renderResults
     const { check, details } = data;
     if (!check) return '';
@@ -944,6 +941,7 @@ function renderResults(results) {
     document.getElementById('results-container').innerHTML = html;
 }
 
+// --- Input Gathering and Orchestration ---
 const inputIds = [
     'design_method', 'gap', 'member_d', 'member_bf', 'member_tf', 'member_tw', 'member_Fy', 'member_Fu',
     'member_Zx', 'member_Sx', 'M_load', 'V_load', 'Axial_load', 'develop_capacity_check', 'deformation_is_consideration', 'g_gage_fp',
@@ -955,106 +953,63 @@ const inputIds = [
     'D_fp', 'bolt_grade_fp', 'threads_included_fp', 'D_wp', 'bolt_grade_wp', 'threads_included_wp',
 ];
 
-function gatherInputs() {
-    const inputs = {};
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (el.type === 'number') inputs[id] = parseFloat(el.value) || 0;
-            else if (el.type === 'checkbox') inputs[id] = el.checked;
-            else if (el.tagName === 'SELECT') inputs[id] = el.value.includes(' ') ? el.value : (parseInt(el.value) || el.value);
-            else inputs[id] = el.value;
+const handleRunCheck = createCalculationHandler({
+    inputIds: inputIds, // Pass the array to the handler
+    storageKey: 'splice-inputs',
+    validationRuleKey: 'splice',
+    calculatorFunction: (rawInputs) => {
+        drawFlangeDiagram();
+        drawWebDiagram();
+        const results = spliceCalculator.run(rawInputs);
+        if (results.inputs.develop_capacity_check) {
+            document.getElementById('M_load').value = (results.final_loads.M_load / 12).toFixed(2);
+            document.getElementById('V_load').value = results.final_loads.V_load.toFixed(2);
+        }
+        return results;
+    },
+    renderFunction: renderResults,
+    resultsContainerId: 'results-container',
+    buttonId: 'run-check-btn'
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Attach Event Listeners ---
+    loadInputsFromLocalStorage('splice-inputs', inputIds, handleRunCheck);
+
+    const handleSaveInputs = createSaveInputsHandler(inputIds, 'splice-inputs.txt', 'feedback-message');
+    const handleLoadInputs = createLoadInputsHandler(inputIds, handleRunCheck, 'feedback-message');
+
+    document.getElementById('run-check-btn').addEventListener('click', handleRunCheck);
+    document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
+    document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
+    document.getElementById('file-input').addEventListener('change', handleLoadInputs);
+    document.getElementById('results-container').addEventListener('click', (event) => {
+        const button = event.target.closest('.toggle-details-btn');
+        if (button) {
+            const detailId = button.dataset.toggleId;
+            const row = document.getElementById(detailId);
+            if (row) {
+                row.classList.toggle('is-visible');
+                button.textContent = row.classList.contains('is-visible') ? '[Hide]' : '[Show]';
+            }
+        }
+        if (event.target.id === 'copy-report-btn') {
+            handleCopyToClipboard('results-container', 'feedback-message');
+        }
+        if (event.target.id === 'print-report-btn') {
+            window.print();
+        }
+        if (event.target.id === 'download-pdf-btn') {
+            handleDownloadPdf('results-container', 'Splice-Report.pdf');
         }
     });
-    return inputs;
-}
 
-function handleRunCheck() {
+    const flangeInputsToWatch = ['H_fp', 'member_bf', 'Nc_fp', 'Nr_fp', 'S1_col_spacing_fp', 'S2_row_spacing_fp', 'S3_end_dist_fp', 'gap', 'g_gage_fp', 'D_fp', 'L_fp'];
+    flangeInputsToWatch.forEach(id => document.getElementById(id)?.addEventListener('input', drawFlangeDiagram));
+
+    const webInputsToWatch = ['H_wp', 'member_d', 'member_tf', 'Nc_wp', 'Nr_wp', 'S4_col_spacing_wp', 'S5_row_spacing_wp', 'S6_end_dist_wp', 'gap', 'D_wp', 'L_wp'];
+    webInputsToWatch.forEach(id => document.getElementById(id)?.addEventListener('input', drawWebDiagram));
+
     drawFlangeDiagram();
     drawWebDiagram();
-
-    const validation = validateInputs(gatherInputs(), validationRules.splice); // Now validationRules is defined
-    if (validation.errors.length > 0) {
-        renderValidationResults(validation, document.getElementById('results-container'));
-        return;
-    }
-
-    const inputs = gatherInputs();
-    saveInputsToLocalStorage('splice-inputs', inputs);
-    const results = spliceCalculator.run(inputs);
-
-    // If capacity is developed, update the disabled input fields
-    if (results.inputs.develop_capacity_check) {
-        document.getElementById('M_load').value = results.final_loads.M_load.toFixed(2);
-        document.getElementById('V_load').value = results.final_loads.V_load.toFixed(2);
-    }
-
-    renderResults(results);
-}
-
-// --- Attach Event Listeners ---
-loadInputsFromLocalStorage('splice-inputs', inputIds, handleRunCheck);
-
-const handleSaveInputs = createSaveInputsHandler(inputIds, 'splice-inputs.txt', 'feedback-message');
-const handleLoadInputs = createLoadInputsHandler(inputIds, handleRunCheck, 'feedback-message');
-
-document.getElementById('run-check-btn').addEventListener('click', handleRunCheck);
-document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
-document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
-document.getElementById('file-input').addEventListener('change', handleLoadInputs);
-document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-
-document.getElementById('num_flange_plates').addEventListener('change', (e) => {
-    document.getElementById('inner-flange-inputs').style.display = e.target.value === '2' ? 'block' : 'none';
-});
-
-document.getElementById('develop_capacity_check').addEventListener('change', function() {
-    const M_load_input = document.getElementById('M_load');
-    const V_load_input = document.getElementById('V_load');
-    const isDisabled = this.checked;
-    M_load_input.disabled = isDisabled;
-    V_load_input.disabled = isDisabled;
-    M_load_input.classList.toggle('bg-gray-200', isDisabled);
-    M_load_input.classList.toggle('dark:bg-gray-700', isDisabled);
-    V_load_input.classList.toggle('bg-gray-200', isDisabled);
-    V_load_input.classList.toggle('dark:bg-gray-700', isDisabled);
-});
-
-document.getElementById('results-container').addEventListener('click', (event) => {
-    const button = event.target.closest('.toggle-details-btn');
-    if (button) {
-        const detailId = button.dataset.toggleId;
-        const row = document.getElementById(detailId);
-        if (row) {
-            row.classList.toggle('is-visible');
-            button.textContent = row.classList.contains('is-visible') ? '[Hide]' : '[Show]';
-        }
-    }
-    if (event.target.id === 'copy-report-btn') {
-        handleCopyToClipboard('results-container', 'feedback-message');
-    }
-    if (event.target.id === 'print-report-btn') {
-        window.print();
-    }
-    if (event.target.id === 'download-pdf-btn') {
-        handleDownloadPdf('results-container', 'Splice-Report.pdf');
-    }
-});
-
-// --- Initial Setup ---
-document.getElementById('num_flange_plates').dispatchEvent(new Event('change'));
-
-const flangeInputsToWatch = ['H_fp', 'member_bf', 'Nc_fp', 'Nr_fp', 'S1_col_spacing_fp', 'S2_row_spacing_fp', 'S3_end_dist_fp', 'gap', 'g_gage_fp', 'D_fp', 'L_fp'];
-flangeInputsToWatch.forEach(id => {
-    document.getElementById(id).addEventListener('input', drawFlangeDiagram);
-});
-
-const webInputsToWatch = ['H_wp', 'member_d', 'member_tf', 'Nc_wp', 'Nr_wp', 'S4_col_spacing_wp', 'S5_row_spacing_wp', 'S6_end_dist_wp', 'gap', 'D_wp', 'L_wp'];
-webInputsToWatch.forEach(id => {
-    document.getElementById(id).addEventListener('input', drawWebDiagram);
-});
-
-drawFlangeDiagram();
-drawWebDiagram();
-// handleRunCheck(); // Run on page load
 });

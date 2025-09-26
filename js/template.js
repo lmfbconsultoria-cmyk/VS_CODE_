@@ -8,7 +8,7 @@
  * @param {string} options.pageTitle - The main title to display in the H1 tag.
  * @param {string} options.headerPlaceholderId - The ID of the element where the header will be injected.
  */
-function injectHeader(options) {
+async function injectHeader(options) {
     const { activePage, pageTitle, headerPlaceholderId } = options;
     const placeholder = document.getElementById(headerPlaceholderId);
 
@@ -23,46 +23,29 @@ function injectHeader(options) {
     const isRoot = window.location.pathname.endsWith('/') || window.location.pathname.endsWith('/index.html');
     const pathPrefix = isRoot ? './' : '../';
 
+    const response = await fetch(`${pathPrefix}js/nav-config.json`);
+    const navLinks = await response.json();
+
     const mainNavLinks = {
         home: { key: 'home', href: `${pathPrefix}index.html`, text: 'Home' },
         us: { key: 'us', href: `${pathPrefix}index.html#us-codes-section`, text: 'US Codes' },
         nbr: { key: 'nbr', href: `${pathPrefix}index.html#nbr-codes-section`, text: 'NBR (Brazil)' }
     };
 
-    // Define navigation links with simple, relative paths.
-    // This allows navigation within the same directory (e.g., from wind.html to snow.html).
-    const navLinks = {
-        asce: [
-            { key: 'wind', href: 'wind.html', text: 'Wind Load' },
-            { key: 'snow', href: 'snow.html', text: 'Snow Load' },
-            { key: 'rain', href: 'rain.html', text: 'Rain Load' },
-            { key: 'combos', href: 'combos.html', text: 'Load Combos' }
-        ],
-        aisc: [
-            { key: 'steel-check', href: 'steel check.html', text: 'Section Check' },
-            { key: 'base-plate', href: 'base plate.html', text: 'Base Plate' },
-            { key: 'splice', href: 'splice.html', text: 'Splice' }
-        ], // Corrected from 'aisc'
-        nds: [
-            { key: 'wood-design', href: 'nds wood design.html', text: 'Member Design' }
-        ],
-        nbr: [
-            { key: 'comb-nbr', href: 'comb nbr 6118.html', text: 'Combinações' }
-        ]
-    };
-
     // Robustly find the correct set of navigation links
     const trimmedActivePage = activePage.trim().toLowerCase();
-    const currentSubNavSetKey = Object.keys(navLinks).find(key =>
-        navLinks[key].some(link => link.key.toLowerCase() === trimmedActivePage)
-    );
+    let currentSubNavSetKey;
+    // The home page has no sub-navigation, so we only search if it's not the home page.
+    if (trimmedActivePage !== 'home') {
+        currentSubNavSetKey = Object.keys(navLinks).find(key =>
+            navLinks[key] && navLinks[key].some(link => link.key.toLowerCase() === trimmedActivePage)
+        );
+    }
 
     // Determine the active main navigation group
-    const usKeys = ['asce', 'aisc', 'nds'];
+    const usKeys = ['asce', 'aisc', 'nds', 'aci'];
     const nbrKeys = ['nbr'];
     let activeMainKey = 'home'; // Default to 'home'
-
-    if (trimmedActivePage === 'home') activeMainKey = 'us';
     if (usKeys.includes(currentSubNavSetKey)) {
         activeMainKey = 'us';
     } else if (nbrKeys.includes(currentSubNavSetKey)) {
@@ -70,15 +53,15 @@ function injectHeader(options) {
     }
 
     // Add a console log for easier debugging if the issue persists
-    if (!currentSubNavSetKey) {
+    if (trimmedActivePage !== 'home' && !currentSubNavSetKey) {
         console.error(`Could not find a navigation set for activePage: '${activePage}'`);
     }
 
-    const currentNavLinks = navLinks[currentSubNavSetKey] || [];
+    const currentSubNavSet = navLinks[currentSubNavSetKey] || [];
 
-    // Build the navigation HTML using the simple relative href directly
-    const subNavHtml = currentNavLinks.map(link => `
-        <a href="${link.href}" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors ${link.key === trimmedActivePage ? 'toggle-active' : 'toggle-inactive'}">
+    // Build the sub-navigation HTML
+    const subNavHtml = currentSubNavSet.map(link => `
+        <a href="${pathPrefix}${link.href}" class="px-4 py-2 text-sm font-medium rounded-md z-10 transition-colors ${link.key === trimmedActivePage ? 'toggle-active' : 'toggle-inactive'}">
             ${link.text}
         </a>
     `).join('');
@@ -89,20 +72,25 @@ function injectHeader(options) {
         </a>
     `).join('');
 
+    // Conditionally build the main navigation container
+    const mainNavContainerHtml = !isRoot ? `
+        <!-- Main Navigation (US vs NBR) -->
+        <div class="relative flex flex-wrap justify-center gap-1 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+            <a href="${pathPrefix}index.html" class="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                Home
+            </a>
+        </div>` : '';
+
     // Only render the sub-navigation container if there are links to show.
     const subNavContainerHtml = currentNavLinks.length > 0 ? `
         <!-- Sub Navigation (within a code family) -->
-        <div id="nav-links-container" class="relative inline-flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+        <div id="nav-links-container" class="relative flex flex-wrap justify-center gap-1 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
             ${subNavHtml}
         </div>` : '';
-
     const headerHtml = `
         <header class="text-center mb-8 relative">
             <div class="flex flex-col items-center justify-center mb-6 space-y-4">
-                <!-- Main Navigation (US vs NBR) -->
-                <div class="relative inline-flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-                    ${mainNavHtml}
-                </div>
+                ${mainNavContainerHtml}
                 ${subNavContainerHtml}
             </div>
             <h1 id="main-title" class="text-3xl md:text-4xl font-bold">${pageTitle}</h1>
