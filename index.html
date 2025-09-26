@@ -14,60 +14,77 @@
         })();
     </script>
     <link rel="stylesheet" href="styles.min.css">
-    <script src="template.js" defer></script>
-    <script src="shared-utils.js" defer></script>
+    <script src="js/template.js" defer></script>
+    <script src="js/shared-utils.js" defer></script>
 </head>
 <body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300" style="font-family: 'Inter', sans-serif;">
 
     <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-        <header class="text-center mb-12 relative">
-            <h1 class="text-4xl md:text-5xl font-bold">Engineering Calculator Hub</h1>
-            <p class="text-lg mt-2 text-gray-600 dark:text-gray-400">A collection of tools for structural engineers.</p>
-            <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 absolute top-0 right-0">
-                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-            </button>
-        </header>
+        <div id="header-placeholder"></div>
 
         <main>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- US Codes Section -->
+            <div class="mb-12">
+                <h2 class="text-2xl font-bold border-b-2 border-gray-200 dark:border-gray-700 pb-2 mb-6">US Codes</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- ASCE Loads Card -->
+                    <div class="form-section flex flex-col">
+                        <h3 class="text-xl font-bold">ASCE 7 Load Calculators</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Calculate wind, snow, and rain loads, and generate load combinations based on ASCE 7-16 and ASCE 7-22 standards.</p>
+                        <a href="asce/wind.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                            Go to Load Calculators &rarr;
+                        </a>
+                    </div>
 
-                <!-- ASCE Loads Card -->
-                <div class="form-section flex flex-col">
-                    <h2 class="text-2xl font-bold">ASCE 7 Load Calculators</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Calculate wind, snow, and rain loads, and generate load combinations based on ASCE 7-16 and ASCE 7-22 standards.</p>
-                    <a href="Loads - AESC/wind.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
-                        Go to Load Calculators &rarr;
-                    </a>
+                    <!-- AISC Steel Card -->
+                    <div class="form-section flex flex-col">
+                        <h3 class="text-xl font-bold">AISC 360 Steel Design</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Perform design checks for steel sections, base plates, and beam splices according to the AISC 360 specification.</p>
+                        <a href="aisc/steel check.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                            Go to Steel Design &rarr;
+                        </a>
+                    </div>
+
+                    <!-- NDS Wood Card -->
+                    <div class="form-section flex flex-col">
+                        <h3 class="text-xl font-bold">NDS Wood Design</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Check wood members for flexure, shear, compression, and combined stresses based on the National Design Specification for Wood Construction.</p>
+                        <a href="nds/nds wood design.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                            Go to Wood Design &rarr;
+                        </a>
+                    </div>
                 </div>
+            </div>
 
-                <!-- AISC Steel Card -->
-                <div class="form-section flex flex-col">
-                    <h2 class="text-2xl font-bold">AISC 360 Steel Design</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Perform design checks for steel sections, base plates, and beam splices according to the AISC 360 specification.</p>
-                    <a href="STEEL - AISC 360/STEEL CHECK.HTML" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
-                        Go to Steel Design &rarr;
-                    </a>
-                </div>
-
-                <!-- NDS Wood Card -->
-                <div class="form-section flex flex-col">
-                    <h2 class="text-2xl font-bold">NDS Wood Design</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Check wood members for flexure, shear, compression, and combined stresses based on the National Design Specification for Wood Construction.</p>
-                    <a href="WOOD/NDS Wood Design.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
-                        Go to Wood Design &rarr;
-                    </a>
-                </div>
-
+            <!-- Brazilian Codes (NBR) Section -->
+            <div>
+                <h2 class="text-2xl font-bold border-b-2 border-gray-200 dark:border-gray-700 pb-2 mb-6">Códigos Brasileiros (NBR)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- NBR Combinations Card -->
                 <div class="form-section flex flex-col">
-                    <h2 class="text-2xl font-bold">NBR 8681 / 6118 Combinations</h2>
+                    <h3 class="text-xl font-bold">NBR 8681 / 6118 Combinações</h3>
                     <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Gerador de combinações de ações para ELU (Estado Limite Último) e ELS (Estado Limite de Serviço) conforme as normas brasileiras.</p>
-                    <a href="NBR6118/Comb NBR 6118.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                    <a href="nbr/comb nbr 6118.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
                         Ir para Combinações NBR &rarr;
                     </a>
                 </div>
-
+                <!-- NBR 7190 Wood Card -->
+                <div class="form-section flex flex-col">
+                    <h3 class="text-xl font-bold">NBR 7190 Madeira</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Verificador de peças de madeira para flexão, cisalhamento e deformação de acordo com a NBR 7190:1997.</p>
+                    <a href="nbr/nbr 7190 madeira.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                        Ir para Verificador de Madeira &rarr;
+                    </a>
+                </div>
+                <!-- NBR 8800 Steel Card -->
+                <div class="form-section flex flex-col">
+                    <h3 class="text-xl font-bold">NBR 8800 Aço</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mt-2 mb-4 flex-grow">Análise de perfis I de aço para compressão, flexão e forças combinadas, conforme a NBR 8800:2008.</p>
+                    <a href="nbr/nbr 8080 estruturas de aço.html" class="mt-auto bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-center transition-colors">
+                        Ir para Verificador de Aço &rarr;
+                    </a>
+                </div>
+                </div>
             </div>
         </main>
 
@@ -76,8 +93,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // The header is simple and doesn't need the template injector here.
-            // We just need to initialize the theme toggle and footer.
+            injectHeader({
+                activePage: 'home',
+                pageTitle: 'Engineering Calculator Hub',
+                headerPlaceholderId: 'header-placeholder'
+            });
+
             initializeTheme();
             injectFooter({
                 footerPlaceholderId: 'footer-placeholder'
