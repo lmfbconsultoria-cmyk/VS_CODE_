@@ -870,7 +870,7 @@ const steelChecker = (() => {
     }
 
     function checkShearTorsionInteraction(props, inputs, shear_results, torsion_results) {
-        if (inputs.Tu_or_Ta === 0) {
+        if (inputs.Tu_or_Ta === 0 || !torsion_results) {
             return { applicable: false };
         }
 

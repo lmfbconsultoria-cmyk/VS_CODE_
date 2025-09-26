@@ -10,7 +10,9 @@ const nbr6118Calculator = (() => {
         i.Msd = i.Msd * 100; // kN·m to kN·cm
 
         const res = {};
-        const gamma_c = 1.4, gamma_s = 1.15;
+        // NBR 6118:2023 partial safety factors
+        const gamma_c = 1.4; // Maintained, but should be verified based on specific conditions
+        const gamma_s = 1.15; // Maintained
         const fcd = i.fck / gamma_c;
         const fyd = i.fyk / gamma_s;
 

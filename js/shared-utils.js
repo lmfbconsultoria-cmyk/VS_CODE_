@@ -321,6 +321,9 @@ function sanitizeHTML(str) {
     return str.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+// Store timeout IDs in a map to handle multiple feedback elements and prevent race conditions.
+const feedbackTimeouts = {};
+
 /**
  * Displays a temporary feedback message to the user.
  * @param {string} message - The message to display.
@@ -330,9 +333,15 @@ function sanitizeHTML(str) {
 function showFeedback(message, isError = false, feedbackElId = 'feedback-message') {
     const feedbackEl = document.getElementById(feedbackElId);
     if (!feedbackEl) return;
+
+    // Clear any existing timeout for this specific feedback element to prevent race conditions.
+    if (feedbackTimeouts[feedbackElId]) {
+        clearTimeout(feedbackTimeouts[feedbackElId]);
+    }
+
     feedbackEl.textContent = message;
     feedbackEl.className = `text-center mt-2 text-sm h-5 ${isError ? 'text-red-600' : 'text-green-600'}`;
-    setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
+    feedbackTimeouts[feedbackElId] = setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
 }
 
 /**

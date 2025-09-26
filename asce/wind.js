@@ -177,27 +177,72 @@ function getInternalPressureCoefficient(enclosureClass) {
     // Cp values for buildings of all heights (Analytical Procedure)
     // Reference: ASCE 7-16 Figure 27.3-1
     function getAnalyticalCpValues(h, dim_parallel_to_wind, dim_perp_to_wind, roofSlopeDeg) {
-    const cpMap = {};
-    const L_over_B = dim_perp_to_wind > 0 ? dim_parallel_to_wind / dim_perp_to_wind : 0;
-    
-    cpMap["Windward Wall"] = 0.8;
-    cpMap["Side Wall"] = -0.7;
-    // Leeward wall Cp depends on L/B ratio
-    cpMap[`Leeward Wall (L/B = ${L_over_B.toFixed(2)})`] = interpolate(L_over_B, [0, 1, 2, 4], [-0.5, -0.5, -0.3, -0.2]);
-    
-    
-    // Roof coefficients also depend on h/L ratio
-    const h_over_L = dim_parallel_to_wind > 0 ? h / dim_parallel_to_wind : 0;
-    
-    if (h_over_L <= 0.8) { // Note: ASCE 7-16 Fig 27.3-1 uses h/L, not h/B
-        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.7, -0.5, -0.3, -0.2, -0.2, 0.0, 0.4]);
-        cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20], [-0.3, -0.5, -0.6]);
-    } else {
-        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.9, -0.7, -0.4, -0.3, -0.2, 0.0, 0.4]);
-        cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = -0.7;
-    }
-    
-    return { cpMap };
+        // Input validation
+        if (!isFinite(h) || !isFinite(dim_parallel_to_wind) || !isFinite(dim_perp_to_wind) || !isFinite(roofSlopeDeg)) {
+            throw new Error('Invalid input parameters for Cp calculation');
+        }
+
+        // Handle invalid dimensions
+        if (h <= 0 || dim_parallel_to_wind <= 0 || dim_perp_to_wind <= 0) {
+            throw new Error('Building dimensions must be positive');
+        }
+
+        const warnings = [];
+        const cpMap = {};
+
+        // Calculate aspect ratios with proper validation
+        const L_over_B = dim_parallel_to_wind / dim_perp_to_wind;
+        const h_over_L = h / dim_parallel_to_wind;
+
+        // Handle negative or extreme roof slopes
+        const absSlope = Math.abs(roofSlopeDeg);
+        if (absSlope > 45) {
+            warnings.push('Roof slope exceeds 45 degrees. Consider using Alternative Procedures from ASCE 7-16 Section 27.3.2.');
+        }
+        if (absSlope < 10) {
+            warnings.push('Roof slope is less than 10 degrees. Results may be conservative.');
+        }
+
+        // Wall pressure coefficients - constant values from ASCE 7-16 Fig. 27.3-1
+        cpMap["Windward Wall"] = 0.8;
+        cpMap["Side Wall"] = -0.7;
+
+        try {
+            // Leeward wall Cp with clamped L/B ratio
+            const boundedL_over_B = Math.min(Math.max(L_over_B, 0), 4);
+            cpMap[`Leeward Wall (L/B = ${boundedL_over_B.toFixed(2)})`] = 
+                interpolate(boundedL_over_B, [0, 1, 2, 4], [-0.5, -0.5, -0.3, -0.2]);
+
+            // Roof pressure coefficients with full slope coverage
+            if (h_over_L <= 0.8) {
+                // Low-rise configuration
+                const boundedSlope = Math.min(Math.max(absSlope, 10), 45);
+                cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = 
+                    interpolate(boundedSlope, [10, 15, 20, 25, 30, 35, 45],
+                             [-0.7, -0.5, -0.3, -0.2, -0.2, 0.0, 0.4]);
+                
+                // Extended leeward coefficients for all slopes
+                cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = 
+                    interpolate(boundedSlope, [10, 15, 20, 25, 30, 35, 45],
+                             [-0.3, -0.5, -0.6, -0.6, -0.6, -0.6, -0.6]);
+            } else {
+                // Tall building configuration
+                const boundedSlope = Math.min(Math.max(absSlope, 10), 45);
+                cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = 
+                    interpolate(boundedSlope, [10, 15, 20, 25, 30, 35, 45],
+                             [-0.9, -0.7, -0.4, -0.3, -0.2, 0.0, 0.4]);
+                cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = -0.7;
+            }
+        } catch (error) {
+            console.error('Error in pressure coefficient calculation:', error);
+            // Provide conservative defaults if interpolation fails
+            cpMap[`Leeward Wall (L/B = ${L_over_B.toFixed(2)})`] = -0.5;
+            cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = -0.9;
+            cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = -0.7;
+            warnings.push('Error in pressure coefficient calculation. Using conservative values.');
+        }
+
+        return { cpMap, warnings };
 }
 
     // Net pressure coefficients CN for Open Buildings with Free Roofs
