@@ -376,9 +376,8 @@ function checkPryingAction(t_plate, Fy_plate, b, a, p, d_bolt, d_hole, B_bolt) {
     if (a_prime <= 0 || b_prime < 0) return { Q: 0, tc: Infinity, alpha_prime: 0 };
 
     const rho = b_prime / a_prime;
-    const delta = 1 - (d_hole / p);
-    if (delta === 0) return { Q: Infinity, tc: 0, alpha_prime: 0 };
-    if (delta < 0) return { Q: Infinity, tc: 0, alpha_prime: 0 }; // Invalid geometry
+    const delta = Math.max(0.001, 1 - (d_hole / p)); // Ensure delta is never zero or negative
+    if (delta <= 0.001) return { Q: Infinity, tc: 0, alpha_prime: 0 }; // Invalid geometry
 
     // Critical thickness
     const tc = sqrt((4 * B_bolt * b_prime) / (p * Fy_plate));
@@ -427,21 +426,39 @@ function run(rawInputs) {
     let V_load = inputs.V_load;
     
     if (inputs.develop_capacity_check) {
-        // Calculate and overwrite M_load and V_load with member's design capacity
+        // Calculate member's design capacity considering moment-shear interaction
         const Zx = inputs.member_Zx;
-        if (Zx > 0) {
+        const Aw = inputs.member_d * inputs.member_tw;
+        
+        if (Zx > 0 && Aw > 0) {
+            // Moment capacity
             const Mn_kipin = inputs.member_Fy * Zx; // Plastic Moment (AISC F2.1)
             const phi_b = 0.90;
             const omega_b = 1.67;
-            M_load = (inputs.design_method === 'LRFD' ? phi_b * Mn_kipin : Mn_kipin / omega_b) / 12.0;
-        }
-
-        const Aw = inputs.member_d * inputs.member_tw;
-        if (Aw > 0) {
+            
+            // Shear capacity
             const Vn_kips = 0.6 * inputs.member_Fy * Aw; // Shear Yielding Strength, assuming Cv=1.0 (AISC G2.1)
-            const phi_v_yield = 1.00;
-            const omega_v_yield = 1.50;
-            V_load = inputs.design_method === 'LRFD' ? phi_v_yield * Vn_kips : Vn_kips / omega_v_yield;
+            const phi_v = 1.00;
+            const omega_v = 1.50;
+            
+            // Calculate factored capacities based on design method
+            const Mdesign = inputs.design_method === 'LRFD' ? phi_b * Mn_kipin : Mn_kipin / omega_b;
+            const Vdesign = inputs.design_method === 'LRFD' ? phi_v * Vn_kips : Vn_kips / omega_v;
+            
+            // Consider moment-shear interaction (AISC H1.1)
+            // For V ≤ 0.6V_n, no moment reduction is needed
+            // For V > 0.6V_n, reduce moment capacity based on interaction equation
+            const V_ratio = V_load / Vdesign;
+            
+            if (V_ratio > 0.6) {
+                // Reduce moment capacity due to high shear
+                const reduction_factor = (1 - ((V_ratio - 0.6) / 0.8));
+                M_load = (Mdesign * reduction_factor) / 12.0; // Convert to kip-ft
+                V_load = 0.6 * Vdesign; // Limit shear to 0.6Vn
+            } else {
+                M_load = Mdesign / 12.0; // Convert to kip-ft
+                V_load = V_ratio * Vdesign;
+            }
         }
         // The UI update should happen outside this calculation function
     }

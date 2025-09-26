@@ -10,11 +10,13 @@
  */
 const validationRules = {
     wind: {
-        'mean_roof_height': { min: 0.001, max: 2000, required: true, label: 'Mean Roof Height' },
-        'basic_wind_speed': { min: 0.001, max: 300, required: true, label: 'Basic Wind Speed' },
-        'building_length_L': { min: 0.001, required: true, label: 'Building Length (L)' },
-        'building_width_B': { min: 0.001, required: true, label: 'Building Width (B)' },
-        'roof_slope_deg': { min: 0, max: 90, required: false, label: 'Roof Slope' }
+        'mean_roof_height': { min: 0.001, max: 1000, required: true, label: 'Mean Roof Height' }, // ASCE 7 limitation
+        'basic_wind_speed': { min: 60, max: 200, required: true, label: 'Basic Wind Speed' }, // Typical range for ASCE 7
+        'building_length_L': { min: 0.001, max: 1000, required: true, label: 'Building Length (L)' },
+        'building_width_B': { min: 0.001, max: 1000, required: true, label: 'Building Width (B)' },
+        'fundamental_period': { min: 0.001, max: 10, required: false, label: 'Fundamental Period' },
+        'roof_slope_deg': { min: 0, max: 90, required: false, label: 'Roof Slope' },
+        'effective_wind_area': { min: 0.001, max: 5000, required: false, label: 'Effective Wind Area' }
     },
     snow: {
         'snow_ground_snow_load': { min: 0.001, max: 300, required: true, label: 'Ground Snow Load (pg)' }

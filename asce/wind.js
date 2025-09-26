@@ -190,7 +190,7 @@ function getInternalPressureCoefficient(enclosureClass) {
     const h_over_L = dim_parallel_to_wind > 0 ? h / dim_parallel_to_wind : 0;
     
     if (h_over_L <= 0.8) { // Note: ASCE 7-16 Fig 27.3-1 uses h/L, not h/B
-        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.7, -0.5, -0.3, -0.2, -0.2, 0.0, 0.2, 0.4]);
+        cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.7, -0.5, -0.3, -0.2, -0.2, 0.0, 0.4]);
         cpMap[`Roof Leeward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20], [-0.3, -0.5, -0.6]);
     } else {
         cpMap[`Roof Windward (h/L = ${h_over_L.toFixed(2)})`] = interpolate(roofSlopeDeg, [10, 15, 20, 25, 30, 35, 45], [-0.9, -0.7, -0.4, -0.3, -0.2, 0.0, 0.4]);
@@ -398,12 +398,18 @@ function calculateVelocityPressure(Kz, Kzt, Kd, Ke, V, standard, riskCat, units)
     return { qz, ref_note };
 }
 
-// Design pressure p = qz(G*Cp - GCpi)
+// Design pressure p = qz(G*Cp - GCpi) for windward wall
+// or p = qh(G*Cp - GCpi) for other surfaces
 // Reference: ASCE 7-16/22 Eq. 27.4-1 (MWFRS)
-function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi) {
+function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi, isWindward = false) {
+    // Validate inputs
+    if (!isFinite(q_ext) || !isFinite(q_int) || !isFinite(G) || !isFinite(Cp) || !isFinite(GCpi)) {
+        throw new Error('Invalid input parameters for pressure calculation');
+    }
+    
     // Correct formula: p = q(GCp) - qi(GCpi)
-    // q = q_ext (qz for windward wall, qh for others)
-    // qi = q_int (qh for enclosed/partially enclosed)
+    // q_ext = qz for windward wall, qh for others
+    // q_int = qh for enclosed/partially enclosed buildings
     const external_pressure = q_ext * G * Cp;
     const internal_pressure = q_int * GCpi;
     return external_pressure - internal_pressure;
@@ -429,8 +435,8 @@ function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi) {
             const zoneData = gcp_data[zone];
             
             // 1. Interpolate across area for each height point in the table.
-            const pos_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, zoneData.pos));
-            const neg_vals_at_h = gcp_data.heights.map(() => interpolate(log_A, log_areas, zoneData.neg));
+            const pos_vals_at_h = gcp_data.heights.map((_, i) => interpolate(log_A, log_areas, zoneData.pos.slice(i * gcp_data.areas.length, (i + 1) * gcp_data.areas.length)));
+            const neg_vals_at_h = gcp_data.heights.map((_, i) => interpolate(log_A, log_areas, zoneData.neg.slice(i * gcp_data.areas.length, (i + 1) * gcp_data.areas.length)));
             
             // 2. Interpolate across height using the results from the area interpolation.
             results[zone] = {
@@ -721,13 +727,24 @@ function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi) {
     /**
      * Calculates the Gust Effect Factor G for flexible structures per ASCE 7-16 Section 26.11.
      */
-    function calculateGustEffectFactor(inputs, intermediate) { // Refactored for readability
-        if (inputs.building_flexibility !== 'Flexible' || !inputs.fundamental_period) {
+    function calculateGustEffectFactor(inputs, intermediate) {
+        // Initial validation for rigid structures
+        if (inputs.building_flexibility !== 'Flexible') {
             return { G: 0.85, ref: "ASCE 7-16 Sec. 26.11.1 (Rigid Structure)" };
-        } // Corrected validation
+        }
+
+        // Validate fundamental period
+        if (!inputs.fundamental_period || isNaN(inputs.fundamental_period) || inputs.fundamental_period <= 0) {
+            return { 
+                G: 0.85, 
+                ref: "ASCE 7-16 Sec. 26.11.1 (Using rigid structure value - invalid or missing fundamental period)",
+                warning: "Fundamental period must be a positive number for flexible structures. Using rigid structure gust factor."
+            };
+        }
+
         const { V_in, unit_system, mean_roof_height, building_length_L, building_width_B, exposure_category, fundamental_period } = inputs;
         const { alpha, zg } = intermediate; // Defensive destructuring
-        const n1 = fundamental_period > 0 ? 1 / fundamental_period : 0;
+        const n1 = 1 / fundamental_period;
 
         const { b_bar, c, l, epsilon_bar } = getGustCalculationConstants(exposure_category, unit_system);
 

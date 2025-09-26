@@ -214,10 +214,23 @@ function setLoadingState(isLoading, buttonId) {
  * @returns {number} The interpolated y-value.
  */
 function interpolate(x, xp, fp) {
+    // Input validation
+    if (!Array.isArray(xp) || !Array.isArray(fp) || xp.length !== fp.length || xp.length < 2) {
+        throw new Error('Invalid input arrays for interpolation');
+    }
+    if (!xp.every((val, i) => i === 0 || val > xp[i-1])) {
+        throw new Error('x-coordinates must be in ascending order');
+    }
+    
+    // Handle boundary conditions
     if (x <= xp[0]) return fp[0];
     if (x >= xp[xp.length - 1]) return fp[fp.length - 1];
+    
+    // Find the appropriate interval
     let i = 0;
-    while (x > xp[i + 1]) i++;
+    while (i < xp.length - 1 && x > xp[i + 1]) i++;
+    
+    // Perform linear interpolation
     const x1 = xp[i], y1 = fp[i];
     const x2 = xp[i + 1], y2 = fp[i + 1];
     return y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);

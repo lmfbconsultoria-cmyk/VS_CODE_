@@ -7,28 +7,36 @@ const snowInputIds = [
 const snowLoadCalculator = (() => {
     function calculateSlopeFactor(slope_deg, is_slippery, Ct, standard) {
         if (standard === "ASCE 7-22") {
-            // ASCE 7-22 Section 7.4.1 combines warm and cold roof conditions for slippery/non-slippery surfaces
-            // but the distinction is still present based on Ct.
-            // Ct > 1.2 is considered a "cold roof" for this purpose.
-            if (Ct > 1.2) { // Cold Roof
-                if (is_slippery) {
-                    if (slope_deg < 15) return 1.0;
-                    if (slope_deg > 70) return 0.0;
-                    return 1.0 - (slope_deg - 15) / 55;
-                } else { // Not slippery
-                    if (slope_deg < 45) return 1.0;
-                    if (slope_deg > 70) return 0.0;
-                    return 1.0 - (slope_deg - 45) / 25;
-                }
-            } else { // Warm Roof (Ct <= 1.2)
-                if (is_slippery) {
-                    if (slope_deg < 5) return 1.0;
-                    if (slope_deg > 70) return 0.0;
-                    return 1.0 - (slope_deg - 5) / 65;
-                } else { // Not slippery
-                    if (slope_deg < 30) return 1.0;
-                    if (slope_deg > 70) return 0.0;
+            // ASCE 7-22 Section 7.4.1 has different requirements for warm and cold roofs
+            const isWarmRoof = Ct <= 1.2;
+            
+            if (isWarmRoof) {
+                // Warm Roof Conditions (Ct ≤ 1.2)
+                if (slope_deg < 30) {
+                    return 1.0;
+                } else if (slope_deg > 70) {
+                    return 0.0;
+                } else {
                     return 1.0 - (slope_deg - 30) / 40;
+                }
+            } else {
+                // Cold Roof Conditions (Ct > 1.2)
+                if (is_slippery === 'Yes') {
+                    if (slope_deg < 15) {
+                        return 1.0;
+                    } else if (slope_deg > 70) {
+                        return 0.0;
+                    } else {
+                        return Math.max(0, 1.0 - (slope_deg - 15) / 55);
+                    }
+                } else {
+                    if (slope_deg < 45) {
+                        return 1.0;
+                    } else if (slope_deg > 70) {
+                        return 0.0;
+                    } else {
+                        return Math.max(0, 1.0 - (slope_deg - 45) / 25);
+                    }
                 }
             }
         } else { // ASCE 7-16
@@ -254,12 +262,12 @@ function run(inputs, validation) {
     }
 
     let drift_results = {};
-    if (inputs.calculate_drift) {
+    if (inputs.calculate_drift === 'Yes') {
         drift_results = calculateDriftLoads(inputs.ground_snow_load, inputs.upper_roof_length_lu, inputs.height_difference_hc, pf, inputs.asce_standard, inputs.winter_wind_parameter_W2, inputs.lower_roof_length_ll, Is);
     }
 
     let sliding_snow_results = {};
-    if (inputs.calculate_sliding) {
+    if (inputs.calculate_sliding === 'Yes') {
         sliding_snow_results = calculateSlidingSnowLoad(pf, inputs.eave_to_ridge_distance_W, Cs, inputs.is_roof_slippery, inputs.unit_system);
     }
 
@@ -373,7 +381,7 @@ function renderSnowReportHeader(inputs) {
 }
 
 function renderSnowNotesAndWarnings(inputs, is_nycbc_min_governed, warnings) {
-    let html = ''; // Corrected typo
+    let html = '';
     if (inputs.jurisdiction === "NYCBC 2022") {
         const note = is_nycbc_min_governed ? `The calculated roof snow load was less than the specified NYCBC minimum of ${inputs.nycbc_minimum_roof_snow_load} psf. The NYCBC minimum has been applied.` : "The calculated roof snow load meets or exceeds the specified NYCBC minimum.";
         html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${note}</p></div>`;

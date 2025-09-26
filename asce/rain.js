@@ -26,15 +26,22 @@ const rainLoadCalculator = (() => {
         const warnings = [];
 
         if (dh_auto_calc) {
+            // Convert metric inputs to imperial for calculation
+            const A_imperial = unit_system === 'imperial' ? A : A * 10.7639; // m² to ft²
+            const i_imperial = unit_system === 'imperial' ? i : i * 0.03937; // mm/hr to in/hr
+            const scupper_width_imperial = unit_system === 'imperial' ? scupper_width : scupper_width * 0.03937; // mm to in
+            const drain_diameter_imperial = unit_system === 'imperial' ? drain_diameter : drain_diameter * 0.03937; // mm to in
+            
             // Per IPC, Q (gpm) = 0.0104 * A (sqft) * i (in/hr)
-            const Q_gpm = 0.0104 * A * i;
+            const Q_gpm = 0.0104 * A_imperial * i_imperial;
             
             if (drain_type === 'scupper') {
                 // Weir formula: Q_gpm = 213 * L_in * (dh_in)^(1.5)
                 // Solved for dh: dh_in = (Q_gpm / (213 * L_in))^(2/3)
                 if (scupper_width > 0) {
-                    dh = Math.pow(Q_gpm / (213 * scupper_width), 2/3);
-                    dh_calc_note = `d_h calculated from Q = ${Q_gpm.toFixed(1)} gpm and a ${scupper_width}-in wide scupper.`;
+                    const dh_imperial = Math.pow(Q_gpm / (213 * scupper_width_imperial), 2/3);
+                    dh = unit_system === 'imperial' ? dh_imperial : dh_imperial * 25.4; // Convert back to mm if needed
+                    dh_calc_note = `d_h calculated from Q = ${Q_gpm.toFixed(1)} gpm and a ${scupper_width} ${unit_system === 'imperial' ? 'in' : 'mm'} wide scupper.`;
                 } else {
                     dh = 0;
                     dh_calc_note = "Scupper width must be > 0 to calculate d_h.";
@@ -43,8 +50,9 @@ const rainLoadCalculator = (() => {
                 // Orifice formula: Q_gpm = 24.5 * d_in^2 * sqrt(dh_in)
                 // Solved for dh: dh_in = (Q_gpm / (24.5 * d_in^2))^2
                 if (drain_diameter > 0) {
-                    dh = Math.pow(Q_gpm / (24.5 * Math.pow(drain_diameter, 2)), 2);
-                    dh_calc_note = `d_h calculated from Q = ${Q_gpm.toFixed(1)} gpm and a ${drain_diameter}-in diameter drain.`;
+                    const dh_imperial = Math.pow(Q_gpm / (24.5 * Math.pow(drain_diameter_imperial, 2)), 2);
+                    dh = unit_system === 'imperial' ? dh_imperial : dh_imperial * 25.4; // Convert back to mm if needed
+                    dh_calc_note = `d_h calculated from Q = ${Q_gpm.toFixed(1)} gpm and a ${drain_diameter} ${unit_system === 'imperial' ? 'in' : 'mm'} diameter drain.`;
                 } else {
                     dh = 0;
                     dh_calc_note = "Drain diameter must be > 0 to calculate d_h.";
