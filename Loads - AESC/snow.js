@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-snow-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('snow-file-input')); // initiateLoad is already generic
         document.getElementById('snow-file-input').addEventListener('change', handleLoadSnowInputs);
 
-        attachDebouncedListeners(snowInputIds, handleRunSnowCalculation);
+        // attachDebouncedListeners(snowInputIds, handleRunSnowCalculation);
 
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
@@ -128,9 +128,9 @@ const snowLoadCalculator = (() => {
     }
     
     function calculateSnowDensity(pg) {
-        if (!isFinite(pg) || pg <= 0) { // Changed pg < 0 to pg <= 0
+        if (!isFinite(pg) || pg <= 0) {
             // Return a safe, non-zero default if input is invalid or zero to prevent division by zero later.
-            return 14.0; 
+            return 13.0; // A common starting point for snow density.
         }
         let gamma = 0.13 * pg + 14;
         return Math.min(gamma, 30.0);
@@ -376,10 +376,11 @@ function renderSnowResults(results) {
      const f_unit = inputs.unit_system === 'imperial' ? 'plf' : 'kN/m';
      const l_unit_long = inputs.unit_system === 'imperial' ? 'feet' : 'meters';
      const l_unit = inputs.unit_system === 'imperial' ? 'ft' : 'm';
-
-     let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
+ 
+     let html = `<div id="snow-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
      html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
                     <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
+                    <button data-copy-target-id="snow-report-content" class="copy-section-btn bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 text-sm">Copy All</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Full Report</button>
                </div>`;
 
@@ -398,10 +399,11 @@ function renderSnowResults(results) {
 
     // --- 1. DESIGN PARAMETERS ---
     html += `<div id="snow-design-parameters-section" class="mt-6 report-section-copyable">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
-                    <button data-copy-target-id="snow-design-parameters-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xl font-bold uppercase flex-grow">1. Design Parameters</h3>
+                    <button data-copy-target-id="snow-design-parameters-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                 </div>
+                <div class="copy-content">
                  <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                  <ul class="list-disc list-inside space-y-1">
                      <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
@@ -419,14 +421,16 @@ function renderSnowResults(results) {
                      ${inputs.calculate_drift ? `<li><strong>Lower Roof Length (l<sub>l</sub>):</strong> ${inputs.lower_roof_length_ll.toFixed(2)} ${l_unit}</li>` : ''}
                      <li><strong>Importance Factor (I<sub>s</sub>):</strong> ${intermediate.Is.toFixed(2)} <span class="ref">[ASCE 7, Table 1.5-2]</span></li>
                  </ul>
-             </div>`;
+                </div>
+            </div>`;
 
     // --- 2. DETAILED CALCULATION BREAKDOWN ---
     html += `<div id="snow-calc-breakdown-section" class="mt-6 report-section-copyable">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
-                    <button data-copy-target-id="snow-calc-breakdown-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xl font-bold uppercase flex-grow">2. Detailed Calculation Breakdown</h3>
+                    <button data-copy-target-id="snow-calc-breakdown-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                 </div>
+                <div class="copy-content">
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <div class="calc-breakdown mt-0">
                     <h4 class="font-semibold uppercase text-base">a) Balanced Snow Load Calculation</h4>
@@ -446,15 +450,17 @@ function renderSnowResults(results) {
                         ${is_nycbc_min_governed ? `<li><strong>Jurisdictional Minimum:</strong> <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">NYCBC minimum of <b>${inputs.nycbc_minimum_roof_snow_load.toFixed(2)} ${p_unit}</b> governs. <span class="ref">[NYCBC, SEC. 1608.4]</span></div></li>` : ''}
                     </ul>
                 </div>
+                </div>
             </div>`;
 
     // --- 3. LOAD CASE DIAGRAMS ---
     html += `<div id="snow-diagrams-section" class="mt-6 report-section-copyable">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold uppercase">3. Load Case Diagrams</h3>
-                    <button data-copy-target-id="snow-diagrams-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xl font-bold uppercase flex-grow">3. Load Case Diagrams</h3>
+                    <button data-copy-target-id="snow-diagrams-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                 </div>
-                <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
+                <div class="copy-content">
+                    <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     ${generateBalancedSnowDiagram()}
                     ${inputs.calculate_unbalanced && unbalanced.applicable ? generateUnbalancedSnowDiagram() : ''}
@@ -465,10 +471,11 @@ function renderSnowResults(results) {
     // --- 4. FINAL NOMINAL SNOW LOADS ---
     if ((inputs.calculate_unbalanced && unbalanced.applicable) || (inputs.calculate_drift && drift.applicable)) {
         html += `<div id="snow-summary-section" class="mt-6 report-section-copyable">
-                    <div class="flex justify-between items-center">
-                         <h3 class="text-xl font-bold uppercase">4. Governing Load Summary</h3>
-                         <button data-copy-target-id="snow-summary-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    <div class="flex justify-between items-center mb-2">
+                         <h3 class="text-xl font-bold uppercase flex-grow">4. Governing Load Summary</h3>
+                         <button data-copy-target-id="snow-summary-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                     </div>
+                    <div class="copy-content">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                     ${generateBalancedSnowCard(ps_balanced_nominal, p_unit)}
                  `;
@@ -518,16 +525,17 @@ function renderSnowResults(results) {
             html += `</div>`;
         }
         html += `</div>`; // Close grid
-        html += `</div>`; // Close summary section
+        html += `</div></div>`; // Close copy-content and summary section
     }
 
     if (results.partial && results.partial.applicable) {
         const { partial } = results;
         html += `<div id="snow-partial-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6 report-section-copyable">
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-lg font-semibold text-center flex-grow">Partial Loading (ASCE 7 Sec. 7.8)</h3>
-                        <button data-copy-target-id="snow-partial-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                        <h3 class="text-lg font-semibold text-center flex-grow">Partial Loading (Continuous Beams)</h3>
+                        <button data-copy-target-id="snow-partial-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                     </div>
+                    <div class="copy-content">
                     <div class="text-center">
                         <p>Load on Adjacent Span</p>
                         <p class="font-bold text-2xl">${partial.load_on_adjacent_span.toFixed(2)} ${p_unit}</p>
@@ -535,6 +543,7 @@ function renderSnowResults(results) {
                     </div>
                  </div>`;
     }
+    html += `</div>`; // Close copy-content
 
     html += `</div>`;
     resultsContainer.innerHTML = html;

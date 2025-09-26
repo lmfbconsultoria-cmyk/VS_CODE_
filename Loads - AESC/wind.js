@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('wind-file-input')); // initiateLoad is already generic
         document.getElementById('wind-file-input').addEventListener('change', (e) => handleLoadWindInputs(e));
 
-        attachDebouncedListeners(windInputIds, handleRunWindCalculation);
+        // attachDebouncedListeners(windInputIds, handleRunWindCalculation);
 
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
@@ -1272,28 +1272,33 @@ function generateWindSummary(inputs, directional_results, candc, p_unit) { // Th
 /**
  * Generates the HTML for the "Design Parameters" section of the report.
  */
-function renderDesignParameters(inputs, intermediate, units) { // This function was missing in the original context
+function renderDesignParameters(inputs, intermediate, units) {
     const { v_unit, h_unit } = units;
     
-    let html = `<div class="mt-6 report-section-copyable">
-                <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+    let html = `<div id="design-parameters-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">1. Design Parameters</h3>
+                    <button data-copy-target-id="design-parameters-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
-                <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
-                    <li><strong>Basic Design Wind Speed (V):</strong> ${inputs.V_unreduced.toFixed(1)} ${v_unit.toUpperCase()} <span class="ref">[User Input / Jurisdiction]</span></li>
-                    <li><strong>Building Dimensions (L x B):</strong> ${inputs.building_length_L} x ${inputs.building_width_B} ${h_unit.toUpperCase()}</li>
-                    <li><strong>Exposure Category:</strong> ${sanitizeHTML(inputs.exposure_category)} <span class="ref">[ASCE 7, Sec. 26.7]</span></li>
-                    <li><strong>Building Height (h):</strong> ${inputs.mean_roof_height} ${h_unit.toUpperCase()}</li>
-                    <li><strong>L/B Ratio (Wind ⊥ to L):</strong> ${(inputs.building_length_L / inputs.building_width_B).toFixed(2)} <span class="ref">[Used for Leeward Cp]</span></li>
-                    <li><strong>L/B Ratio (Wind ⊥ to B):</strong> ${(inputs.building_width_B / inputs.building_length_L).toFixed(2)} <span class="ref">[Used for Leeward Cp]</span></li>
-                    <li><strong>Wind Directionality Factor (K<sub>d</sub>):</strong> ${intermediate.Kd.toFixed(2)} <span class="ref">[${intermediate.Kd_ref}]</span></li>
-                    <li><strong>Topographic Factor (K<sub>zt</sub>):</strong> ${inputs.topographic_factor_Kzt.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.8]</span></li>
-                    <li><strong>Ground Elevation Factor (K<sub>e</sub>):</strong> ${intermediate.Ke.toFixed(2)} <span class="ref">[${intermediate.ke_ref}]</span></li>
-                    <li><strong>Gust-Effect Factor (G):</strong> ${inputs.gust_effect_factor_g.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.11]</span></li>
-                    <li><strong>Velocity Pressure Exposure Coefficient (K<sub>z</sub>):</strong> ${intermediate.Kz.toFixed(2)} <span class="ref">[${intermediate.Kz_ref}]</span></li>
-                    <li><strong>Internal Pressure Coefficient (GC<sub>pi</sub>):</strong> &plusmn;${inputs.GCpi_abs.toFixed(2)} <span class="ref">[${intermediate.GCpi_ref}]</span></li>
-                    ${inputs.temporary_construction === 'Yes' ? `<li><strong>Reduction Factor for Temporary Construction:</strong> 0.8 <span class="ref">[NYC BC, SEC. 1619.3.3]</span></li>` : ''}
-                </ul>
+                <div class="copy-content">
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
+                        <li><strong>Basic Design Wind Speed (V):</strong> ${inputs.V_unreduced.toFixed(1)} ${v_unit.toUpperCase()} <span class="ref">[User Input / Jurisdiction]</span></li>
+                        <li><strong>Building Dimensions (L x B):</strong> ${inputs.building_length_L} x ${inputs.building_width_B} ${h_unit.toUpperCase()}</li>
+                        <li><strong>Exposure Category:</strong> ${sanitizeHTML(inputs.exposure_category)} <span class="ref">[ASCE 7, Sec. 26.7]</span></li>
+                        <li><strong>Building Height (h):</strong> ${inputs.mean_roof_height} ${h_unit.toUpperCase()}</li>
+                        <li><strong>L/B Ratio (Wind ⊥ to L):</strong> ${(inputs.building_length_L / inputs.building_width_B).toFixed(2)} <span class="ref">[Used for Leeward Cp]</span></li>
+                        <li><strong>L/B Ratio (Wind ⊥ to B):</strong> ${(inputs.building_width_B / inputs.building_length_L).toFixed(2)} <span class="ref">[Used for Leeward Cp]</span></li>
+                        <li><strong>Wind Directionality Factor (K<sub>d</sub>):</strong> ${intermediate.Kd.toFixed(2)} <span class="ref">[${intermediate.Kd_ref}]</span></li>
+                        <li><strong>Topographic Factor (K<sub>zt</sub>):</strong> ${inputs.topographic_factor_Kzt.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.8]</span></li>
+                        <li><strong>Ground Elevation Factor (K<sub>e</sub>):</strong> ${intermediate.Ke.toFixed(2)} <span class="ref">[${intermediate.ke_ref}]</span></li>
+                        <li><strong>Gust-Effect Factor (G):</strong> ${inputs.gust_effect_factor_g.toFixed(2)} <span class="ref">[ASCE 7, Sec. 26.11]</span></li>
+                        <li><strong>Velocity Pressure Exposure Coefficient (K<sub>z</sub>):</strong> ${intermediate.Kz.toFixed(2)} <span class="ref">[${intermediate.Kz_ref}]</span></li>
+                        <li><strong>Internal Pressure Coefficient (GC<sub>pi</sub>):</strong> &plusmn;${inputs.GCpi_abs.toFixed(2)} <span class="ref">[${intermediate.GCpi_ref}]</span></li>
+                        ${inputs.temporary_construction === 'Yes' ? `<li><strong>Reduction Factor for Temporary Construction:</strong> 0.8 <span class="ref">[NYC BC, SEC. 1619.3.3]</span></li>` : ''}
+                    </ul>
+                </div>
              </div>`;
     return html;
 }
@@ -1301,27 +1306,32 @@ function renderDesignParameters(inputs, intermediate, units) { // This function 
 /**
  * Generates the HTML for the "Detailed Calculation Breakdown" section.
  */
-function renderCalculationBreakdown(inputs, intermediate, units) { // This function was missing in the original context
+function renderCalculationBreakdown(inputs, intermediate, units) {
     const { h_unit, p_unit } = units;
 
-    let html = `<div class="mt-6">
-                <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+    let html = `<div id="calc-breakdown-section" class="mt-6 report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold uppercase">2. Detailed Calculation Breakdown</h3>
+                    <button data-copy-target-id="calc-breakdown-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
-                <div class="calc-breakdown">
-                    <h4 class="font-semibold uppercase text-base">a) Intermediate Calculations</h4>
-                    <ul class="list-disc list-inside space-y-2 mt-2">
-                        <li><strong>Factors:</strong> I<sub>w</sub> = ${intermediate.Iw.toFixed(2)}, K<sub>d</sub> = ${intermediate.Kd.toFixed(2)}, K<sub>zt</sub> = ${inputs.topographic_factor_Kzt.toFixed(2)}, G = ${inputs.gust_effect_factor_g.toFixed(2)}, GC<sub>pi</sub> = &plusmn;${inputs.GCpi_abs.toFixed(2)}</li>
-                        <li><strong>Exposure Constants (&alpha;, z<sub>g</sub>):</strong> ${intermediate.alpha}, ${intermediate.zg.toFixed(0)} ${h_unit}</li>
-                        <li><strong>Elevation Factor (K<sub>e</sub>):</strong>
-                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">Interpolated from ${intermediate.ke_ref} &rarr; K<sub>e</sub> = ${intermediate.Ke.toFixed(3)}</div>
-                        </li>
-                        <li><strong>Exposure Coefficient (K<sub>z</sub>):</strong>
-                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">K<sub>z</sub> = 2.01 &times; (${inputs.mean_roof_height.toFixed(2)} / ${intermediate.zg.toFixed(0)})<sup>(2 / ${intermediate.alpha})</sup> = ${intermediate.Kz.toFixed(3)}</div>
-                        </li>
-                        <li><strong>Velocity Pressure (q<sub>h</sub>):</strong>
-                            <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">q<sub>h</sub> = 0.00256 &times; ${intermediate.Kz.toFixed(3)} &times; ${inputs.topographic_factor_Kzt.toFixed(2)} &times; ${intermediate.Kd.toFixed(2)} &times; ${intermediate.Ke.toFixed(3)} &times; ${inputs.V_in.toFixed(1)}² ${inputs.effective_standard === 'ASCE 7-22' ? `&times; ${intermediate.Iw.toFixed(2)}` : ''} = ${intermediate.qz.toFixed(2)} ${p_unit}</div>
-                        </li>
-                    </ul>
+                <div class="copy-content">
+                    <div class="calc-breakdown">
+                        <h4 class="font-semibold uppercase text-base">a) Intermediate Calculations</h4>
+                        <ul class="list-disc list-inside space-y-2 mt-2">
+                            <li><strong>Factors:</strong> I<sub>w</sub> = ${intermediate.Iw.toFixed(2)}, K<sub>d</sub> = ${intermediate.Kd.toFixed(2)}, K<sub>zt</sub> = ${inputs.topographic_factor_Kzt.toFixed(2)}, G = ${inputs.gust_effect_factor_g.toFixed(2)}, GC<sub>pi</sub> = &plusmn;${inputs.GCpi_abs.toFixed(2)}</li>
+                            <li><strong>Exposure Constants (&alpha;, z<sub>g</sub>):</strong> ${intermediate.alpha}, ${intermediate.zg.toFixed(0)} ${h_unit}</li>
+                            <li><strong>Elevation Factor (K<sub>e</sub>):</strong>
+                                <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">Interpolated from ${intermediate.ke_ref} &rarr; K<sub>e</sub> = ${intermediate.Ke.toFixed(3)}</div>
+                            </li>
+                            <li><strong>Exposure Coefficient (K<sub>z</sub>):</strong>
+                                <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">K<sub>z</sub> = 2.01 &times; (${inputs.mean_roof_height.toFixed(2)} / ${intermediate.zg.toFixed(0)})<sup>(2 / ${intermediate.alpha})</sup> = ${intermediate.Kz.toFixed(3)}</div>
+                            </li>
+                            <li><strong>Velocity Pressure (q<sub>h</sub>):</strong>
+                                <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">q<sub>h</sub> = 0.00256 &times; ${intermediate.Kz.toFixed(3)} &times; ${inputs.topographic_factor_Kzt.toFixed(2)} &times; ${intermediate.Kd.toFixed(2)} &times; ${intermediate.Ke.toFixed(3)} &times; ${inputs.V_in.toFixed(1)}² ${inputs.effective_standard === 'ASCE 7-22' ? `&times; ${intermediate.Iw.toFixed(2)}` : ''} = ${intermediate.qz.toFixed(2)} ${p_unit}</div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>`;
     return html;
@@ -1330,7 +1340,7 @@ function renderCalculationBreakdown(inputs, intermediate, units) { // This funct
 /**
  * Renders the results table for Open Buildings.
  */
-function renderOpenBuildingResults(directional_results, open_building_ref, inputs, units) { // This function was missing in the original context
+function renderOpenBuildingResults(directional_results, open_building_ref, inputs, units) {
     const { p_unit } = units;
     if (inputs.enclosure_classification !== 'Open') return '';
 
@@ -1361,7 +1371,7 @@ function renderOpenBuildingResults(directional_results, open_building_ref, input
 /**
  * Renders a single directional results table for MWFRS.
  */
-function renderDirectionalResultsTable(data, title, id_prefix, inputs, intermediate, units) { // This function was missing in the original context
+function renderDirectionalResultsTable(data, title, id_prefix, inputs, intermediate, units) {
     const { p_unit } = units;
 
         let tableHtml = `<table class="w-full mt-4 border-collapse"><caption>${title}</caption>
@@ -1404,10 +1414,14 @@ function renderDirectionalResultsTable(data, title, id_prefix, inputs, intermedi
 /**
  * Renders the entire MWFRS section, including diagrams and tables for both directions.
  */
-function renderMwfrsSection(directional_results, inputs, intermediate, mwfrs_method, units) { // This function was missing in the original context
+function renderMwfrsSection(directional_results, inputs, intermediate, mwfrs_method, units) {
     const { h_unit } = units;
-    let html = `<div class="text-center pt-4"><h3 class="text-xl font-bold">MWFRS DESIGN PRESSURES (${mwfrs_method})</h3></div>
-        <div>
+    let html = `<div id="mwfrs-section" class="mt-6 report-section-copyable">
+        <div class="flex justify-between items-center text-center pt-4">
+            <h3 class="text-xl font-bold flex-grow">MWFRS DESIGN PRESSURES (${mwfrs_method})</h3>
+            <button data-copy-target-id="mwfrs-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+        </div>
+        <div class="copy-content">
             <h4 class="text-lg font-semibold mt-6 mb-2 text-center">Wind Perpendicular to ${inputs.building_length_L} ${h_unit} Side (on ${inputs.building_width_B} ${h_unit} face)</h4>
             <div class="diagram my-4">
                 <div class="max-w-sm mx-auto">
@@ -1442,20 +1456,24 @@ function renderMwfrsSection(directional_results, inputs, intermediate, mwfrs_met
             </div>
             ${renderDirectionalResultsTable(directional_results.perp_to_B, `--- ${inputs.design_method} Pressures ---`, 'B', inputs, intermediate, units)}
         </div>
-        `;
+        </div>`;
     return html;
 }
 
 /**
  * Renders the table for height-varying windward wall pressures.
  */
-function renderHeightVaryingTable(heightVaryingResults, leeward_pressure, inputs, units) { // This function was missing in the original context
+function renderHeightVaryingTable(heightVaryingResults, leeward_pressure, inputs, units) {
     const { h_unit, p_unit } = units;
     if (!heightVaryingResults) return '';
         const factor = inputs.design_method === 'ASD' ? 0.6 : 1.0;
 
-    let html = `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
-                    <h3 class="text-xl font-semibold text-center mb-4">Height-Varying Windward Wall Pressures</h3>
+    let html = `<div id="height-varying-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8 report-section-copyable">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-center flex-grow">Height-Varying Windward Wall Pressures</h3>
+                        <button data-copy-target-id="height-varying-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                    </div>
+                    <div class="copy-content">
                     <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">Leeward wall pressure is constant and based on q<sub>h</sub>.</p>
                     <table class="w-full mt-4 border-collapse">
                         <thead class="bg-gray-100 dark:bg-gray-700">
@@ -1480,16 +1498,20 @@ function renderHeightVaryingTable(heightVaryingResults, leeward_pressure, inputs
                         <td colspan="3" class="text-right font-semibold pr-4">Constant Leeward Pressure (Perp. to L):</td>
                         <td>${(leeward_pressure * factor).toFixed(2)}</td>
                     </tr>
-                    </tbody></table>
-                 </div>`;
+                    </tbody></table></div>
+                </div>`;
     return html;
 }
 
-function renderRoofPressureDistribution(roofPressureDist_L, roofPressureDist_B, inputs, units) { // This function was missing in the original context
+function renderRoofPressureDistribution(roofPressureDist_L, roofPressureDist_B, inputs, units) {
     if (!roofPressureDist_L || !roofPressureDist_B) return '';
     const factor = inputs.design_method === 'ASD' ? 0.6 : 1.0;
-    let html = `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
-                    <h3 class="text-xl font-semibold text-center mb-2">Roof Pressure Distribution (Low-Rise)</h3>
+    let html = `<div id="roof-dist-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8 report-section-copyable">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xl font-semibold text-center flex-grow">Roof Pressure Distribution (Low-Rise)</h3>
+                        <button data-copy-target-id="roof-dist-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                    </div>
+                    <div class="copy-content">
                     <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">Pressure variation along the roof surface, from windward to leeward edge.</p>
                     <div class="diagram my-4">
                         <svg viewBox="0 0 400 200" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
@@ -1542,7 +1564,7 @@ function renderRoofPressureDistribution(roofPressureDist_L, roofPressureDist_B, 
                          </tr>`;
             });
         html += `           </tbody></table>
-                    </div>
+                    </div></div>
                 </div>`;
     html += `</div>`;
 
@@ -1552,7 +1574,7 @@ function renderRoofPressureDistribution(roofPressureDist_L, roofPressureDist_B, 
 /**
  * Renders the Torsional Load Case section.
  */
-function renderTorsionalCase(torsional_case, inputs, units) { // This function was missing in the original context
+function renderTorsionalCase(torsional_case, inputs, units) {
     if (!torsional_case) return '';
     const { is_imp } = units;
         const m_unit = is_imp ? 'lb-ft' : 'kN-m';
@@ -1563,8 +1585,12 @@ function renderTorsionalCase(torsional_case, inputs, units) { // This function w
             Mt_B *= 0.6;
         }
 
-    return `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
-                    <h3 class="text-xl font-semibold text-center mb-4">Torsional Load Case (ASCE 7 Fig. 27.4-8, Case 2)</h3>
+    return `<div id="torsional-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8 report-section-copyable">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-center flex-grow">Torsional Load Case (ASCE 7 Fig. 27.4-8, Case 2)</h3>
+                        <button data-copy-target-id="torsional-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                    </div>
+                    <div class="copy-content">
                     <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">This moment must be considered concurrently with 75% of the Case 1 design wind pressures on the walls.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
                         <div>
@@ -1576,24 +1602,29 @@ function renderTorsionalCase(torsional_case, inputs, units) { // This function w
                             <p class="text-2xl font-bold">${Mt_B.toLocaleString(undefined, {maximumFractionDigits: 0})} ${m_unit}</p>
                         </div>
                     </div>
-                 </div>`;
+                    </div>
+                </div>`;
 }
 
 /**
  * Renders the Components & Cladding (C&C) section.
  */
-function renderCandCSection(candc, inputs, units) { // This function was missing in the original context
+function renderCandCSection(candc, inputs, units) {
     if (!candc || !candc.applicable) return '';
     const { is_imp, p_unit } = units;
-    let html = `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8">
-                    <h3 class="text-xl font-semibold text-center mb-4">Components & Cladding (C&C) Pressures</h3>
+    let html = `<div id="candc-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-8 report-section-copyable">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-center flex-grow">Components & Cladding (C&C) Pressures</h3>
+                        <button data-copy-target-id="candc-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                    </div>
+                    <div class="copy-content">
                     <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">
                         Calculated for Effective Wind Area A = ${sanitizeHTML(inputs.effective_wind_area)} ${is_imp ? 'ft²' : 'm²'}. Reference: ${sanitizeHTML(candc.ref)}.
                     </p>
                     
                     ${generateCandCDiagram(inputs, candc)}
 
-                    <table class="w-full mt-4 border-collapse">
+                    <table class="w-full border-collapse">
                     `;
         if (candc.is_high_rise) {
             html += `<thead class="bg-gray-100 dark:bg-gray-700">
@@ -1635,7 +1666,7 @@ function renderCandCSection(candc, inputs, units) { // This function was missing
                 html += `<tr><td>${sanitizeHTML(zone)}</td><td>${data.gcp.toFixed(2)}</td><td>${pressure.toFixed(2)}</td></tr>`;
             }
         }
-        html += `</tbody></table></div>`;
+        html += `</tbody></table></div></div>`;
     return html;
 }
 
@@ -2009,8 +2040,24 @@ function sendWindToCombos(results) {
     // C&C Loads
     const candc = results.candc;
     if (candc && candc.applicable && candc.pressures) {
-        comboData.combo_wind_cc_max = getPressure(Object.values(candc.pressures).find(p => p.p_pos > 0), 'pos');
-        comboData.combo_wind_cc_min = getPressure(Object.values(candc.pressures).reduce((min, p) => (p.p_neg < min.p_neg ? p : min)), 'neg');
+        let cc_roof_max = -Infinity, cc_roof_min = Infinity;
+        let cc_wall_max = -Infinity, cc_wall_min = Infinity;
+
+        for (const [zone, pressureData] of Object.entries(candc.pressures)) {
+            const p_asd_pos = pressureData.p_pos * 0.6;
+            const p_asd_neg = pressureData.p_neg * 0.6;
+            if (zone.toLowerCase().includes('wall')) {
+                if (p_asd_pos > cc_wall_max) cc_wall_max = p_asd_pos;
+                if (p_asd_neg < cc_wall_min) cc_wall_min = p_asd_neg;
+            } else { // roof
+                if (p_asd_pos > cc_roof_max) cc_roof_max = p_asd_pos;
+                if (p_asd_neg < cc_roof_min) cc_roof_min = p_asd_neg;
+            }
+        }
+        comboData.combo_wind_cc_max = cc_roof_max > -Infinity ? cc_roof_max : 0;
+        comboData.combo_wind_cc_min = cc_roof_min < Infinity ? cc_roof_min : 0;
+        comboData.combo_wind_cc_wall_max = cc_wall_max > -Infinity ? cc_wall_max : 0;
+        comboData.combo_wind_cc_wall_min = cc_wall_min < Infinity ? cc_wall_min : 0;
     }
 
     localStorage.setItem('loadsForCombinator', JSON.stringify(comboData));
@@ -2029,9 +2076,10 @@ function renderWindResults(results) {
     const [v_unit, h_unit, p_unit] = is_imp ? ['mph', 'ft', 'psf'] : ['m/s', 'm', 'Pa'];
     const units = { is_imp, v_unit, h_unit, p_unit };
     
-    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
+    let html = `<div id="wind-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
                     <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
+                    <button data-copy-target-id="wind-report-content" class="copy-section-btn bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 text-sm">Copy All</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                    </div>`;
 

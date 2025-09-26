@@ -30,6 +30,33 @@ function initializeTheme() {
     }
 
     if (themeToggleButton) themeToggleButton.addEventListener('click', toggleTheme);
+
+    initializeBackToTopButton();
+}
+
+/**
+ * Initializes the "Back to Top" button functionality.
+ * It shows the button on scroll and handles the scroll-to-top action.
+ */
+function initializeBackToTopButton() {
+    const backToTopButton = document.getElementById('back-to-top-btn');
+    if (!backToTopButton) return;
+
+    // Show or hide the button based on scroll position
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            backToTopButton.classList.remove('opacity-0', 'invisible');
+            backToTopButton.classList.add('opacity-100', 'visible');
+        } else {
+            backToTopButton.classList.remove('opacity-100', 'visible');
+            backToTopButton.classList.add('opacity-0', 'invisible');
+        }
+    });
+
+    // Scroll to top on click
+    backToTopButton.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
 
 /**

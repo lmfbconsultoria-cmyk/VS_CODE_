@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-combo-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('combo-file-input')); // initiateLoad is already generic
         document.getElementById('combo-file-input').addEventListener('change', handleLoadComboInputs);
 
-        attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
+        // attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
 
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
@@ -350,8 +350,9 @@ function renderComboResults(fullResults) {
     lastComboRunResults = fullResults;
     
     const resultsContainer = document.getElementById('combo-results-container');
-    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6 report-section-copyable">`;
+    let html = `<div id="combo-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
+                    <button data-copy-target-id="combo-report-content" class="copy-section-btn bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 text-sm">Copy All</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
               </div>`;
 
@@ -396,7 +397,7 @@ function renderComboResults(fullResults) {
     html += `<div id="combo-inputs-section" class="mt-6 report-section-copyable">
                 <div class="flex justify-between items-center">
                     <h3 class="text-xl font-bold uppercase">1. Input Loads</h3>
-                    <button data-copy-target-id="combo-inputs-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    <button data-copy-target-id="combo-inputs-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                 </div>
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <ul class="list-disc list-inside space-y-1">`;
@@ -417,7 +418,7 @@ function renderComboResults(fullResults) {
     html += `<div id="combo-base-section" class="report-section-copyable">
              <div class="flex justify-between items-center mt-6">
                 <h3 class="text-xl font-semibold text-center flex-grow">Base Load Combinations</h3>
-                <button data-copy-target-id="combo-base-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                <button data-copy-target-id="combo-base-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
              </div>
              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-2">These combinations are constant across all scenarios.</p>
              <table class="results-container w-full mt-2 border-collapse">
@@ -427,7 +428,11 @@ function renderComboResults(fullResults) {
         if (combo.includes('W') || combo.includes('S') || combo.includes('E')) continue;
         const formula = fullResults.base_combos.final_formulas[combo].toString().replace(/d\./g, '');
         const value = fullResults.base_combos.results[combo];
-        html += `<tr><td>${combo}</td><td>${formula.replace(/Math\.max/g, 'max').replace(/Math\.min/g, 'min')}</td><td>${value.toFixed(2)}</td></tr>`;
+        const cleanFormula = formula
+            .replace(/Math\.(max|min)/g, '$1')
+            .replace(/_7_16/g, '') // remove suffixes from variable names
+            .replace(/_7_22/g, '');
+        html += `<tr><td>${combo}</td><td>${cleanFormula}</td><td>${value.toFixed(2)}</td></tr>`;
     }
     html += `</tbody></table></div>`;
 
@@ -460,7 +465,7 @@ function renderComboResults(fullResults) {
          html += `<div id="combo-scenario-${scenario_key}" class="report-section-copyable">
                     <div class="flex justify-between items-center mt-8">
                         <h3 class="text-xl font-semibold text-center flex-grow">${title}</h3>
-                        <button data-copy-target-id="combo-scenario-${scenario_key}" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                        <button data-copy-target-id="combo-scenario-${scenario_key}" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                     </div>
                  `;
          html += `<table class="results-container w-full mt-2 border-collapse">
@@ -470,6 +475,10 @@ function renderComboResults(fullResults) {
         for (const combo in res_wmax.results) {
              if (!combo.includes('W') && !combo.includes('S') && !combo.includes('E')) continue; // Skip base combos
              const formula = res_wmax.final_formulas[combo].toString().replace(/d\./g, '');
+             const cleanFormula = formula
+                .replace(/Math\.(max|min)/g, '$1')
+                .replace(/_7_16/g, '')
+                .replace(/_7_22/g, '');
              const val_wmax = res_wmax.results[combo];
              const val_wmin = res_wmin.results[combo];
              const rowId = `row-${scenario_key}-${combo.replace(/\s/g, '-')}`;
@@ -478,7 +487,7 @@ function renderComboResults(fullResults) {
 
              html += `<tr id="${rowId}">
                         <td>${combo}</td>
-                        <td>${formula.replace(/Math\.max/g, 'max').replace(/Math\.min/g, 'min')}</td>
+                        <td>${cleanFormula}</td>
                         <td>${val_wmax.toFixed(2)}</td>
                         <td>${val_wmin.toFixed(2)}</td>
                       </tr>`;
@@ -494,6 +503,10 @@ function renderComboResults(fullResults) {
             for (const combo in res_wmax.pattern_results) {
                 if (!combo.includes('W') && !combo.includes('S') && !combo.includes('E')) continue;
                 const formula = res_wmax.final_formulas[combo].toString().replace(/d\./g, '');
+                const cleanFormula = formula
+                    .replace(/Math\.(max|min)/g, '$1')
+                    .replace(/_7_16/g, '')
+                    .replace(/_7_22/g, '');
                 const val_wmax = res_wmax.pattern_results[combo];
                 const val_wmin = res_wmin.pattern_results[combo];
                 const rowId = `row-pattern-${scenario_key}-${combo.replace(/\s/g, '-')}`;
@@ -501,7 +514,7 @@ function renderComboResults(fullResults) {
                 all_gov_data.push({ value: val_wmin, combo, title, pattern: true });
                 html += `<tr id="${rowId}">
                             <td>${combo}</td>
-                            <td>${formula.replace(/Math\.max/g, 'max').replace(/Math\.min/g, 'min')}</td>
+                            <td>${cleanFormula}</td>
                             <td>${val_wmax.toFixed(2)}</td>
                             <td>${val_wmin.toFixed(2)}</td>
                          </tr>`;

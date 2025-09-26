@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-rain-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('rain-file-input')); // initiateLoad is already generic
         document.getElementById('rain-file-input').addEventListener('change', handleLoadRainInputs);
 
-        attachDebouncedListeners(rainInputIds, handleRunRainCalculation);
+        // attachDebouncedListeners(rainInputIds, handleRunRainCalculation);
 
         document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
         
@@ -207,9 +207,10 @@ function renderRainResults(results) {
     const a_unit = inputs.unit_system === 'imperial' ? 'ft²' : 'm²';
     const factor = inputs.unit_system === 'imperial' ? '5.2' : '0.0098';
 
-    let html = `<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6 report-section-copyable">`;
+    let html = `<div id="rain-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2 print-hidden">
                     <button id="send-to-combos-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">Send to Combos</button>
+                    <button data-copy-target-id="rain-report-content" class="copy-section-btn bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 text-sm">Copy All</button>
                     <button id="print-report-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 text-sm">Print Report</button>
                </div>`;
 
@@ -228,29 +229,37 @@ function renderRainResults(results) {
     const finalLoad = (inputs.design_method === 'ASD') ? R_asd : R_strength;
 
     // --- Design Parameters Summary ---
-    html += `<div id="rain-params-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6">
+    html += `<div id="rain-params-section" class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 mt-6 report-section-copyable">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-center flex-grow">Design Parameters</h3>
-                    <button data-copy-target-id="rain-params-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                    <button data-copy-target-id="rain-params-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
                 </div>
-                <ul class="summary-list">
-                    <li><strong>Tributary Area (A):</strong> ${inputs.tributary_area.toFixed(0)} ${a_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
-                    <li><strong>Rainfall Intensity (i):</strong> ${inputs.intensity.toFixed(2)} ${i_unit} <span class="ref">[Plumbing Code / ASCE 7, C8.3]</span></li>
-                    <li><strong>Static Head (d<sub>s</sub>):</strong> ${inputs.static_head.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
-                    <li><strong>Hydraulic Head (d<sub>h</sub>):</strong> ${dh_final.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>_
-                    ${inputs.dh_auto_calc ? `<li><span class="pl-4 text-sm text-gray-500 dark:text-gray-400">&hookrightarrow; ${dh_calc_note}</span></li>` : ''}
-                    <li><strong>Nominal Rain Load (R):</strong> ${R_nominal.toFixed(2)} ${p_unit} <span class="ref">[ASCE 7, Eq. 8.3-1]</span></li>
-                </ul>
+                <div class="copy-content">
+                    <ul class="summary-list">
+                        <li><strong>Tributary Area (A):</strong> ${inputs.tributary_area.toFixed(0)} ${a_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
+                        <li><strong>Rainfall Intensity (i):</strong> ${inputs.intensity.toFixed(2)} ${i_unit} <span class="ref">[Plumbing Code / ASCE 7, C8.3]</span></li>
+                        <li><strong>Static Head (d<sub>s</sub>):</strong> ${inputs.static_head.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>
+                        <li><strong>Hydraulic Head (d<sub>h</sub>):</strong> ${dh_final.toFixed(2)} ${d_unit} <span class="ref">[ASCE 7, Sec. 8.2]</span></li>_
+                        ${inputs.dh_auto_calc ? `<li><span class="pl-4 text-sm text-gray-500 dark:text-gray-400">&hookrightarrow; ${dh_calc_note}</span></li>` : ''}
+                        <li><strong>Nominal Rain Load (R):</strong> ${R_nominal.toFixed(2)} ${p_unit} <span class="ref">[ASCE 7, Eq. 8.3-1]</span></li>
+                    </ul>
+                </div>
              </div>`;
 
     html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-             <div id="rain-summary-section">
+             <div id="rain-summary-section" class="report-section-copyable">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-center flex-grow">Governing Load Summary</h3>
+                    <button data-copy-target-id="rain-summary-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark-text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
+                </div>
+                <div class="copy-content">
                 ${generateRainSummary(inputs, results.results, p_unit, dh_calc_note)}
+                </div>
              </div>
-             <div id="rain-breakdown-section" class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4">
+             <div id="rain-breakdown-section" class="border rounded-md p-4 bg-gray-50 dark:bg-gray-800/50 space-y-4 report-section-copyable">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-center flex-grow">Calculation Breakdown</h3>
-                <button data-copy-target-id="rain-breakdown-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                <button data-copy-target-id="rain-breakdown-section" class="copy-section-btn bg-gray-200 text-gray-700 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 text-xs print-hidden">Copy Section</button>
             </div>
             <ul class="space-y-2">
                 <li><strong>Formula (ASCE 7 Eq 8.3-1):</strong> R = ${factor} * (d<sub>s</sub> + d<sub>h</sub>)</li>
@@ -270,7 +279,7 @@ function renderRainResults(results) {
             <hr class="dark:border-gray-600 my-4">
              <p><strong>Strength Design Load (LRFD):</strong> 1.6 * ${R_nominal.toFixed(2)} = <strong>${R_strength.toFixed(2)} ${p_unit}</strong></p>
              <p><strong>Allowable Stress Design Load (ASD):</strong> 1.0 * ${R_nominal.toFixed(2)} = <strong>${R_asd.toFixed(2)} ${p_unit}</strong></p>
-        </div>
+        </div></div>
         </div>
      </div>`;
 
