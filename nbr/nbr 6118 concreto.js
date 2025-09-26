@@ -105,7 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainerId: 'results-container',
         buttonId: 'run-check-btn'
     });
-    injectHeader({ activePage: 'nbr-concreto', pageTitle: 'Verificador de Viga de Concreto (NBR 6118:2014)', headerPlaceholderId: 'header-placeholder' });
+    injectHeader({ 
+        activePage: 'nbr-concreto', 
+        pageTitle: 'Verificador de Viga de Concreto (NBR 6118:2023)', // UPDATED TITLE
+        headerPlaceholderId: 'header-placeholder' 
+    });
     injectFooter({ footerPlaceholderId: 'footer-placeholder' });
     initializeSharedUI();
 

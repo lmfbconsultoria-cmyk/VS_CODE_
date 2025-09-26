@@ -1017,35 +1017,69 @@ function calculateDesignPressure(q_ext, q_int, G, Cp, GCpi, isWindward = false) 
             windResults.warnings.push(...candc_results.warnings);
         }
 
-        // Torsional Load Case (ASCE 7-16/22 Fig 27.4-8, Case 2)
-        // Applies to enclosed and partially enclosed low-rise buildings
+        // Torsional Load Case (ASCE 7-16/22 Figure 27.4-8)
+        // Applies to enclosed and partially enclosed buildings - Case 2: Torsion
+        // Reference: ASCE 7-16/22 Section 27.4.6 and Figure 27.4-8
         if (!is_tall_building && ["Enclosed", "Partially Enclosed"].includes(inputs.enclosure_classification)) {
             const results_L = windResults.directional_results['perp_to_L'];
             const results_B = windResults.directional_results['perp_to_B'];
             
-            // Only proceed with torsional calculations if both directional results are available.
             if (results_L && results_B) {
                 const cp_map_L = Object.fromEntries(results_L.map(r => [r.surface, r.cp]));
                 const cp_map_B = Object.fromEntries(results_B.map(r => [r.surface, r.cp]));
-
+                
+                // Calculate torsional moment for both wind directions
                 // Wind perpendicular to L (acting on face B)
                 const p_ww_L = qz * G * (cp_map_L["Windward Wall"] || 0);
                 const p_lw_L = qz * G * (cp_map_L["Leeward Wall"] || 0);
-                const F_ww_L = p_ww_L * (inputs.building_width_B * inputs.mean_roof_height);
-                const F_lw_L = p_lw_L * (inputs.building_width_B * inputs.mean_roof_height);
-                const Mt_L = 0.75 * (Math.abs(F_ww_L) + Math.abs(F_lw_L)) * (0.15 * inputs.building_width_B);
+                const wall_height_L = inputs.mean_roof_height;
+                const wall_width_L = inputs.building_width_B;
+                const F_ww_L = p_ww_L * (wall_width_L * wall_height_L); // Windward force
+                const F_lw_L = p_lw_L * (wall_width_L * wall_height_L); // Leeward force
+                const e_L = 0.15 * wall_width_L; // Eccentricity for wind perp to L
 
                 // Wind perpendicular to B (acting on face L)
                 const p_ww_B = qz * G * (cp_map_B["Windward Wall"] || 0);
                 const p_lw_B = qz * G * (cp_map_B["Leeward Wall"] || 0);
-                const F_ww_B = p_ww_B * (inputs.building_length_L * inputs.mean_roof_height);
-                const F_lw_B = p_lw_B * (inputs.building_length_L * inputs.mean_roof_height);
-                const Mt_B = 0.75 * (Math.abs(F_ww_B) + Math.abs(F_lw_B)) * (0.15 * inputs.building_length_L);
-                
+                const wall_height_B = inputs.mean_roof_height;
+                const wall_width_B = inputs.building_length_L;
+                const F_ww_B = p_ww_B * (wall_width_B * wall_height_B); // Windward force
+                const F_lw_B = p_lw_B * (wall_width_B * wall_height_B); // Leeward force
+                const e_B = 0.15 * wall_width_B; // Eccentricity for wind perp to B
+
+                // Calculate torsional moments (ASCE 7-16/22 Figure 27.4-8)
+                // Mt = 0.75 * (|Fww| + |Flw|) * e
+                const Mt_L = 0.75 * (Math.abs(F_ww_L) + Math.abs(F_lw_L)) * e_L;
+                const Mt_B = 0.75 * (Math.abs(F_ww_B) + Math.abs(F_lw_B)) * e_B;
+
+                // Store results with detailed information
                 windResults.torsional_case = {
-                    perp_to_L: { Mt: Mt_L, note: "Apply with 75% of Case 1 wall pressures." },
-                    perp_to_B: { Mt: Mt_B, note: "Apply with 75% of Case 1 wall pressures." }
+                    perp_to_L: {
+                        Mt: Mt_L,
+                        e: e_L,
+                        F_ww: F_ww_L,
+                        F_lw: F_lw_L,
+                        note: "Case 2: Apply torsion with 75% of Case 1 wall pressures. e = 15% of wall width."
+                    },
+                    perp_to_B: {
+                        Mt: Mt_B,
+                        e: e_B,
+                        F_ww: F_ww_B,
+                        F_lw: F_lw_B,
+                        note: "Case 2: Apply torsion with 75% of Case 1 wall pressures. e = 15% of wall width."
+                    },
+                    reference: "ASCE 7-16/22 Section 27.4.6 and Figure 27.4-8"
                 };
+
+                // Add warning if aspect ratio might affect accuracy
+                const aspect_ratio = Math.max(inputs.building_length_L / inputs.building_width_B, 
+                                           inputs.building_width_B / inputs.building_length_L);
+                if (aspect_ratio > 4) {
+                    windResults.warnings.push(
+                        `Building aspect ratio of ${aspect_ratio.toFixed(1)} exceeds 4:1. ` +
+                        `Consider additional engineering judgment for torsional effects.`
+                    );
+                }
             }
         }
 

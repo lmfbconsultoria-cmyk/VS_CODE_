@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('num_beams').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     document.getElementById('beam_spacing').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     updateGeometryInputsUI(); // Initial call
-    loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds);
+    loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds, calculateAndDisplayBuiltUpProperties);
     document.getElementById('run-steel-check-btn').addEventListener('click', handleRunSteelCheck);
 
     document.getElementById('steel-results-container').addEventListener('click', (event) => {
@@ -105,57 +105,82 @@ function calculateAndDisplayBuiltUpProperties() {
                 <tr><td class="py-1">Weak Axis Radius of Gyration (r<sub>y,total</sub>):</td><td class="text-right font-mono">${bu_props.ry.toFixed(2)} in</td></tr>
             </tbody>
         </table>
+        <button id="use-built-up-props-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm w-full mt-4">Use These Properties</button>
     `;
+
+    // Attach event listener to the new button
+    document.getElementById('use-built-up-props-btn').addEventListener('click', () => {
+        // Populate manual input fields
+        document.getElementById('Ag_manual').value = bu_props.Ag.toFixed(3);
+        document.getElementById('I_manual').value = bu_props.Ix.toFixed(2);
+        document.getElementById('Sx_manual').value = bu_props.Sx.toFixed(2);
+        document.getElementById('Zx_manual').value = bu_props.Zx.toFixed(2);
+        document.getElementById('Iy_manual').value = bu_props.Iy.toFixed(2);
+        document.getElementById('Sy_manual').value = bu_props.Sy.toFixed(2);
+        document.getElementById('ry_manual').value = bu_props.ry.toFixed(2);
+        document.getElementById('J_manual').value = bu_props.J.toFixed(2);
+
+        // Set section type to Manual Input
+        const sectionTypeSelect = document.getElementById('section_type');
+        sectionTypeSelect.value = 'Manual Input';
+        // Trigger change event to update UI
+        sectionTypeSelect.dispatchEvent(new Event('change'));
+
+        showFeedback('Built-up properties populated in Manual Input fields.', false, 'feedback-message');
+    });
 }
 
 function updateGeometryInputsUI() {
     const sectionType = document.getElementById('section_type').value;
-    const d_label = document.getElementById('label-d');
-    const bf_label = document.getElementById('label-bf');
-    const tf_label = document.getElementById('label-tf');
-    const tw_label = document.getElementById('label-tw');
-    const d_container = document.getElementById('d-input-container');
-    const bf_container = document.getElementById('bf-input-container');
-    const tf_container = document.getElementById('tf-input-container');
-    const tw_container = document.getElementById('tw-input-container');
+    const labels = {
+        d: document.getElementById('label-d'),
+        bf: document.getElementById('label-bf'),
+        tf: document.getElementById('label-tf'),
+        tw: document.getElementById('label-tw')
+    };
+    const containers = {
+        d: document.getElementById('d-input-container'),
+        bf: document.getElementById('bf-input-container'),
+        tf: document.getElementById('tf-input-container'),
+        tw: document.getElementById('tw-input-container')
+    };
 
-    // Reset visibility
-    d_container.style.display = 'block';
-    bf_container.style.display = 'block';
-    tf_container.style.display = 'block';
-    tw_container.style.display = 'block';
+    const config = {
+        'I-Shape': { d: 'Depth (d)', bf: 'Flange Width (bf)', tf: 'Flange Thick (tf)', tw: 'Web Thick (tw)', show: ['d', 'bf', 'tf', 'tw'] },
+        'Rectangular HSS': { d: 'Height (H)', bf: 'Width (B)', tf: 'Thickness (t)', show: ['d', 'bf', 'tf'] },
+        'HSS-round': { d: 'Diameter (D)', bf: 'Thickness (t)', show: ['d', 'bf'] },
+        'channel': { d: 'Depth (d)', bf: 'Flange Width (bf)', tf: 'Flange Thick (tf)', tw: 'Web Thick (tw)', show: ['d', 'bf', 'tf', 'tw'] },
+        'angle': { d: 'Depth (d)', bf: 'Flange Width (bf)', tf: 'Flange Thick (tf)', tw: 'Web Thick (tw)', show: ['d', 'bf', 'tf', 'tw'] }
+    };
 
-    if (sectionType === 'I-Shape') {
-        d_label.textContent = 'Depth (d)';
-        bf_label.textContent = 'Flange Width (bf)';
-        tf_label.textContent = 'Flange Thick (tf)';
-        tw_label.textContent = 'Web Thick (tw)';
-    } else if (sectionType === 'Rectangular HSS') {
-        d_label.textContent = 'Height (H)';
-        bf_label.textContent = 'Width (B)';
-        tf_label.textContent = 'Thickness (t)';
-        tw_container.style.display = 'none'; // Hide tw
-    } else if (sectionType === 'HSS-round') {
-        d_label.textContent = 'Diameter (D)';
-        bf_label.textContent = 'Thickness (t)';
-        d_container.style.display = 'block';
-        bf_container.style.display = 'block'; // This is now thickness
-        tf_container.style.display = 'none'; // Hide original tf
-        tw_container.style.display = 'none';
-    } else if (sectionType === 'channel' || sectionType === 'angle') {
-        d_label.textContent = 'Depth (d)';
-        bf_label.textContent = 'Flange Width (bf)';
-        tf_label.textContent = 'Flange Thick (tf)';
-        tw_label.textContent = 'Web Thick (tw)';
-    }
+    const currentConfig = config[sectionType];
+
+    Object.keys(containers).forEach(key => {
+        const isVisible = currentConfig.show.includes(key);
+        containers[key].style.display = isVisible ? 'block' : 'none';
+        if (isVisible && labels[key] && currentConfig[key]) {
+            labels[key].textContent = currentConfig[key];
+        }
+    });
 }
 
 function gatherInputs() {
     const getVal = (id) => {
         const el = document.getElementById(id);
-        return el ? (parseFloat(el.value) || 0) : 0;
+        // Only get the value if the element is visible.
+        // el.offsetParent is null if the element or any of its parents has display: none.
+        if (el && el.offsetParent !== null) {
+            return parseFloat(el.value) || 0;
+        }
+        return 0;
     };
-    const getStr = (id) => document.getElementById(id).value;
+    const getStr = (id) => {
+        const el = document.getElementById(id);
+        if (el && el.offsetParent !== null) {
+            return el.value;
+        }
+        return '';
+    };
     return {
         design_method: getStr('design_method'),
         aisc_standard: getStr('aisc_standard'),
@@ -197,73 +222,77 @@ function gatherInputs() {
 const steelChecker = (() => {
 
     function getSectionProperties(inputs) {
-        if (inputs.section_type === 'Manual Input') {
-            return {
-                type: 'I-Shape', Ag: inputs.Ag_manual, Ix: inputs.I_manual, Sx: inputs.Sx_manual, Zx: inputs.Zx_manual,
-                Iy: inputs.Iy_manual, Sy: inputs.Sy_manual, Zy: inputs.Zy_manual, ry: inputs.ry_manual, 
-                rts: inputs.rts_manual, J: inputs.J_manual, Cw: inputs.Cw_manual, d: inputs.d, 
-                bf: inputs.bf, tf: inputs.tf, tw: inputs.tw, h: inputs.d - 2 * inputs.tf, k_des: inputs.tf
-            };
-        }
-        
-        if (inputs.section_type === 'I-Shape') {
-            const { d, bf, tf, tw } = inputs;
-            const Ag = 2 * bf * tf + (d - 2 * tf) * tw;
-            const Ix = (bf * d**3 / 12) - ((bf - tw) * (d - 2 * tf)**3 / 12);
-            const Sx = Ix / (d / 2);
-            const Zx = (bf * tf * (d - tf)) + (tw * (d - 2 * tf)**2 / 4);
-            const Iy = (2 * tf * bf**3 / 12) + ((d - 2 * tf) * tw**3 / 12);
-            const ry = Math.sqrt(Iy / Ag);
-            const h = d - 2 * tf;
-            const Sy = Iy / (bf / 2);
-            const Zy = (tf * bf**2 / 2) + (tw**3 * (d - 2*tf) / 4);
-            const J = (1/3) * (2 * bf * tf**3 + (d - 2 * tf) * tw**3);
-            const Cw = (Iy * h**2) / 4;
-            const rts = (Cw > 0 && Sx > 0) ? Math.sqrt(Math.sqrt(Iy * Cw) / Sx) : 0; // Corrected per AISC F2-7
-            const rx = Math.sqrt(Ix / Ag);
-            return { type: 'I-Shape', Ag, Ix, Sx, Zx, Iy, Sy, Zy, ry, rts, J, Cw, d, bf, tf, tw, h, rx, k_des: inputs.k_des };
-        } else if (inputs.section_type === 'Rectangular HSS') {
-            const { d: H, bf: B, tf: t } = inputs;
-            const Ag = 2 * t * (H + B - 2 * t);
-            const Ix = (B * H**3 / 12) - ((B - 2*t) * (H - 2*t)**3 / 12);
-            const Zx = (B * H**2 / 4) - ((B - 2*t) * (H - 2*t)**2 / 4);
-            const Sx = Ix / (H / 2);
-            const Iy = (H * B**3 / 12) - ((H - 2*t) * (B - 2*t)**3 / 12); // Strong axis for ry
-            const ry = Math.sqrt(Iy / Ag); // ry is weak axis for compression check
-            const Sy = Iy / (B / 2);
-            const Zy = (H * B**2 / 4) - ((H - 2*t) * (B - 2*t)**2 / 4);
-            const h = H - 2 * t;
-            const rx = Math.sqrt(Ix / Ag);
-            return { type: 'Rectangular HSS', Ag, Ix, Sx, Zx, Iy, Sy, Zy, ry, h, d: H, tw: t, tf: t, bf: B, rx, k_des: inputs.k_des };
-        } else if (inputs.section_type === 'HSS/Pipe (Circular)') {
-            const { d: OD, bf: t } = inputs; // bf is used for thickness in UI
-            const ID = OD - 2 * t;
-            const Ag = (Math.PI / 4) * (OD**2 - ID**2);
-            const Ix = (Math.PI / 64) * (OD**4 - ID**4);
-            const Sx = Ix / (OD / 2);
-            const Zx = (OD**3 - ID**3) / 6;
-            const ry = Math.sqrt(Ix / Ag); // r = ry = rx
-            const J = (Math.PI / 32) * (OD**4 - ID**4);
-            const rx = ry;
-            return { type: 'HSS-round', Ag, Ix, Sx, Zx, Iy: Ix, Sy: Sx, Zy: Zx, ry, J, d: OD, tf: t, rx, k_des: inputs.k_des, bf: OD };
-        } else if (inputs.section_type === 'channel') {
-            // Simplified properties for a standard channel. x_bar is a critical missing input.
-            // For a real tool, this would come from a database.
-            const { d, bf, tf, tw } = inputs;
-            const Ag = 2 * bf * tf + (d - 2 * tf) * tw;
-            const Ix = (bf * d**3 / 12) - ((bf - tw) * (d - 2 * tf)**3 / 12); // Approx
-            const x_bar = 0.7; // Placeholder for shear center, MUST be user input or from DB
-            const Iy = (2 * tf * bf**3 / 12) + ((d - 2 * tf) * tw**3 / 12) + Ag * x_bar**2; // Approx
-            const ry = Math.sqrt(Iy/Ag);
-            const rx = Math.sqrt(Ix/Ag);
-            return { type: 'channel', Ag, Ix, Iy, rx, ry, d, bf, tf, tw, x_bar, J: (1/3) * (2 * bf * tf**3 + (d - 2 * tf) * tw**3) };
-        } else if (inputs.section_type === 'angle') {
-            const { d: L1, bf: L2, tf: t } = inputs; // d=long leg, bf=short leg, tf=thickness
-            const Ag = (L1 + L2 - t) * t;
-            // Properties for angles are complex (principal axes). Using geometric for now.
-            return { type: 'angle', Ag, d: L1, bf: L2, tf: t, tw: t, J: (1/3)*(L1+L2)*t**3 };
-        }
-        return {}; // Should not happen
+        const { section_type } = inputs;
+
+        const propertyCalculators = {
+            'Manual Input': (i) => ({
+                type: 'I-Shape', Ag: i.Ag_manual, Ix: i.I_manual, Sx: i.Sx_manual, Zx: i.Zx_manual,
+                Iy: i.Iy_manual, Sy: i.Sy_manual, Zy: i.Zy_manual, ry: i.ry_manual,
+                rts: i.rts_manual, J: i.J_manual, Cw: i.Cw_manual, d: i.d,
+                bf: i.bf, tf: i.tf, tw: i.tw, h: i.d - 2 * i.tf, k_des: i.tf
+            }),
+            'I-Shape': (i) => {
+                const { d, bf, tf, tw } = i;
+                const Ag = 2 * bf * tf + (d - 2 * tf) * tw;
+                const Ix = (bf * d**3 / 12) - ((bf - tw) * (d - 2 * tf)**3 / 12);
+                const Sx = Ix / (d / 2);
+                const Zx = (bf * tf * (d - tf)) + (tw * (d - 2 * tf)**2 / 4);
+                const Iy = (2 * tf * bf**3 / 12) + ((d - 2 * tf) * tw**3 / 12);
+                const ry = Math.sqrt(Iy / Ag);
+                const h = d - 2 * tf;
+                const Sy = Iy / (bf / 2);
+                const Zy = (tf * bf**2 / 2) + (tw**3 * (d - 2*tf) / 4);
+                const J = (1/3) * (2 * bf * tf**3 + (d - 2 * tf) * tw**3);
+                const Cw = (Iy * h**2) / 4;
+                const rts = (Cw > 0 && Sx > 0) ? Math.sqrt(Math.sqrt(Iy * Cw) / Sx) : 0;
+                const rx = Math.sqrt(Ix / Ag);
+                return { type: 'I-Shape', Ag, Ix, Sx, Zx, Iy, Sy, Zy, ry, rts, J, Cw, d, bf, tf, tw, h, rx, k_des: i.k_des };
+            },
+            'Rectangular HSS': (i) => {
+                const { d: H, bf: B, tf: t } = i;
+                const Ag = 2 * t * (H + B - 2 * t);
+                const Ix = (B * H**3 / 12) - ((B - 2*t) * (H - 2*t)**3 / 12);
+                const Zx = (B * H**2 / 4) - ((B - 2*t) * (H - 2*t)**2 / 4);
+                const Sx = Ix / (H / 2);
+                const Iy = (H * B**3 / 12) - ((H - 2*t) * (B - 2*t)**3 / 12);
+                const ry = Math.sqrt(Iy / Ag);
+                const Sy = Iy / (B / 2);
+                const Zy = (H * B**2 / 4) - ((H - 2*t) * (B - 2*t)**2 / 4);
+                const h = H - 2 * t;
+                const rx = Math.sqrt(Ix / Ag);
+                return { type: 'Rectangular HSS', Ag, Ix, Sx, Zx, Iy, Sy, Zy, ry, h, d: H, tw: t, tf: t, bf: B, rx, k_des: i.k_des };
+            },
+            'HSS/Pipe (Circular)': (i) => {
+                const { d: OD, bf: t } = i; // bf is used for thickness in UI
+                const ID = OD - 2 * t;
+                const Ag = (Math.PI / 4) * (OD**2 - ID**2);
+                const Ix = (Math.PI / 64) * (OD**4 - ID**4);
+                const Sx = Ix / (OD / 2);
+                const Zx = (OD**3 - ID**3) / 6;
+                const ry = Math.sqrt(Ix / Ag); // r = ry = rx
+                const J = (Math.PI / 32) * (OD**4 - ID**4);
+                const rx = ry;
+                return { type: 'HSS-round', Ag, Ix, Sx, Zx, Iy: Ix, Sy: Sx, Zy: Zx, ry, J, d: OD, tf: t, rx, k_des: i.k_des, bf: OD };
+            },
+            'channel': (i) => {
+                const { d, bf, tf, tw } = i;
+                const Ag = 2 * bf * tf + (d - 2 * tf) * tw;
+                const Ix = (bf * d**3 / 12) - ((bf - tw) * (d - 2 * tf)**3 / 12); // Approx
+                const x_bar = 0.7; // Placeholder for shear center, MUST be user input or from DB
+                const Iy = (2 * tf * bf**3 / 12) + ((d - 2 * tf) * tw**3 / 12) + Ag * x_bar**2; // Approx
+                const ry = Math.sqrt(Iy/Ag);
+                const rx = Math.sqrt(Ix/Ag);
+                return { type: 'channel', Ag, Ix, Iy, rx, ry, d, bf, tf, tw, x_bar, J: (1/3) * (2 * bf * tf**3 + (d - 2 * tf) * tw**3) };
+            },
+            'angle': (i) => {
+                const { d: L1, bf: L2, tf: t } = i; // d=long leg, bf=short leg, tf=thickness
+                const Ag = (L1 + L2 - t) * t;
+                return { type: 'angle', Ag, d: L1, bf: L2, tf: t, tw: t, J: (1/3)*(L1+L2)*t**3 };
+            }
+        };
+
+        const calculator = propertyCalculators[section_type];
+        return calculator ? calculator(inputs) : {};
     }
 
     function getDesignFactor(design_method, phi, omega) {
@@ -272,205 +301,143 @@ const steelChecker = (() => {
     }
 
     function checkFlexure(props, inputs) {
-        if (props.type === 'I-Shape' || props.type === 'channel') return checkFlexure_IShape(props, inputs);
-        if (props.type === 'Rectangular HSS' || props.type === 'HSS-round') return checkFlexure_HSS(props, inputs);
-        if (props.type === 'angle') return checkFlexure_Angle(props, inputs);
-        return { phiMn_or_Mn_omega: 0 };
-    }
+        const { type } = props;
 
-    function checkFlexure_IShape(props, inputs) {
-        const { Fy, E, Cb, Lb_input, K, aisc_standard } = inputs;
-        const { Zx, Sx, rts, h, J, Cw, tw, bf, tf, d } = props;
-        const Lb = Lb_input * 12; // to inches
+        const flexureCalculators = {
+            'I-Shape': (props, inputs) => {
+                const { Fy, E, Cb, Lb_input, aisc_standard } = inputs;
+                const { Zx, Sx, rts, h, J, Cw, tw, bf, tf, d } = props;
+                const Lb = Lb_input * 12;
+                const factor = getDesignFactor(inputs.design_method, 0.9, 1.67);
 
-        const phi_b = 0.9;
-        const omega_b = 1.67;
-        const factor = getDesignFactor(inputs.design_method, phi_b, omega_b);
+                const lambda_f = bf / (2 * tf);
+                const lambda_p_f = 0.38 * Math.sqrt(E / Fy);
+                const lambda_r_f = 1.0 * Math.sqrt(E / Fy);
+                const isFlangeCompact = lambda_f <= lambda_p_f;
 
-        // Slenderness checks
-        const lambda_f = bf / (2 * tf);
-        const lambda_p_f = 0.38 * Math.sqrt(E / Fy);
-        const lambda_r_f = 1.0 * Math.sqrt(E / Fy);
-        const isFlangeCompact = lambda_f <= lambda_p_f;
+                const lambda_w = h / tw;
+                const lambda_p_w = 3.76 * Math.sqrt(E / Fy);
+                const lambda_r_w = 5.70 * Math.sqrt(E / Fy);
+                const isWebCompact = lambda_w <= lambda_p_w;
+                const isCompact = isFlangeCompact && isWebCompact;
+                const isWebSlender = lambda_w > lambda_r_w;
 
-        const lambda_w = h / tw;
-        const lambda_p_w = 3.76 * Math.sqrt(E / Fy);
-        const lambda_r_w = 5.70 * Math.sqrt(E / Fy);
-        const isWebCompact = lambda_w <= lambda_p_w;
+                let Mp = Fy * Zx;
+                const Mn_yield = Mp;
 
-        const isCompact = isFlangeCompact && isWebCompact; // Section is compact if both flange and web are compact
-        const isWebSlender = lambda_w > lambda_r_w; // Used for F5 check
-        // --- Limit States ---
-        // 1. Yielding (AISC F2.1)
-        let Mp = Fy * Zx;
-        const Mn_yield = Mp;
+                const Lp = 1.76 * rts * Math.sqrt(E / Fy);
+                let Lr;
+                if (aisc_standard === '360-22') {
+                    const ho = d - tf;
+                    const term1 = J / (Sx * ho);
+                    Lr = 1.95 * rts * (E / (0.7 * Fy)) * Math.sqrt(term1 + Math.sqrt(Math.pow(term1, 2) + 6.76 * Math.pow(0.7 * Fy / E, 2)));
+                } else {
+                    const ho = d - tf;
+                    const c = 1.0;
+                    const term_inside_sqrt = Math.pow(J * c / (Sx * ho), 2) + 6.76 * Math.pow(0.7 * Fy / E, 2);
+                    Lr = 1.95 * rts * (E / (0.7 * Fy)) * Math.sqrt(J * c / (Sx * ho) + Math.sqrt(term_inside_sqrt));
+                }
 
-        // 2. Lateral-Torsional Buckling (LTB) (AISC F2.2)
-        const Lp = 1.76 * rts * Math.sqrt(E / Fy); // F2-5
-        let Lr;
-        if (aisc_standard === '360-22') {
-            // AISC 360-22 Eq. F2-6
-            const ho = d - tf;
-            const term1 = J / (Sx * ho);
-            const term2 = Math.pow(term1, 2);
-            const term3 = 6.76 * Math.pow(0.7 * Fy / E, 2);
-            Lr = 1.95 * rts * (E / (0.7 * Fy)) * Math.sqrt(term1 + Math.sqrt(term2 + term3));
-        } else { // AISC 360-16
-            const ho = d - tf;
-            const c = 1.0;
-            const term_inside_sqrt = Math.pow(J * c / (Sx * ho), 2) + 6.76 * Math.pow(0.7 * Fy / E, 2);
-            Lr = 1.95 * rts * (E / (0.7 * Fy)) * Math.sqrt(J * c / (Sx * ho) + Math.sqrt(term_inside_sqrt));
-        }
+                let Mn_ltb;
+                if (Lb <= Lp) Mn_ltb = Mp;
+                else if (Lb <= Lr) Mn_ltb = Math.min(Mp, Cb * (Mp - (Mp - 0.7 * Fy * Sx) * ((Lb - Lp) / (Lr - Lp))));
+                else {
+                    const ho = d - tf;
+                    const c = 1.0;
+                    const Fcr = (Cb * Math.PI ** 2 * E) / Math.pow(Lb / rts, 2) * Math.sqrt(1 + 0.078 * (J * c / (Sx * ho)) * Math.pow(Lb / rts, 2));
+                    Mn_ltb = Math.min(Fcr * Sx, Mp);
+                }
 
-        let Mn_ltb;
-        if (Lb <= Lp) {
-            Mn_ltb = Mp; // No LTB
-        } else if (Lb <= Lr) {
-            // AISC F2-2: Inelastic LTB
-            Mn_ltb = Cb * (Mp - (Mp - 0.7 * Fy * Sx) * ((Lb - Lp) / (Lr - Lp)));
-            Mn_ltb = Math.min(Mn_ltb, Mp);
-        } else {
-            // AISC F2-3: Elastic LTB
-            const ho = d - tf; const c = 1.0;
-            const term1 = (Cb * Math.PI**2 * E) / Math.pow(Lb / rts, 2);
-            const term2 = Math.sqrt(1 + 0.078 * (J * c / (Sx * ho)) * Math.pow(Lb / rts, 2));
-            const Fcr = term1 * term2;
-            Mn_ltb = Math.min(Fcr * Sx, Mp);
-        }
+                const My = Fy * Sx;
+                const kc = 4 / Math.sqrt(h / tw);
+                const kc_lim = Math.max(0.35, Math.min(0.76, kc));
+                const lambda_r_f_kc = 0.95 * Math.sqrt(E / (kc_lim * Fy));
+                let Mn_flb;
+                if (isFlangeCompact) Mn_flb = Mp;
+                else if (lambda_f <= lambda_r_f_kc) Mn_flb = Mp - (Mp - 0.7 * Fy * Sx) * ((lambda_f - lambda_p_f) / (lambda_r_f_kc - lambda_p_f));
+                else Mn_flb = (0.9 * E * kc_lim) / Math.pow(lambda_f, 2) * Sx;
 
-        // 3. Flange Local Buckling (FLB) (AISC F3.2)
-        let Mn_flb;
-        const My = Fy * Sx;
-        const kc = 4 / Math.sqrt(h / tw);
-        const kc_lim = Math.max(0.35, Math.min(0.76, kc));
-        const lambda_r_f_kc = 0.95 * Math.sqrt(E / (kc_lim * Fy)); // Updated for accuracy per AISC
+                const Mn_wlb = checkWebLocalBuckling(props, inputs, Mp, My);
+                let Mn_cfy = Infinity;
+                let Rpg = 1.0;
+                if (isWebSlender) {
+                    Mn_cfy = checkSlenderWebFlexure(props, inputs, Mp, My);
+                    Mp = Math.min(Fy * Zx, Mn_cfy);
+                }
 
-        if (isFlangeCompact) {
-            Mn_flb = Mp;
-        } else if (lambda_f <= lambda_r_f_kc) {
-            // Noncompact flange - F3-1
-            const ratio = (lambda_f - lambda_p_f) / (lambda_r_f_kc - lambda_p_f);
-            Mn_flb = Mp - (Mp - 0.7 * Fy * Sx) * ratio;
-        } else {
-            // Slender flange - F3-2
-            const Fcr_flb = (0.9 * E * kc_lim) / Math.pow(lambda_f, 2);
-            Mn_flb = Fcr_flb * Sx;
-        }
+                const limit_states = { 'Yielding (F2.1)': Mn_yield, 'Lateral-Torsional Buckling (F2.2)': Mn_ltb, 'Flange Local Buckling (F3)': Mn_flb, 'Web Local Buckling (F4)': Mn_wlb, 'Compression Flange Yielding (F5)': Mn_cfy };
+                const Mn = Math.min(...Object.values(limit_states));
+                const governing_limit_state = Object.keys(limit_states).find(key => limit_states[key] === Mn) || 'N/A';
 
-        // 4. Web Local Buckling (WLB) (AISC F4)
-        const Mn_wlb = checkWebLocalBuckling(props, inputs, Mp, My);
+                return {
+                    phiMn_or_Mn_omega: (Mn * factor) / 12, isCompact, Mn, Lb, Lp, Lr, Rpg, governing_limit_state,
+                    reference: "AISC F2, F3, F4, F5",
+                    slenderness: { lambda_f, lambda_p_f, lambda_r_f, lambda_w, lambda_p_w, lambda_r_w }
+                };
+            },
+            'Rectangular HSS': (props, inputs) => {
+                const { Fy, E } = inputs;
+                const { Zx, Sx } = props;
+                const factor = getDesignFactor(inputs.design_method, 0.9, 1.67);
 
-        // 5. Compression Flange Yielding (for slender webs, AISC F5)
-        let Mn_cfy = Infinity;
-        let Rpg = 1.0;
-        if (isWebSlender) {
-            Mn_cfy = checkSlenderWebFlexure(props, inputs, Mp, My);
-            // Adjust Mp for slender web sections per F5.3
-            Mp = Math.min(Fy * Zx, Mn_cfy);
-        }
+                const h = props.d - 3 * props.tf;
+                const lambda = h / props.tf;
+                const lambda_p = 1.12 * Math.sqrt(E / Fy);
+                const lambda_r = 1.40 * Math.sqrt(E / Fy);
+                const isCompact = lambda <= lambda_p;
+                const slenderness = { lambda, lambda_p, lambda_r };
 
-        const limit_states = {
-            'Yielding (F2.1)': Mn_yield,
-            'Lateral-Torsional Buckling (F2.2)': Mn_ltb,
-            'Flange Local Buckling (F3)': Mn_flb,
-            'Web Local Buckling (F4)': Mn_wlb,
-            'Compression Flange Yielding (F5)': Mn_cfy
+                const Mp = Fy * Zx;
+                let Mn;
+                if (isCompact) Mn = Mp;
+                else if (lambda <= lambda_r) Mn = Mp - (Mp - Fy * Sx) * ((lambda - lambda_p) / (lambda_r - lambda_p));
+                else Mn = Fy * Sx; // Per F7.3, for slender sections, Mn = Fcr*Sx, where Fcr=Fy.
+
+                return { phiMn_or_Mn_omega: (Mn * factor) / 12, isCompact, Mn, slenderness, reference: "AISC F7" };
+            },
+            'HSS-round': (props, inputs) => {
+                const { Fy, E } = inputs;
+                const { Zx, Sx } = props;
+                const factor = getDesignFactor(inputs.design_method, 0.9, 1.67);
+
+                const lambda = props.d / props.tf;
+                const lambda_p = 0.07 * (E / Fy);
+                const lambda_r = 0.31 * (E / Fy);
+                const isCompact = lambda <= lambda_p;
+                const slenderness = { lambda, lambda_p, lambda_r };
+
+                const Mp = Fy * Zx;
+                let Mn;
+                if (isCompact) Mn = Mp;
+                else if (lambda <= lambda_r) Mn = ((0.021 * E) / lambda + Fy) * Sx;
+                else Mn = (0.33 * E) / lambda * Sx;
+                Mn = Math.min(Mn, Mp);
+
+                return { phiMn_or_Mn_omega: (Mn * factor) / 12, isCompact, Mn, slenderness, reference: "AISC F8" };
+            },
+            'angle': (props, inputs) => {
+                const { Fy, E, Lb_input } = inputs;
+                const { Sx, bf } = props;
+                const Lb = Lb_input * 12;
+                const factor = getDesignFactor(inputs.design_method, 0.9, 1.67);
+
+                const My = 1.5 * Fy * Sx;
+                const Mn_yield = My;
+
+                const Me = (0.46 * E * bf ** 2 * props.tf ** 2) / Lb;
+                let Mn_ltb;
+                if (Me <= My) Mn_ltb = Me;
+                else Mn_ltb = My * (1 - (0.15 * My / Me));
+
+                const Mn = Math.min(Mn_yield, Mn_ltb);
+                const governing_limit_state = Mn_yield < Mn_ltb ? 'Yielding (F10.1)' : 'LTB (F10.2)';
+                return { phiMn_or_Mn_omega: (Mn * factor) / 12, Mn, governing_limit_state, reference: "AISC F10" };
+            }
         };
+        flexureCalculators['channel'] = flexureCalculators['I-Shape']; // Channels use the same logic as I-Shapes
 
-        const Mn = Math.min(...Object.values(limit_states));
-        
-        let governing_limit_state = '';
-        for (const [name, value] of Object.entries(limit_states)) {
-            if (value === Mn) {
-                governing_limit_state = name;
-                break;
-            }
-        }
-
-        const phiMn_or_Mn_omega = Mn * factor;
-
-        return {
-            phiMn_or_Mn_omega: phiMn_or_Mn_omega / 12, // Corrected to kip-ft (from kip-in)
-            isCompact, Mn, Lb, Lp, Lr, Rpg, governing_limit_state,
-            reference: "AISC F2, F3, F4, F5",
-            slenderness: { lambda_f, lambda_p_f, lambda_r_f, lambda_w, lambda_p_w, lambda_r_w }
-        };
-    }
-
-    function checkFlexure_HSS(props, inputs) {
-        const { Fy, E } = inputs;
-        const { Zx, Sx } = props;
-        const phi_b = 0.9;
-        const omega_b = 1.67;
-        const factor = getDesignFactor(inputs.design_method, phi_b, omega_b);
-
-        let isCompact, Mn;
-        let slenderness = {};
-
-        if (inputs.section_type === 'Rectangular HSS') {
-            // G5: Clear distance between webs
-            const h = props.d - 3 * props.tf; // Per AISC G5 commentary
-            const lambda = h / props.tf; // h/t
-            const lambda_p = 1.12 * Math.sqrt(E / Fy);
-            const lambda_r = 1.40 * Math.sqrt(E / Fy);
-            isCompact = lambda <= lambda_p;
-            slenderness = { lambda, lambda_p, lambda_r };
-
-            const Mp = Fy * Zx;
-            if (isCompact) {
-                Mn = Mp;
-            } else if (lambda <= lambda_r) { // Noncompact
-                Mn = Mp - (Mp - Fy * Sx) * ((lambda - lambda_p) / (lambda_r - lambda_p));
-            }
-        } else { // Round HSS
-            const lambda = props.d / props.tf; // D/t
-            const lambda_p = 0.07 * (E / Fy);
-            const lambda_r = 0.31 * (E / Fy);
-            isCompact = lambda <= lambda_p;
-            slenderness = { lambda, lambda_p, lambda_r };
-
-            const Mp = Fy * Zx;
-            if (isCompact) {
-                Mn = Mp;
-            } else if (lambda <= lambda_r) { // Noncompact
-                Mn = ((0.021 * E) / lambda + Fy) * Sx;
-            } else { // Slender
-                const Fcr = (0.33 * E) / lambda;
-                Mn = Fcr * Sx;
-            }
-            Mn = Math.min(Mn, Mp);
-        }
-        const phiMn_or_Mn_omega = Mn * factor;
-        return { phiMn_or_Mn_omega: phiMn_or_Mn_omega / 12, isCompact, Mn, slenderness, reference: "AISC F7, F8" };
-    }
-
-    function checkFlexure_Angle(props, inputs) {
-        const { Fy, E, Cb, Lb_input } = inputs;
-        const { Zx, Sx, ry, d, bf, tf } = props; // Using geometric axis properties
-        const Lb = Lb_input * 12;
-
-        const phi_b = 0.9;
-        const omega_b = 1.67;
-        const factor = getDesignFactor(inputs.design_method, phi_b, omega_b);
-
-        // F10.1 Yielding
-        const My = 1.5 * Fy * Sx; // Using elastic section modulus for geometric axis
-        const Mn_yield = My;
-
-        // F10.2 LTB
-        // Simplified elastic LTB moment Me for equal-leg angle
-        const Me = (0.46 * E * bf**2 * tf**2) / Lb;
-        
-        let Mn_ltb;
-        if (Me <= My) { // Elastic LTB
-            Mn_ltb = Me;
-        } else { // Inelastic LTB
-            Mn_ltb = My * (1 - (0.15 * My / Me));
-        }
-        
-        const Mn = Math.min(Mn_yield, Mn_ltb);
-        const governing_limit_state = Mn_yield < Mn_ltb ? 'Yielding (F10.1)' : 'LTB (F10.2)';
-        return { phiMn_or_Mn_omega: (Mn * factor) / 12, Mn, governing_limit_state, reference: "AISC F10" };
+        const calculator = flexureCalculators[type];
+        return calculator ? calculator(props, inputs) : { phiMn_or_Mn_omega: 0 };
     }
 
     function checkFlexureMinorAxisComplete(props, inputs) {
@@ -1303,6 +1270,47 @@ const steelChecker = (() => {
     return { run };
 })(); // steelChecker
 
+/**
+ * Renders the "Calculated Section Properties" table.
+ * @param {object} properties - The calculated properties object.
+ * @returns {string} The HTML string for the properties table.
+ */
+function renderPropertyTable(properties) {
+    return `
+        <table>
+            <caption>Calculated Section Properties</caption>
+            <tbody>
+                <tr>
+                    <td>Radius of Gyration (r<sub>y</sub>)</td><td>${properties.ry.toFixed(2)} in</td>
+                    <td>Effective Radius of Gyration (r<sub>ts</sub>)</td><td>${properties.rts ? properties.rts.toFixed(2) + ' in' : 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td>Torsional Constant (J)</td><td>${properties.J ? properties.J.toFixed(2) + ' in⁴' : 'N/A'}</td>
+                    <td>Warping Constant (C<sub>w</sub>)</td><td>${properties.Cw ? properties.Cw.toExponential(2) + ' in⁶' : 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="p-0 h-1 bg-gray-200 dark:bg-gray-700 border-0"></td>
+                </tr>
+                <tr>
+                    <td>Gross Area (A<sub>g</sub>)</td><td>${properties.Ag.toFixed(3)} in²</td>
+                    <td>Depth (d)</td><td>${properties.d.toFixed(3)} in</td>
+                </tr>
+                <tr>
+                    <td>Moment of Inertia (I<sub>x</sub>)</td><td>${properties.Ix.toFixed(2)} in⁴</td>
+                    <td>Moment of Inertia (I<sub>y</sub>)</td><td>${properties.Iy.toFixed(2)} in⁴</td>
+                </tr>
+                <tr>
+                    <td>Section Modulus (S<sub>x</sub>)</td><td>${properties.Sx.toFixed(2)} in³</td>
+                    <td>Section Modulus (S<sub>y</sub>)</td><td>${properties.Sy.toFixed(2)} in³</td>
+                </tr>
+                <tr>
+                    <td>Plastic Modulus (Z<sub>x</sub>)</td><td>${properties.Zx.toFixed(2)} in³</td>
+                    <td>Plastic Modulus (Z<sub>y</sub>)</td><td>${properties.Zy.toFixed(2)} in³</td>
+                </tr>
+            </tbody>
+        </table>`;
+}
+
 function renderSteelResults(results) {
     const resultsContainer = document.getElementById('steel-results-container');
 
@@ -1362,38 +1370,7 @@ function renderSteelResults(results) {
                 <h2 class="report-header text-center flex-grow">Steel Check Results (${inputs.aisc_standard})</h2>
                 <button data-copy-target-id="steel-check-summary" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Summary</button>
             </div>
-            <table>
-                <caption>Calculated Section Properties</caption>
-                <tbody>
-                    <tr>
-                        <td>Radius of Gyration (r<sub>y</sub>)</td><td>${properties.ry.toFixed(2)} in</td>
-                        <td>Effective Radius of Gyration (r<sub>ts</sub>)</td><td>${properties.rts ? properties.rts.toFixed(2) + ' in' : 'N/A'}</td>
-                    </tr>
-                    <tr>
-                        <td>Torsional Constant (J)</td><td>${properties.J ? properties.J.toFixed(2) + ' in⁴' : 'N/A'}</td>
-                        <td>Warping Constant (C<sub>w</sub>)</td><td>${properties.Cw ? properties.Cw.toExponential(2) + ' in⁶' : 'N/A'}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="4" class="p-0 h-1 bg-gray-200 dark:bg-gray-700 border-0"></td>
-                    </tr>
-                    <tr>
-                        <td>Gross Area (A<sub>g</sub>)</td><td>${properties.Ag.toFixed(3)} in²</td>
-                        <td>Depth (d)</td><td>${properties.d.toFixed(3)} in</td>
-                    </tr>
-                    <tr>
-                        <td>Moment of Inertia (I<sub>x</sub>)</td><td>${properties.Ix.toFixed(2)} in⁴</td>
-                        <td>Moment of Inertia (I<sub>y</sub>)</td><td>${properties.Iy.toFixed(2)} in⁴</td>
-                    </tr>
-                    <tr>
-                        <td>Section Modulus (S<sub>x</sub>)</td><td>${properties.Sx.toFixed(2)} in³</td>
-                        <td>Section Modulus (S<sub>y</sub>)</td><td>${properties.Sy.toFixed(2)} in³</td>
-                    </tr>
-                    <tr>
-                        <td>Plastic Modulus (Z<sub>x</sub>)</td><td>${properties.Zx.toFixed(2)} in³</td>
-                        <td>Plastic Modulus (Z<sub>y</sub>)</td><td>${properties.Zy.toFixed(2)} in³</td>
-                    </tr>
-                </tbody>
-            </table>
+            ${renderPropertyTable(properties)}
             <table>
                 <caption>Applied Loads Summary</caption>
                 <tbody>
