@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('run-rain-calculation-btn').addEventListener('click', handleRunRainCalculation);
     document.getElementById('save-rain-inputs-btn').addEventListener('click', createSaveInputsHandler(rainInputIds, 'rain-inputs.txt'));
     document.getElementById('load-rain-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('rain-file-input'));
+    // CORRECTED: Removed the callback to prevent auto-run on file load
     document.getElementById('rain-file-input').addEventListener('change', createLoadInputsHandler(rainInputIds));
 
     // UI interaction for city selector

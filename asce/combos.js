@@ -45,8 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
 
-        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-
         document.body.addEventListener('click', async (event) => {
             const copyBtn = event.target.closest('.copy-section-btn');
             if (copyBtn) {

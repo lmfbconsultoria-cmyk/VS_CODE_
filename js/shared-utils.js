@@ -1,3 +1,86 @@
+// --- Core Calculation Utilities ---
+
+/**
+ * Creates a standardized calculation handler to reduce boilerplate code.
+ * This function encapsulates the common pattern: gather, validate, calculate, render.
+ * @param {object} config - The configuration object for the handler.
+ * @param {string[]} config.inputIds - Array of input element IDs.
+ * @param {string} config.storageKey - Local storage key for saving inputs.
+ * @param {function} config.calculatorFunction - The function that performs the calculation.
+ * @param {function} config.renderFunction - The function that renders the results.
+ * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
+ * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation.
+ * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
+ * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
+ * @returns {function} The generated event handler function.
+ */
+function createCalculationHandler(config) {
+    const {
+        inputIds,
+        storageKey,
+        validationRuleKey,
+        calculatorFunction,
+        renderFunction,
+        resultsContainerId,
+        validatorFunction,
+        feedbackElId = 'feedback-message',
+        buttonId
+    } = config;
+    
+    return async function() {
+        const resultsContainer = document.getElementById(resultsContainerId);
+
+        const step = async (message, action) => {
+            showFeedback(message, false, feedbackElId);
+            await new Promise(resolve => setTimeout(resolve, 20)); 
+            return action();
+        };
+
+        try {
+            if (buttonId) setLoadingState(true, buttonId);
+
+            const inputs = await step('Gathering inputs...', () => gatherInputsFromIds(inputIds));
+
+            const validation = await step('Validating inputs...', () => {
+                if (typeof validatorFunction === 'function') {
+                    return validatorFunction(inputs);
+                }
+                const rules = validationRules[validationRuleKey];
+                return validateInputs(inputs, rules);
+            });
+
+            if (validation.errors.length > 0) {
+                renderValidationResults(validation, resultsContainer);
+                showFeedback('Validation failed. Please correct the errors.', true, feedbackElId);
+                if (buttonId) setLoadingState(false, buttonId);
+                return;
+            }
+
+            const calculationResult = await step('Running calculation...', () => {
+                return calculatorFunction(inputs, validation);
+            });
+
+            if (calculationResult.error) {
+                renderValidationResults({ errors: [calculationResult.error] }, resultsContainer);
+                showFeedback('Calculation failed.', true, feedbackElId);
+            } else {
+                await step('Rendering results...', () => {
+                    saveInputsToLocalStorage(storageKey, inputs);
+                    renderFunction(calculationResult);
+                });
+                showFeedback('Calculation complete!', false, feedbackElId);
+            }
+
+        } catch (error) {
+            console.error('An unexpected error occurred in the calculation handler:', error);
+            renderValidationResults({ errors: [`An unexpected error occurred: ${error.message}`] }, resultsContainer);
+            showFeedback('A critical error occurred.', true, feedbackElId);
+        } finally {
+            if (buttonId) setLoadingState(false, buttonId);
+        }
+    };
+}
+
 /**
  * Updates the theme toggle icons based on the current theme.
  * @param {boolean} isDark - Whether the dark theme is active.
@@ -251,7 +334,7 @@ function validateInputs(inputs, rules) {
             const value = inputs[key];
             const label = rule.label || key;
 
-            if (rule.required && (value === undefined || value === '' || (typeof value === 'number' && isNaN(value)))) {
+            if (rule.required && (value === undefined || value === '' || value === null || (typeof value === 'number' && isNaN(value)))) {
                 errors.push(`${label} is required.`);
                 continue;
             }
@@ -559,44 +642,146 @@ async function handleDownloadPdf(containerId, filename, feedbackElId = 'feedback
         showFeedback('Report container not found for PDF export.', true, feedbackElId);
         return;
     }
-    if (typeof html2pdf === 'undefined') {
-        showFeedback('PDF generation library is not loaded.', true, feedbackElId);
-        return;
-    }
+
+    showFeedback('Preparing document for printing...', false, feedbackElId);
+
+    // Store original page state
+    const originalContent = document.body.innerHTML;
+    const originalTitle = document.title;
+    const wasInDarkMode = document.documentElement.classList.contains('dark');
+
+    // Create the print-only container
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
     
-    showFeedback('Generating PDF...', false, feedbackElId);
+    // Add print-specific styling
+    const printStyle = document.createElement('style');
+    printStyle.textContent = `
+        @media print {
+            /* Reset all colors to default black on white */
+            body {
+                margin: 0;
+                color: black !important;
+                background: white !important;
+                font-family: "Times New Roman", Times, serif !important;
+                font-size: 12pt !important;
+                line-height: 1.3 !important;
+            }
+            
+            /* Hide all other content */
+            body > *:not(#print-container) {
+                display: none !important;
+            }
 
-    // --- Get Header Info ---
-    const projectTitle = document.getElementById('main-title')?.innerText || 'Engineering Report';
-    const reportDate = new Date().toLocaleDateString();
+            /* Basic text formatting */
+            h1 { font-size: 18pt !important; }
+            h2 { font-size: 16pt !important; }
+            h3 { font-size: 14pt !important; }
+            
+            /* Table formatting */
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                page-break-inside: avoid !important;
+                margin: 12pt 0 !important;
+            }
+            th, td {
+                border: 1px solid black !important;
+                padding: 6pt !important;
+                text-align: left !important;
+                color: black !important;
+            }
+            
+            /* Image handling */
+            img, svg {
+                max-width: 100% !important;
+                page-break-inside: avoid !important;
+            }
+            
+            /* Page layout */
+            @page {
+                size: letter;
+                margin: 0.75in;
+            }
+            
+            /* Avoid breaks */
+            h1, h2, h3, h4 { page-break-after: avoid !important; }
+            table, figure { page-break-inside: avoid !important; }
+            
+            /* Headers and footers */
+            .header { position: running(header); }
+            .footer { position: running(footer); }
+            @page {
+                @top-center { content: element(header); }
+                @bottom-center { content: element(footer); }
+            }
+            
+            /* Force black text everywhere */
+            * {
+                color: black !important;
+                border-color: black !important;
+                background: transparent !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
 
-    // --- Configure PDF Options ---
-    const opt = {
-        margin:       0.5,
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
-        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-    };
+            /* Hide non-printable elements */
+            .print-hidden, button, [data-print-ignore] { display: none !important; }
 
-    // --- Generate PDF with Custom Header ---
-    await html2pdf().from(reportContainer).set(opt).toPdf().get('pdf').then(function (pdf) {
-        const totalPages = pdf.internal.getNumberOfPages();
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            pdf.setFontSize(10);
-            pdf.setTextColor(100); // Gray color
-            // Header
-            pdf.text(projectTitle, pageWidth / 2, 0.3, { align: 'center' });
-            pdf.text(`Date: ${reportDate}`, pageWidth - 0.5, 0.3, { align: 'right' });
-            // Footer
-            pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 0.3, { align: 'center' });
+            /* Show all details */
+            .details-row { display: block !important; }
         }
-    }).save();
+    `;
+    document.head.appendChild(printStyle);
+
+    try {
+        // Prepare print content
+        const contentClone = reportContainer.cloneNode(true);
+        
+        // Add header
+        const projectTitle = document.getElementById('main-title')?.innerText || 'Engineering Report';
+        const reportDate = new Date().toLocaleDateString();
+        const header = document.createElement('div');
+        header.className = 'header';
+        header.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20pt;">
+                <h1 style="margin: 0; font-size: 18pt;">${projectTitle}</h1>
+                <div style="font-size: 10pt; margin-top: 4pt;">Date: ${reportDate}</div>
+            </div>
+        `;
+        
+        // Clean up the clone
+        contentClone.querySelectorAll('button, .print-hidden, [data-print-ignore]').forEach(el => el.remove());
+        contentClone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
+        
+        // Assemble print container
+        printContainer.appendChild(header);
+        printContainer.appendChild(contentClone);
+        
+        // Switch to print layout
+        document.body.innerHTML = '';
+        document.body.appendChild(printContainer);
+        document.documentElement.classList.remove('dark');
+        document.title = filename.replace('.pdf', '');
+
+        // Trigger browser print dialog
+        showFeedback('Opening print dialog...', false, feedbackElId);
+        window.print();
+
+    } finally {
+        // Restore original page state
+        document.head.removeChild(printStyle);
+        document.body.innerHTML = originalContent;
+        document.title = originalTitle;
+        if (wasInDarkMode) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        // Reattach event listeners (since we replaced body content)
+        initializeSharedUI();
+        
+        showFeedback('Ready to save as PDF from print dialog', false, feedbackElId);
+    }
 }
 /**
  * Gathers values from a list of input IDs.
@@ -608,18 +793,18 @@ function gatherInputsFromIds(inputIds) { // Updated for better validation
     inputIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            let value;
             if (el.type === 'number') {
-                value = parseFloat(el.value);
-                inputs[id] = value; // Keep NaN to be handled by validation
+                inputs[id] = el.value === '' ? undefined : parseFloat(el.value);
             } else if (el.type === 'checkbox') {
                 inputs[id] = el.checked;
+            } else if (el.tagName.toLowerCase() === 'select') {
+                inputs[id] = el.value || undefined;
             } else {
-                inputs[id] = el.value || ''; // Ensure we don't get undefined
+                inputs[id] = el.value || undefined;
             }
         } else {
-            // Provide default for missing elements
-            inputs[id] = '';
+            console.warn(`Element with id '${id}' not found`);
+            inputs[id] = undefined;
         }
     });
     return inputs;
@@ -797,6 +982,20 @@ function sendDataToCombos(config) {
  * @param {function} config.renderFunction - The function that renders the results.
  * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
  * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation. If not provided, a default validator is used.
+ * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
+ * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
+ * @returns {function} The generated event handler function.
+ */
+/**
+ * Creates a standardized calculation handler to reduce boilerplate code.
+ * This function encapsulates the common pattern: gather, validate, calculate, render.
+ * @param {object} config - The configuration object for the handler.
+ * @param {string[]} config.inputIds - Array of input element IDs.
+ * @param {string} config.storageKey - Local storage key for saving inputs.
+ * @param {function} config.calculatorFunction - The function that performs the calculation.
+ * @param {function} config.renderFunction - The function that renders the results.
+ * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
+ * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation.
  * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
  * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
  * @returns {function} The generated event handler function.

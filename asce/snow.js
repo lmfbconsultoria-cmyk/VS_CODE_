@@ -1,7 +1,35 @@
 let lastSnowRunResults = null;
 
 const snowInputIds = [
-    'snow_asce_standard', 'snow_unit_system', 'snow_risk_category', 'snow_design_method', 'snow_jurisdiction', 'snow_roof_type', 'snow_nycbc_minimum_roof_snow_load', 'snow_ground_snow_load', 'snow_surface_roughness_category', 'snow_exposure_condition', 'snow_thermal_condition', 'snow_roof_slope_degrees', 'snow_is_roof_slippery', 'snow_calculate_unbalanced', 'snow_calculate_drift', 'snow_calculate_sliding', 'snow_eave_to_ridge_distance_W', 'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2', 'snow_upper_roof_length_lu', 'snow_height_difference_hc', 'snow_lower_roof_length_ll'
+    'snow_asce_standard',
+    'snow_unit_system',
+    'snow_risk_category',
+    'snow_design_method',
+    'snow_jurisdiction',
+    'snow_roof_type',
+    'snow_nycbc_minimum_roof_snow_load',
+    'snow_ground_snow_load',
+    'snow_surface_roughness_category',
+    'snow_exposure_condition',
+    'snow_thermal_condition',
+    'snow_roof_slope_degrees',
+    'snow_is_roof_slippery',
+    'snow_calculate_unbalanced',
+    'snow_calculate_drift',
+    'snow_calculate_sliding',
+    'snow_eave_to_ridge_distance_W',
+    'snow_is_simply_supported_prismatic',
+    'snow_winter_wind_parameter_W2',
+    'snow_upper_roof_length_lu',
+    'snow_height_difference_hc',
+    'snow_lower_roof_length_ll'
+];
+        if (inputs.snow_ground_snow_load < nycbc_min_pg) {
+            validationResult.warnings.push(`The input ground snow load (p_g = ${inputs.snow_ground_snow_load} psf) is less than the NYCBC 2022 minimum of ${nycbc_min_pg} psf. Verify the correct jurisdictional value.`);
+        }
+    
+    // Ensure factors have default values
+    const { Is = 1.0, Ce = 1.0, Ct = 1.0 } = getSnowFactors(inputs.snow_risk_category, inputs.snow_exposure_condition, inputs.snow_thermal_condition, inputs.snow_surface_roughness_category, validationResult);ughness_category', 'snow_exposure_condition', 'snow_thermal_condition', 'snow_roof_slope_degrees', 'snow_is_roof_slippery', 'snow_calculate_unbalanced', 'snow_calculate_drift', 'snow_calculate_sliding', 'snow_eave_to_ridge_distance_W', 'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2', 'snow_upper_roof_length_lu', 'snow_height_difference_hc', 'snow_lower_roof_length_ll'
 ];
 
 const snowLoadCalculator = (() => {
@@ -41,7 +69,7 @@ const snowLoadCalculator = (() => {
             }
         } else { // ASCE 7-16
             if (Ct <= 1.0) { // Warm Roof
-                if (is_slippery) {
+            if (is_slippery === 'Yes') {
                     if (slope_deg < 5) return 1.0;
                     if (slope_deg > 70) return 0.0;
                     return 1.0 - (slope_deg - 5) / 65;
@@ -51,7 +79,7 @@ const snowLoadCalculator = (() => {
                     return 1.0 - (slope_deg - 30) / 40;
                 }
             } else { // Cold Roof
-                if (is_slippery) {
+            if (is_slippery === 'Yes') {
                     if (slope_deg < 15) return 1.0;
                     if (slope_deg > 70) return 0.0;
                     return 1.0 - (slope_deg - 15) / 55;
@@ -63,13 +91,25 @@ const snowLoadCalculator = (() => {
             }
         }
     }
-    function getSnowFactors(risk, exposure, thermal, surface_roughness) {
+    function getSnowFactors(risk, exposure, thermal, surface_roughness, validationResult) {
         const is_map = {"I": 0.8, "II": 1.0, "III": 1.1, "IV": 1.2};
         const Is = is_map[risk] || 1.0;
         const ce_map = {            "B": {"Fully Exposed": 0.9, "Partially Exposed": 1.0, "Sheltered": 1.2},            "C": {"Fully Exposed": 0.9, "Partially Exposed": 1.0, "Sheltered": 1.1},            "D": {"Fully Exposed": 0.8, "Partially Exposed": 0.9, "Sheltered": 1.0},            "Above treeline (windswept)": {"Fully Exposed": 0.7, "Partially Exposed": 0.8},            "Alaska (no trees)": {"Fully Exposed": 0.7, "Partially Exposed": 0.8}        };
         const Ce = ce_map[surface_roughness]?.[exposure] ?? 1.0;
         const ct_map = {"Heated Structure": 1.0, "Unheated Structure": 1.2};
         const Ct = ct_map[thermal] || 1.0;
+
+        // Add validation feedback
+        if (!is_map[risk]) {
+            validationResult.warnings.push(`Invalid risk category "${risk}", using default Is = 1.0`);
+        }
+        if (!ce_map[surface_roughness]?.[exposure]) {
+            validationResult.warnings.push(`Invalid surface roughness "${surface_roughness}" or exposure "${exposure}", using default Ce = 1.0`);
+        }
+        if (!ct_map[thermal]) {
+            validationResult.warnings.push(`Invalid thermal condition "${thermal}", using default Ct = 1.0`);
+        }
+        
         return { Is, Ce, Ct };
     }    
     function calculateSnowDensity(pg) {
@@ -220,6 +260,24 @@ const snowLoadCalculator = (() => {
 function run(inputs, validation) {
     const validationResult = { warnings: [], ...validation };
 
+    // Check required inputs
+    const required = [
+        'snow_asce_standard',
+        'snow_risk_category',
+        'snow_ground_snow_load',
+        'snow_surface_roughness_category',
+        'snow_exposure_condition',
+        'snow_thermal_condition',
+        'snow_roof_slope_degrees'
+    ];
+    
+    const missing = required.filter(key => !inputs[key]);
+    if (missing.length > 0) {
+        validationResult.errors = validationResult.errors || [];
+        validationResult.errors.push(`Missing required inputs: ${missing.join(', ')}`);
+        return { error: 'Missing required inputs', validationResult };
+    }
+
     // Add jurisdiction-specific warnings
     if (inputs.jurisdiction === "NYCBC 2022") {
         const nycbc_min_pg = 25;
@@ -229,17 +287,17 @@ function run(inputs, validation) {
     }
     
     // Ensure factors have default values
-    const { Is = 1.0, Ce = 1.0, Ct = 1.0 } = getSnowFactors(inputs.risk_category, inputs.exposure_condition, inputs.thermal_condition, inputs.surface_roughness_category);
+    const { Is = 1.0, Ce = 1.0, Ct = 1.0 } = getSnowFactors(inputs.snow_risk_category, inputs.snow_exposure_condition, inputs.snow_thermal_condition, inputs.snow_surface_roughness_category, validationResult);
     
-    const Cs = calculateSlopeFactor(inputs.roof_slope_degrees || 0, inputs.is_roof_slippery, Ct, inputs.asce_standard);
-    const pf = 0.7 * Ce * Ct * Is * (inputs.ground_snow_load || 0);
+    const Cs = calculateSlopeFactor(inputs.snow_roof_slope_degrees || 0, inputs.snow_is_roof_slippery, Ct, inputs.snow_asce_standard);
+    const pf = 0.7 * Ce * Ct * Is * (inputs.snow_ground_snow_load || 0);
     const ps_calculated = Cs * pf;
     
     let ps_min_asce7 = 0;
-    const is_low_slope = inputs.roof_slope_degrees < 15;
+    const is_low_slope = inputs.snow_roof_slope_degrees < 15;
     if (is_low_slope) {
-        if (inputs.ground_snow_load <= 20) {
-            ps_min_asce7 = inputs.ground_snow_load * Is;
+        if (inputs.snow_ground_snow_load <= 20) {
+            ps_min_asce7 = inputs.snow_ground_snow_load * Is;
         } else {
             ps_min_asce7 = 20 * Is;
         }
@@ -249,16 +307,16 @@ function run(inputs, validation) {
     
     let ps_balanced = ps_asce7;
     let is_nycbc_min_governed_flag = false;
-    if (inputs.jurisdiction === "NYCBC 2022" && ps_balanced < inputs.nycbc_minimum_roof_snow_load) {
-        ps_balanced = inputs.nycbc_minimum_roof_snow_load;
+    if (inputs.snow_jurisdiction === "NYCBC 2022" && ps_balanced < inputs.snow_nycbc_minimum_roof_snow_load) {
+        ps_balanced = inputs.snow_nycbc_minimum_roof_snow_load;
         is_nycbc_min_governed_flag = true;
     }
     
     // Rest of the function remains the same...
     let unbalanced_results = {};
-    if (inputs.calculate_unbalanced === 'Yes') {
-        const gamma = calculateSnowDensity(inputs.ground_snow_load);
-        unbalanced_results = calculateUnbalancedLoads(ps_balanced, inputs.ground_snow_load, inputs.roof_slope_degrees, inputs.asce_standard, inputs.eave_to_ridge_distance_W, inputs.is_simply_supported_prismatic, inputs.winter_wind_parameter_W2, gamma, Is, inputs.roof_type);
+    if (inputs.snow_calculate_unbalanced === 'Yes') {
+        const gamma = calculateSnowDensity(inputs.snow_ground_snow_load);
+        unbalanced_results = calculateUnbalancedLoads(ps_balanced, inputs.snow_ground_snow_load, inputs.snow_roof_slope_degrees, inputs.snow_asce_standard, inputs.snow_eave_to_ridge_distance_W, inputs.snow_is_simply_supported_prismatic, inputs.snow_winter_wind_parameter_W2, gamma, Is, inputs.snow_roof_type);
     }
 
     let drift_results = {};
@@ -319,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         footerPlaceholderId: 'footer-placeholder'
     });
 
-    // Wait for templates to be injected, then initialize the rest of the UI and calculator
+    // Use a small timeout to ensure the DOM is fully ready after template injection
     setTimeout(() => {
         const handleRunSnowCalculation = createCalculationHandler({
             inputIds: snowInputIds,
@@ -338,9 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-snow-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('snow-file-input'));
         document.getElementById('snow-file-input').addEventListener('change', createLoadInputsHandler(snowInputIds));
 
-        // CORRECTED: Removed the callback to prevent auto-run on load
+        // Load inputs from local storage after the main setup.
         loadInputsFromLocalStorage('snow-calculator-inputs', snowInputIds);
-    }, 50); // A small delay to ensure DOM is ready after injection
+    }, 50);
 });
 
 function attachSnowReportEventListeners() {
@@ -615,9 +673,9 @@ function renderSnowResults(results) {
     const safePartial = partial || {};
     
     const units = {
-        p_unit: safeInputs.unit_system === 'imperial' ? 'psf' : 'kPa',
-        f_unit: safeInputs.unit_system === 'imperial' ? 'plf' : 'kN/m',
-        l_unit: safeInputs.unit_system === 'imperial' ? 'ft' : 'm',
+        p_unit: safeInputs.snow_unit_system === 'imperial' ? 'psf' : 'kPa',
+        f_unit: safeInputs.snow_unit_system === 'imperial' ? 'plf' : 'kN/m',
+        l_unit: safeInputs.snow_unit_system === 'imperial' ? 'ft' : 'm',
     };
 
     let html = `<div id="snow-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-6">`;

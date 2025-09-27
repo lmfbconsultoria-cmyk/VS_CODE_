@@ -19,7 +19,14 @@ const validationRules = {
         'effective_wind_area': { min: 0.001, max: 5000, required: false, label: 'Effective Wind Area' }
     },
     snow: {
-        'snow_ground_snow_load': { min: 0.001, max: 300, required: true, label: 'Ground Snow Load (pg)' }
+        'snow_ground_snow_load': { min: 0.001, max: 300, required: true, label: 'Ground Snow Load (pg)' },
+        'snow_risk_category': { required: true, label: 'Risk Category' },
+        'snow_surface_roughness_category': { required: true, label: 'Surface Roughness Category' },
+        'snow_exposure_condition': { required: true, label: 'Exposure Condition' },
+        'snow_thermal_condition': { required: true, label: 'Thermal Condition' },
+        'snow_roof_slope_degrees': { min: 0, max: 90, required: true, label: 'Roof Slope (degrees)' },
+        'snow_asce_standard': { required: true, label: 'ASCE Standard' },
+        'snow_unit_system': { required: true, label: 'Unit System' }
     },
     rain: {
         'rain_tributary_area': { min: 0.001, required: true, label: 'Tributary Area' },
