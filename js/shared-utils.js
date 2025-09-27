@@ -1,89 +1,6 @@
 // --- Core Calculation Utilities ---
 
 /**
- * Creates a standardized calculation handler to reduce boilerplate code.
- * This function encapsulates the common pattern: gather, validate, calculate, render.
- * @param {object} config - The configuration object for the handler.
- * @param {string[]} config.inputIds - Array of input element IDs.
- * @param {string} config.storageKey - Local storage key for saving inputs.
- * @param {function} config.calculatorFunction - The function that performs the calculation.
- * @param {function} config.renderFunction - The function that renders the results.
- * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
- * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation.
- * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
- * @param {function} [config.preCalculationHook] - Optional. A function to run after validation but before calculation. Can modify inputs.
- * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
- * @returns {function} The generated event handler function.
- */
-function createCalculationHandler(config) {
-    const {
-        inputIds,
-        storageKey,
-        validationRuleKey,
-        calculatorFunction,
-        renderFunction,
-        resultsContainerId,
-        validatorFunction,
-        preCalculationHook,
-        feedbackElId = 'feedback-message',
-        buttonId
-    } = config;
-    
-    return async function() {
-        const resultsContainer = document.getElementById(resultsContainerId);
-
-        const step = async (message, action) => {
-            showFeedback(message, false, feedbackElId);
-            await new Promise(resolve => setTimeout(resolve, 20)); 
-            return action();
-        };
-
-        try {
-            if (buttonId) setLoadingState(true, buttonId);
-
-            const inputs = await step('Gathering inputs...', () => gatherInputsFromIds(inputIds));
-
-            const validation = await step('Validating inputs...', () => {
-                if (typeof validatorFunction === 'function') {
-                    return validatorFunction(inputs);
-                }
-                const rules = validationRules[validationRuleKey];
-                return validateInputs(inputs, rules);
-            });
-
-            if (validation.errors.length > 0) {
-                renderValidationResults(validation, resultsContainer);
-                showFeedback('Validation failed. Please correct the errors.', true, feedbackElId);
-                if (buttonId) setLoadingState(false, buttonId);
-                return;
-            }
-
-            const calculationResult = await step('Running calculation...', () => {
-                return calculatorFunction(inputs, validation);
-            });
-
-            if (calculationResult.error) {
-                renderValidationResults({ errors: [calculationResult.error] }, resultsContainer);
-                showFeedback('Calculation failed.', true, feedbackElId);
-            } else {
-                await step('Rendering results...', () => {
-                    saveInputsToLocalStorage(storageKey, inputs);
-                    renderFunction(calculationResult);
-                });
-                showFeedback('Calculation complete!', false, feedbackElId);
-            }
-
-        } catch (error) {
-            console.error('An unexpected error occurred in the calculation handler:', error);
-            renderValidationResults({ errors: [`An unexpected error occurred: ${error.message}`] }, resultsContainer);
-            showFeedback('A critical error occurred.', true, feedbackElId);
-        } finally {
-            if (buttonId) setLoadingState(false, buttonId);
-        }
-    };
-}
-
-/**
  * Updates the theme toggle icons based on the current theme.
  * @param {boolean} isDark - Whether the dark theme is active.
  */
@@ -716,6 +633,7 @@ function sendDataToCombos(config) {
  * @param {string} config.validationRuleKey - Key for the validationRules object.
  * @param {function} config.calculatorFunction - The function that performs the calculation.
  * @param {function} config.renderFunction - The function that renders the results.
+ * @param {function} [config.preCalculationHook] - Optional. A function to run after validation but before calculation. Can modify inputs.
  * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
  * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation. If not provided, a default validator is used.
  * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
@@ -731,6 +649,7 @@ function createCalculationHandler(config) {
         renderFunction,
         resultsContainerId,
         validatorFunction,
+        preCalculationHook,
         feedbackElId = 'feedback-message',
         buttonId
     } = config;
@@ -996,4 +915,51 @@ function createLoadInputsHandler(inputIds, onComplete, feedbackElId = 'feedback-
         };
         reader.readAsText(file);
     };
+}
+
+/**
+ * Saves an object to localStorage.
+ * @param {string} storageKey - The key to save the data under.
+ * @param {object} data - The data object to save.
+ */
+function saveInputsToLocalStorage(storageKey, data) {
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (error) {
+        console.error(`Failed to save inputs to localStorage for key "${storageKey}":`, error);
+    }
+}
+
+/**
+ * Loads input values from localStorage and populates the corresponding form fields.
+ * @param {string} storageKey - The key used to retrieve the data from localStorage.
+ * @param {string[]} inputIds - An array of IDs for the input elements to populate.
+ * @param {function} [onComplete] - An optional callback function to execute after the inputs are loaded.
+ */
+function loadInputsFromLocalStorage(storageKey, inputIds, onComplete) {
+    const savedInputs = localStorage.getItem(storageKey);
+    if (!savedInputs) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+    }
+
+    try {
+        const loadedInputs = JSON.parse(savedInputs);
+        inputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && loadedInputs[id] !== undefined) {
+                if (el.type === 'checkbox') {
+                    el.checked = loadedInputs[id];
+                } else {
+                    el.value = loadedInputs[id];
+                }
+                // Dispatch events to trigger any dependent UI logic
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+        if (typeof onComplete === 'function') onComplete();
+    } catch (error) {
+        console.error(`Failed to load or parse inputs from localStorage for key "${storageKey}":`, error);
+    }
 }
