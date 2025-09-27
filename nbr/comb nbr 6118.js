@@ -203,7 +203,6 @@ function generateReportHandler() {
     html += `</div>`;
     reportOutput.innerHTML = html;
 
-    document.getElementById('download-pdf-btn')?.addEventListener('click', () => {
-        handleDownloadPdf('nbr-report-content', 'NBR-Combinacoes-Relatorio.pdf');
-    });
+    reportOutput.querySelector('.copy-section-btn')?.addEventListener('click', async () => await handleCopyToClipboard('nbr-report-content', 'feedback-message'));
+    reportOutput.querySelector('#download-pdf-btn')?.addEventListener('click', () => handleDownloadPdf('nbr-report-content', 'NBR-Combinacoes-Relatorio.pdf'));
 }

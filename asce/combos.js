@@ -49,9 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const copyBtn = event.target.closest('.copy-section-btn');
             if (copyBtn) {
                 const targetId = copyBtn.dataset.copyTargetId || 'combo-report-content';
-                if (targetId) {
-                    await handleCopyToClipboard(targetId, 'feedback-message');
-                }
+                await handleCopyToClipboard(targetId, 'feedback-message');
             }
             if (event.target.id === 'print-report-btn') {
                 window.print();

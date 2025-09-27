@@ -34,6 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainerId: 'results-container',
         feedbackElId: 'feedback-message', // Explicitly pass feedback element ID
         buttonId: 'run-calculation-btn'
+        ,
+        preCalculationHook: (inputs) => {
+            const h = inputs.mean_roof_height || 0;
+            const is_imp = inputs.unit_system === 'imperial';
+            const limit = is_imp ? 60 : 18.3;
+            const tallBuildingSection = document.getElementById('tall-building-section');
+            if (tallBuildingSection) {
+                tallBuildingSection.classList.toggle('hidden', h <= limit);
+            }
+        }
     });
 
     // --- EVENT HANDLERS ---
@@ -59,9 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const copyBtn = event.target.closest('.copy-section-btn');
             if (copyBtn) {
                 const targetId = copyBtn.dataset.copyTargetId;
-                if (targetId) {
-                    await handleCopyToClipboard(targetId, 'feedback-message');
-                }
+                await handleCopyToClipboard(targetId, 'feedback-message');
             }
             if (event.target.id === 'send-to-combos-btn' && lastWindRunResults) {
                 sendWindToCombos(lastWindRunResults);
@@ -1137,6 +1145,15 @@ function validateWindInputs(inputs) {
     const vRange = isImperial ? [85, 200] : [38, 90];
     if (inputs.basic_wind_speed < vRange[0] || inputs.basic_wind_speed > vRange[1]) {
         warnings.push(`Wind speed ${inputs.basic_wind_speed} ${isImperial ? 'mph' : 'm/s'} is outside the typical ASCE 7 range (${vRange[0]}-${vRange[1]}).`);
+    }
+
+    // Check if effective wind area is larger than the building surfaces
+    if (inputs.effective_wind_area > 0) {
+        const wall_area = inputs.building_length_L * inputs.mean_roof_height;
+        const roof_area = inputs.building_length_L * inputs.building_width_B;
+        if (inputs.effective_wind_area > wall_area && inputs.effective_wind_area > roof_area) {
+            warnings.push(`Effective Wind Area (${inputs.effective_wind_area}) is larger than the calculated wall area (${wall_area.toFixed(0)}) and roof area (${roof_area.toFixed(0)}). Please verify the input.`);
+        }
     }
 
     return { errors, warnings };

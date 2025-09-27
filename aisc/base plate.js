@@ -353,9 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadInputsFromLocalStorage('baseplate-inputs', basePlateInputIds, drawBaseplateDiagram); // Redraw after loading from storage
 
-    document.getElementById('steel-results-container').addEventListener('click', (event) => {
+    document.getElementById('steel-results-container').addEventListener('click', async (event) => {
         if (event.target.id === 'copy-report-btn') {
-            handleCopyToClipboard('steel-results-container', 'feedback-message');
+            await handleCopyToClipboard('steel-results-container', 'feedback-message');
         }
         if (event.target.id === 'print-report-btn') {
             window.print();
@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const copySectionBtn = event.target.closest('.copy-section-btn');
         if (copySectionBtn) {
-            handleCopyToClipboard(copySectionBtn.dataset.copyTargetId, 'feedback-message');
+            await handleCopyToClipboard(copySectionBtn.dataset.copyTargetId, 'feedback-message');
         }
         const button = event.target.closest('.toggle-details-btn');
         if (button) {

@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds);
     document.getElementById('run-steel-check-btn').addEventListener('click', handleRunSteelCheck);
 
-    document.getElementById('steel-results-container').addEventListener('click', (event) => {
+    document.getElementById('steel-results-container').addEventListener('click', async (event) => {
         const button = event.target.closest('.toggle-details-btn');
         if (button) {
             const detailId = button.dataset.toggleId;
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.textContent = detailRow?.classList.contains('is-visible') ? '[Hide]' : '[Show]';
         }
         if (event.target.id === 'copy-report-btn') {
-            handleCopyToClipboard('steel-results-container', 'feedback-message');
+            await handleCopyToClipboard('steel-results-container', 'feedback-message');
         }
         if (event.target.id === 'download-pdf-btn') {
             handleDownloadPdf('steel-results-container', 'Steel-Check-Report.pdf');

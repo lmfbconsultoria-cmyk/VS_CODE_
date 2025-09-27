@@ -26,8 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeSharedUI(); // This was correct
     loadInputsFromLocalStorage('wood-design-inputs', inputIds);
 
-    document.getElementById('wood-results-container').addEventListener('click', (event) => {
-        if (event.target.id === 'copy-report-btn') handleCopyToClipboard('wood-report-content', 'feedback-message');
+    document.getElementById('wood-results-container').addEventListener('click', async (event) => {
+        if (event.target.id === 'copy-report-btn') await handleCopyToClipboard('wood-report-content', 'feedback-message');
         
         if (event.target.id === 'download-pdf-btn') {
             handleDownloadPdf('wood-report-content', 'Wood-Design-Report.pdf');

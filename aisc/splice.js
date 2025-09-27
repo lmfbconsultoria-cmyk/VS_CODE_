@@ -1009,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('save-inputs-btn').addEventListener('click', handleSaveInputs);
     document.getElementById('load-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('file-input'));
     document.getElementById('file-input').addEventListener('change', handleLoadInputs);
-    document.getElementById('results-container').addEventListener('click', (event) => {
+    document.getElementById('results-container').addEventListener('click', async (event) => {
         const button = event.target.closest('.toggle-details-btn');
         if (button) {
             const detailId = button.dataset.toggleId;
@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (event.target.id === 'copy-report-btn') {
-            handleCopyToClipboard('results-container', 'feedback-message');
+            await handleCopyToClipboard('results-container', 'feedback-message');
         }
         if (event.target.id === 'print-report-btn') {
             window.print();
@@ -1030,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const copySectionBtn = event.target.closest('.copy-section-btn');
         if (copySectionBtn) {
-            handleCopyToClipboard(copySectionBtn.dataset.copyTargetId, 'feedback-message');
+            await handleCopyToClipboard(copySectionBtn.dataset.copyTargetId, 'feedback-message');
         }
     });
 

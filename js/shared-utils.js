@@ -11,6 +11,7 @@
  * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
  * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation.
  * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
+ * @param {function} [config.preCalculationHook] - Optional. A function to run after validation but before calculation. Can modify inputs.
  * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
  * @returns {function} The generated event handler function.
  */
@@ -23,6 +24,7 @@ function createCalculationHandler(config) {
         renderFunction,
         resultsContainerId,
         validatorFunction,
+        preCalculationHook,
         feedbackElId = 'feedback-message',
         buttonId
     } = config;
@@ -116,6 +118,37 @@ function initializeThemeToggle() {
 }
 
 /**
+ * Populates input fields from URL query parameters.
+ * This allows for sharing pre-configured calculator links.
+ * e.g., ?basic_wind_speed=120&mean_roof_height=50
+ */
+function loadInputsFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.toString() === '') {
+        return; // No parameters, do nothing.
+    }
+
+    let populatedCount = 0;
+    params.forEach((value, key) => {
+        const el = document.getElementById(key);
+        if (el) {
+            if (el.type === 'checkbox') {
+                el.checked = value === 'true';
+            } else {
+                el.value = value;
+            }
+            // Dispatch events to ensure any UI toggles or dependent logic is triggered.
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            populatedCount++;
+        }
+    });
+
+    if (populatedCount > 0) {
+        showFeedback(`${populatedCount} input(s) loaded from URL.`, false, 'feedback-message');
+    }
+}
+/**
  * A single initialization function for all shared UI components.
  */
 function initializeSharedUI() {
@@ -123,6 +156,7 @@ function initializeSharedUI() {
     initializeBackToTopButton();
     initializeUiToggles();
 }
+loadInputsFromURL();
 
 /**
  * Initializes UI toggles based on data attributes for declarative UI logic.
@@ -539,66 +573,63 @@ async function convertSvgToPng(svg) {
  * @param {string} containerId - The ID of the container with the report content.
  * @param {string} feedbackElId - The ID of the feedback element.
  */
-async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
+async function handleDownloadPdf(containerId, filename, feedbackElId = 'feedback-message') {
+    const reportContainer = document.getElementById(containerId);
+    if (!reportContainer) {
+        showFeedback('Report container not found for PDF export.', true, feedbackElId);
+        return;
+    }
+    if (typeof html2pdf === 'undefined') {
+        showFeedback('PDF generation library is not loaded.', true, feedbackElId);
+        return;
+    }
+    
+    showFeedback('Generating PDF...', false, feedbackElId);
+
+    // FIX: Temporarily switch to light mode for PDF generation
+    const htmlElement = document.documentElement;
+    const isDark = htmlElement.classList.contains('dark');
+    if (isDark) {
+        htmlElement.classList.remove('dark');
+    }
+    // End of FIX
+
+    const projectTitle = document.getElementById('main-title')?.innerText || 'Engineering Report';
+    const reportDate = new Date().toLocaleDateString();
+
+    const opt = {
+        margin:       0.5,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    // Use a try/finally block to ensure the theme is restored even if an error occurs
     try {
-        const container = document.getElementById(containerId);
-        if (!container) {
-            showFeedback('Report container not found.', true, feedbackElId);
-            return;
+        await html2pdf().from(reportContainer).set(opt).toPdf().get('pdf').then(function (pdf) {
+            const totalPages = pdf.internal.getNumberOfPages();
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(10);
+                pdf.setTextColor(100); // Gray color
+                // Header
+                pdf.text(projectTitle, pageWidth / 2, 0.3, { align: 'center' });
+                pdf.text(`Date: ${reportDate}`, pageWidth - 0.5, 0.3, { align: 'right' });
+                // Footer
+                pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 0.3, { align: 'center' });
+            }
+        }).save();
+    } finally {
+        // FIX: Restore the original theme after PDF generation
+        if (isDark) {
+            htmlElement.classList.add('dark');
         }
-
-        showFeedback('Preparing report for copying...', false, feedbackElId);
-        const clone = container.cloneNode(true);
-
-        // --- Get Title and Date ---
-        const reportTitle = document.getElementById('main-title')?.innerText || 'Calculation Report';
-        const reportDate = new Date().toLocaleDateString();
-        const headerHtml = `<h1 style="font-size: 16pt; font-family: 'Times New Roman', Times, serif; font-weight: bold; text-align: center;">${reportTitle}</h1><p style="font-size: 12pt; font-family: 'Times New Roman', Times, serif; text-align: center;">Date: ${reportDate}</p><hr>`;
-        const headerText = `${reportTitle}\nDate: ${reportDate}\n\n---\n\n`;
-
-        // Prepare the clone for copying: remove interactive elements and expand details.
-        clone.classList.add('copy-friendly');
-        clone.querySelectorAll('button, .print-hidden, [data-copy-ignore]').forEach(el => el.remove());
-        clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
-
-        // Convert SVGs to PNGs
-        let conversionFailures = 0;
-        const svgElements = Array.from(clone.querySelectorAll('svg'));
-        if (svgElements.length > 0) {
-            showFeedback(`Converting ${svgElements.length} diagram(s) to images...`, false, feedbackElId);
-            // Use Promise.all to run conversions in parallel for better performance.
-            await Promise.all(svgElements.map(async (svg) => {
-                try {
-                    const pngImage = await convertSvgToPng(svg);
-                    if (pngImage && svg.parentNode) {
-                        svg.parentNode.replaceChild(pngImage, svg);
-                    }
-                } catch (error) {
-                    console.warn("SVG to PNG conversion failed:", error);
-                    conversionFailures++;
-                    if (svg.parentNode) svg.parentNode.remove(); // Remove SVG if conversion fails to avoid broken images.
-                }
-            }));
-        }
-
-        showFeedback('Copying to clipboard...', false, feedbackElId);
-        const htmlContent = headerHtml + clone.innerHTML;
-        const plainTextContent = headerText + (clone.innerText || clone.textContent);
-
-        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-        const textBlob = new Blob([plainTextContent], { type: 'text/plain' });
-        await navigator.clipboard.write([
-            new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })
-        ]);
-
-        let feedback = 'Report and diagrams copied successfully!';
-        if (conversionFailures > 0) {
-            feedback = `Report copied, but ${conversionFailures} diagram(s) could not be converted.`;
-        }
-        showFeedback(feedback, false, feedbackElId);
-    } catch (err) {
-        console.error('Clipboard API failed:', err);
-        showFeedback('Copy failed. Your browser may not support this feature.', true, feedbackElId);
+        // End of FIX
     }
 }
 
@@ -621,11 +652,15 @@ function sendDataToCombos(config) {
     const dataToSend = { source, type, loads };
     localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
     
-    // Determine the correct path to the destination URL
+    // Determine the correct relative path to the destination URL
     const currentPath = window.location.pathname;
-    const pathSegments = currentPath.split('/');
-    const isSubdirectory = pathSegments.length > 2 && pathSegments[pathSegments.length - 2] !== '';
-    const finalUrl = isSubdirectory ? `../asce/${destinationUrl}` : `asce/${destinationUrl}`;
+    // Count how many levels deep we are from the root.
+    // e.g., /asce/wind.html -> 2 segments before filename
+    // e.g., /index.html -> 1 segment before filename
+    const depth = currentPath.split('/').length - 2;
+    
+    const relativePrefix = '../'.repeat(Math.max(0, depth));
+    const finalUrl = `${relativePrefix}asce/${destinationUrl}`;
 
     window.location.href = finalUrl;
 }
@@ -688,9 +723,17 @@ function createCalculationHandler(config) {
                 return;
             }
 
+            // Allow a pre-calculation hook to run, which can modify inputs
+            let finalInputs = inputs;
+            if (typeof preCalculationHook === 'function') {
+                const hookResult = await step('Running pre-calculation hook...', () => preCalculationHook(inputs, validation));
+                // If the hook returns a value, use it as the new inputs
+                finalInputs = hookResult !== undefined ? hookResult : inputs;
+            }
+
             const calculationResult = await step('Running calculation...', () => {
                 // Pass validation object to calculator if it accepts more than one argument
-                return calculatorFunction(inputs, validation);
+                return calculatorFunction(finalInputs, validation);
             });
 
             if (calculationResult.error) {
@@ -698,7 +741,7 @@ function createCalculationHandler(config) {
                 showFeedback('Calculation failed.', true, feedbackElId);
             } else {
                 await step('Rendering results...', () => {
-                    saveInputsToLocalStorage(storageKey, inputs);
+                    saveInputsToLocalStorage(storageKey, finalInputs);
                     renderFunction(calculationResult);
                 });
                 showFeedback('Calculation complete!', false, feedbackElId);
