@@ -78,18 +78,20 @@ function renderNbrResults(calc_results) {
             <div class="calc-breakdown mt-4">
                 <h4>Detalhes da Flexão</h4>
                 <ul>
-                    <li>Altura Útil (d): ${flex.d.toFixed(2)} cm</li>
-                    <li>Área de Aço (A<sub>s</sub>): ${flex.As.toFixed(2)} cm²</li>
-                    <li>Linha Neutra (x): ${flex.x.toFixed(2)} cm</li>
-                    <li>Relação x/d: ${flex.x_d_ratio.toFixed(3)} (${flex.dominio})</li>
+                    <li>Altura Útil (d) = h - c - &oslash;<sub>estribo</sub> - &oslash;<sub>barra</sub>/2 = <b>${flex.d.toFixed(2)} cm</b></li>
+                    <li>Área de Aço (A<sub>s</sub>) = n * (&pi; * &oslash;² / 4) = <b>${flex.As.toFixed(2)} cm²</b></li>
+                    <li>Linha Neutra (x) = (A<sub>s</sub> * f<sub>yd</sub>) / (0.68 * f<sub>cd</sub> * b<sub>w</sub>) = <b>${flex.x.toFixed(2)} cm</b></li>
+                    <li>Relação x/d: ${flex.x.toFixed(2)} / ${flex.d.toFixed(2)} = <b>${flex.x_d_ratio.toFixed(3)}</b> (${flex.dominio})</li>
+                    <li>Momento Resistente (M<sub>Rd</sub>) = A<sub>s</sub> * f<sub>yd</sub> * (d - 0.4x) = <b>${(flex.Mrd / 100).toFixed(2)} kN·m</b></li>
                 </ul>
             </div>
             <div class="calc-breakdown mt-4">
                 <h4>Detalhes do Cisalhamento</h4>
                 <ul>
-                    <li>Contribuição do Concreto (V<sub>c</sub>): ${shear.Vc.toFixed(2)} kN</li>
-                    <li>Contribuição dos Estribos (V<sub>sw</sub>): ${shear.Vsw.toFixed(2)} kN</li>
-                    <li>Resistência Máxima (V<sub>Rd2</sub>): ${shear.VRd2.toFixed(2)} kN</li>
+                    <li>Resistência do Concreto (V<sub>c</sub>) = 0.6 * f<sub>ctd</sub> * b<sub>w</sub> * d = <b>${shear.Vc.toFixed(2)} kN</b></li>
+                    <li>Resistência dos Estribos (V<sub>sw</sub>) = (A<sub>sw</sub>/s) * 0.9 * d * f<sub>yd</sub> = <b>${shear.Vsw.toFixed(2)} kN</b></li>
+                    <li>Resistência Total (V<sub>Rd</sub>) = V<sub>c</sub> + V<sub>sw</sub> = <b>${shear.VRd.toFixed(2)} kN</b></li>
+                    <li>Verificação da Biela Comprimida (V<sub>Rd2</sub>) = 0.27 * (1 - f<sub>ck</sub>/250) * f<sub>cd</sub> * b<sub>w</sub> * 0.9d = <b>${shear.VRd2.toFixed(2)} kN</b></li>
                 </ul>
             </div>
         </div>`;

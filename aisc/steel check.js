@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('num_beams').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     document.getElementById('beam_spacing').addEventListener('input', calculateAndDisplayBuiltUpProperties);
     updateGeometryInputsUI(); // Initial call
-    loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds, calculateAndDisplayBuiltUpProperties);
+    loadInputsFromLocalStorage('steel-check-inputs', steelCheckInputIds);
     document.getElementById('run-steel-check-btn').addEventListener('click', handleRunSteelCheck);
 
     document.getElementById('steel-results-container').addEventListener('click', (event) => {
@@ -1366,13 +1366,18 @@ function renderSteelResults(results) {
                 For final designs, verify results using certified software or manual calculations per the current AISC Specification. 
                 Some limit states may not be fully implemented. Always consult a licensed structural engineer for critical applications. For non-uniform loading in LTB, adjust Cb manually; variable cross-sections and stiffened elements are not supported.
             </div>
-            <div"flex justify-between items-center">
-                <h2 class="report-header text-center flex-grow">Steel Check Results (${inputs.aisc_standard})</h2>
-                <button data-copy-target-id="steel-check-summary" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Summary</button>
+            <h2 class="report-header text-center">Steel Check Results (${inputs.aisc_standard})</h2>
+            
+            <div id="steel-properties-section" class="report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="report-header !text-lg !mb-0 !pb-0 !border-b-0 flex-grow">Calculated Section Properties</h3>
+                    <button data-copy-target-id="steel-properties-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
+                ${renderPropertyTable(properties)}
             </div>
-            ${renderPropertyTable(properties)}
-            <table>
-                <caption>Applied Loads Summary</caption>
+
+            <table class="mt-4">
+                <caption>Applied Loads Summary (${method})</caption>
                 <tbody>
                     <tr><td>Axial Load (${method === 'LRFD' ? 'P<sub>u</sub>' : 'P<sub>a</sub>'})</td><td>${inputs.Pu_or_Pa} kips</td></tr>
                     <tr><td>Major Moment (${method === 'LRFD' ? 'M<sub>ux</sub>' : 'M<sub>ax</sub>'})</td><td>${inputs.Mux_or_Max} kip-ft</td></tr>
@@ -1385,17 +1390,21 @@ function renderSteelResults(results) {
                     ` : ''}
                 </tbody>
             </table>
-            <table id="steel-check-summary" class="report-section-copyable">
-                <caption>Summary of Design Checks (${method})</caption>
-                <thead>
-                    <tr>
-                        <th>Check</th>
-                        <th>Required<br>(${method === 'LRFD' ? 'Pu, Mu, Vu' : 'Pa, Ma, Va'})</th>
-                        <th>Capacity<br>(${method === 'LRFD' ? 'φPn, φMn, φVn' : 'Pn/Ω, Mn/Ω, Vn/Ω'})</th>
-                        <th>Ratio</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
+            <div id="steel-check-summary-section" class="report-section-copyable">
+                <div class="flex justify-between items-center mt-4">
+                    <h3 class="report-header !text-lg !mb-0 !pb-0 !border-b-0 flex-grow">Summary of Design Checks</h3>
+                    <button data-copy-target-id="steel-check-summary-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
+                <table id="steel-check-summary">
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Required<br>(${method === 'LRFD' ? 'Pu, Mu, Vu' : 'Pa, Ma, Va'})</th>
+                            <th>Capacity<br>(${method === 'LRFD' ? 'φPn, φMn, φVn' : 'Pn/Ω, Mn/Ω, Vn/Ω'})</th>
+                            <th>Ratio</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
                 <tbody>
                     ${axial.type ? `
                     <tr>
@@ -1543,8 +1552,9 @@ function renderSteelResults(results) {
                         ${getStatus(Vu / web_crippling.phiRn_or_Rn_omega)}
                     </tr>
                     <tr id="crippling-details" class="details-row">
-                        <td colspan="5" class="p-0"><div class="calc-breakdown">
-                            <h4>Web Crippling & Yielding Breakdown (${web_crippling.reference})</h4>
+                        <td colspan="5" class="p-0">
+                            <div class="calc-breakdown">
+                                <h4>Web Crippling & Yielding Breakdown (${web_crippling.reference})</h4>
                             <ul>
                                 <li>Web Local Yielding Capacity (R<sub>n</sub>) = <b>${web_crippling.details.Rn_yield.toFixed(2)} kips</b></li>
                                 <li>Web Local Crippling Capacity (R<sub>n</sub>) = <b>${web_crippling.details.Rn_crippling.toFixed(2)} kips</b></li>
@@ -1554,30 +1564,35 @@ function renderSteelResults(results) {
                         </div></td>
                     </tr>` : ''}
                 </tbody>
-            </table>
+                </table>
+            </div>
             ${deflection.actual ? `
-            <table>
-                <caption>Serviceability Checks</caption>
-                <thead>
-                    <tr>
-                        <th>Check</th>
-                        <th>Actual</th>
-                        <th>Allowable</th>
-                        <th>Ratio</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Deflection</td>
-                        <td>${deflection.actual.toFixed(3)} in</td>
-                        <td>${deflection.allowable.toFixed(3)} in (L/${inputs.deflection_limit})</td>
-                        <td>${deflection.ratio.toFixed(3)}</td>
-                        ${getStatus(deflection.ratio)}
-                    </tr>
-                    <tr id="deflection-details" class="details-row">
-                        <td colspan="5" class="p-0"><div class="calc-breakdown">
-                            <h4>Deflection Breakdown (Serviceability)</h4>
+            <div id="steel-deflection-section" class="report-section-copyable">
+                <div class="flex justify-between items-center mt-4">
+                    <h3 class="report-header !text-lg !mb-0 !pb-0 !border-b-0 flex-grow">Serviceability Checks</h3>
+                    <button data-copy-target-id="steel-deflection-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Actual</th>
+                            <th>Allowable</th>
+                            <th>Ratio</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Deflection</td>
+                            <td>${deflection.actual.toFixed(3)} in</td>
+                            <td>${deflection.allowable.toFixed(3)} in (L/${inputs.deflection_limit})</td>
+                            <td>${deflection.ratio.toFixed(3)}</td>
+                            ${getStatus(deflection.ratio)}
+                        </tr>
+                        <tr id="deflection-details" class="details-row">
+                            <td colspan="5" class="p-0"><div class="calc-breakdown">
+                                <h4>Deflection Breakdown (Serviceability)</h4>
                             <ul>
                                 <li>Actual Deflection = <b>${deflection.actual.toFixed(3)} in</b></li>
                                 <li>Allowable Deflection (L / ${inputs.deflection_limit}) = <b>${deflection.allowable.toFixed(3)} in</b></li>
@@ -1585,7 +1600,8 @@ function renderSteelResults(results) {
                         </div></td>
                     </tr>
                 </tbody>
-            </table>
+                </table>
+            </div>
             ` : ''}
         </div>`}
     `;

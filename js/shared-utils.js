@@ -603,6 +603,172 @@ async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-messa
 }
 
 /**
+ * Sends data from a calculator to the load combination page.
+ * It stores the data in localStorage and redirects the user.
+ * @param {object} config - The configuration object.
+ * @param {object} config.loads - The key-value pairs of loads to send.
+ * @param {string} config.source - The name of the source calculator (e.g., "Wind Calculator").
+ * @param {string} config.type - The type of loads (e.g., "Wind", "Snow").
+ * @param {string} [config.feedbackElId='feedback-message'] - The ID of the feedback element.
+ * @param {string} [config.destinationUrl='combos.html'] - The URL to redirect to.
+ */
+function sendDataToCombos(config) {
+    const { loads, source, type, feedbackElId = 'feedback-message', destinationUrl = 'combos.html' } = config;
+    if (!loads || Object.keys(loads).length === 0) {
+        showFeedback(`No ${type} loads to send.`, true, feedbackElId);
+        return;
+    }
+    const dataToSend = { source, type, loads };
+    localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
+    
+    // Determine the correct path to the destination URL
+    const currentPath = window.location.pathname;
+    const pathSegments = currentPath.split('/');
+    const isSubdirectory = pathSegments.length > 2 && pathSegments[pathSegments.length - 2] !== '';
+    const finalUrl = isSubdirectory ? `../asce/${destinationUrl}` : `asce/${destinationUrl}`;
+
+    window.location.href = finalUrl;
+}
+
+/**
+ * Creates a standardized calculation handler to reduce boilerplate code.
+ * This function encapsulates the common pattern: gather, validate, calculate, render.
+ * @param {object} config - The configuration object for the handler.
+ * @param {string[]} config.inputIds - Array of input element IDs.
+ * @param {string} config.storageKey - Local storage key for saving inputs.
+ * @param {string} config.validationRuleKey - Key for the validationRules object.
+ * @param {function} config.calculatorFunction - The function that performs the calculation.
+ * @param {function} config.renderFunction - The function that renders the results.
+ * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
+ * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation. If not provided, a default validator is used.
+ * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
+ * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
+ * @returns {function} The generated event handler function.
+ */
+function createCalculationHandler(config) {
+    const {
+        inputIds,
+        storageKey,
+        validationRuleKey,
+        calculatorFunction,
+        renderFunction,
+        resultsContainerId,
+        validatorFunction,
+        feedbackElId = 'feedback-message',
+        buttonId
+    } = config;
+    
+    return async function() {
+        const resultsContainer = document.getElementById(resultsContainerId);
+
+        const step = async (message, action) => {
+            showFeedback(message, false, feedbackElId);
+            // Yield to the main thread to allow the UI to update with the feedback message.
+            await new Promise(resolve => setTimeout(resolve, 20)); 
+            return action();
+        };
+
+        try {
+            if (buttonId) setLoadingState(true, buttonId);
+
+            const inputs = await step('Gathering inputs...', () => gatherInputsFromIds(inputIds));
+
+            const validation = await step('Validating inputs...', () => {
+                if (typeof validatorFunction === 'function') {
+                    return validatorFunction(inputs);
+                }
+                const rules = validationRules[validationRuleKey];
+                return validateInputs(inputs, rules);
+            });
+
+            if (validation.errors.length > 0) {
+                renderValidationResults(validation, resultsContainer);
+                showFeedback('Validation failed. Please correct the errors.', true, feedbackElId);
+                if (buttonId) setLoadingState(false, buttonId);
+                return;
+            }
+
+            const calculationResult = await step('Running calculation...', () => {
+                // Pass validation object to calculator if it accepts more than one argument
+                return calculatorFunction(inputs, validation);
+            });
+
+            if (calculationResult.error) {
+                renderValidationResults({ errors: [calculationResult.error] }, resultsContainer);
+                showFeedback('Calculation failed.', true, feedbackElId);
+            } else {
+                await step('Rendering results...', () => {
+                    saveInputsToLocalStorage(storageKey, inputs);
+                    renderFunction(calculationResult);
+                });
+                showFeedback('Calculation complete!', false, feedbackElId);
+            }
+
+        } catch (error) {
+            console.error('An unexpected error occurred in the calculation handler:', error);
+            renderValidationResults({ errors: [`An unexpected error occurred: ${error.message}`] }, resultsContainer);
+            showFeedback('A critical error occurred.', true, feedbackElId);
+        } finally {
+            if (buttonId) setLoadingState(false, buttonId);
+        }
+    };
+}
+        showFeedback('Preparing report for copying...', false, feedbackElId);
+        const clone = container.cloneNode(true);
+
+        // --- Get Title and Date ---
+        const reportTitle = document.getElementById('main-title')?.innerText || 'Calculation Report';
+        const reportDate = new Date().toLocaleDateString();
+        const headerHtml = `<h1 style="font-size: 16pt; font-family: 'Times New Roman', Times, serif; font-weight: bold; text-align: center;">${reportTitle}</h1><p style="font-size: 12pt; font-family: 'Times New Roman', Times, serif; text-align: center;">Date: ${reportDate}</p><hr>`;
+        const headerText = `${reportTitle}\nDate: ${reportDate}\n\n---\n\n`;
+
+        // Prepare the clone for copying: remove interactive elements and expand details.
+        clone.classList.add('copy-friendly');
+        clone.querySelectorAll('button, .print-hidden, [data-copy-ignore]').forEach(el => el.remove());
+        clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
+
+        // Convert SVGs to PNGs
+        let conversionFailures = 0;
+        const svgElements = Array.from(clone.querySelectorAll('svg'));
+        if (svgElements.length > 0) {
+            showFeedback(`Converting ${svgElements.length} diagram(s) to images...`, false, feedbackElId);
+            // Use Promise.all to run conversions in parallel for better performance.
+            await Promise.all(svgElements.map(async (svg) => {
+                try {
+                    const pngImage = await convertSvgToPng(svg);
+                    if (pngImage && svg.parentNode) {
+                        svg.parentNode.replaceChild(pngImage, svg);
+                    }
+                } catch (error) {
+                    console.warn("SVG to PNG conversion failed:", error);
+                    conversionFailures++;
+                    if (svg.parentNode) svg.parentNode.remove(); // Remove SVG if conversion fails to avoid broken images.
+                }
+            }));
+        }
+
+        showFeedback('Copying to clipboard...', false, feedbackElId);
+        const htmlContent = headerHtml + clone.innerHTML;
+        const plainTextContent = headerText + (clone.innerText || clone.textContent);
+
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const textBlob = new Blob([plainTextContent], { type: 'text/plain' });
+        await navigator.clipboard.write([
+            new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })
+        ]);
+
+        let feedback = 'Report and diagrams copied successfully!';
+        if (conversionFailures > 0) {
+            feedback = `Report copied, but ${conversionFailures} diagram(s) could not be converted.`;
+        }
+        showFeedback(feedback, false, feedbackElId);
+    } catch (err) {
+        console.error('Clipboard API failed:', err);
+        showFeedback('Copy failed. Your browser may not support this feature.', true, feedbackElId);
+    }
+}
+
+/**
  * Creates Word-compatible HTML structure
  */
 function createWordCompatibleHTML(content) {
@@ -643,144 +809,53 @@ async function handleDownloadPdf(containerId, filename, feedbackElId = 'feedback
         return;
     }
 
-    showFeedback('Preparing document for printing...', false, feedbackElId);
+    showFeedback('Preparing print view...', false, feedbackElId);
 
-    // Store original page state
-    const originalContent = document.body.innerHTML;
+    // Store original body content and title
+    const originalBody = document.body.innerHTML;
     const originalTitle = document.title;
-    const wasInDarkMode = document.documentElement.classList.contains('dark');
-
-    // Create the print-only container
-    const printContainer = document.createElement('div');
-    printContainer.id = 'print-container';
-    
-    // Add print-specific styling
-    const printStyle = document.createElement('style');
-    printStyle.textContent = `
-        @media print {
-            /* Reset all colors to default black on white */
-            body {
-                margin: 0;
-                color: black !important;
-                background: white !important;
-                font-family: "Times New Roman", Times, serif !important;
-                font-size: 12pt !important;
-                line-height: 1.3 !important;
-            }
-            
-            /* Hide all other content */
-            body > *:not(#print-container) {
-                display: none !important;
-            }
-
-            /* Basic text formatting */
-            h1 { font-size: 18pt !important; }
-            h2 { font-size: 16pt !important; }
-            h3 { font-size: 14pt !important; }
-            
-            /* Table formatting */
-            table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-                page-break-inside: avoid !important;
-                margin: 12pt 0 !important;
-            }
-            th, td {
-                border: 1px solid black !important;
-                padding: 6pt !important;
-                text-align: left !important;
-                color: black !important;
-            }
-            
-            /* Image handling */
-            img, svg {
-                max-width: 100% !important;
-                page-break-inside: avoid !important;
-            }
-            
-            /* Page layout */
-            @page {
-                size: letter;
-                margin: 0.75in;
-            }
-            
-            /* Avoid breaks */
-            h1, h2, h3, h4 { page-break-after: avoid !important; }
-            table, figure { page-break-inside: avoid !important; }
-            
-            /* Headers and footers */
-            .header { position: running(header); }
-            .footer { position: running(footer); }
-            @page {
-                @top-center { content: element(header); }
-                @bottom-center { content: element(footer); }
-            }
-            
-            /* Force black text everywhere */
-            * {
-                color: black !important;
-                border-color: black !important;
-                background: transparent !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            /* Hide non-printable elements */
-            .print-hidden, button, [data-print-ignore] { display: none !important; }
-
-            /* Show all details */
-            .details-row { display: block !important; }
-        }
-    `;
-    document.head.appendChild(printStyle);
 
     try {
-        // Prepare print content
-        const contentClone = reportContainer.cloneNode(true);
-        
-        // Add header
-        const projectTitle = document.getElementById('main-title')?.innerText || 'Engineering Report';
-        const reportDate = new Date().toLocaleDateString();
-        const header = document.createElement('div');
-        header.className = 'header';
-        header.innerHTML = `
-            <div style="text-align: center; margin-bottom: 20pt;">
-                <h1 style="margin: 0; font-size: 18pt;">${projectTitle}</h1>
-                <div style="font-size: 10pt; margin-top: 4pt;">Date: ${reportDate}</div>
-            </div>
-        `;
-        
-        // Clean up the clone
-        contentClone.querySelectorAll('button, .print-hidden, [data-print-ignore]').forEach(el => el.remove());
-        contentClone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
-        
-        // Assemble print container
-        printContainer.appendChild(header);
-        printContainer.appendChild(contentClone);
-        
-        // Switch to print layout
+        // Clone the report container to work with
+        const reportClone = reportContainer.cloneNode(true);
+
+        // Ensure all expandable details are visible in the clone
+        reportClone.querySelectorAll('.details-row').forEach(row => {
+            row.style.display = 'table-row';
+        });
+
+        // Create a temporary print-friendly body
         document.body.innerHTML = '';
-        document.body.appendChild(printContainer);
-        document.documentElement.classList.remove('dark');
+        document.body.appendChild(reportClone);
         document.title = filename.replace('.pdf', '');
 
-        // Trigger browser print dialog
-        showFeedback('Opening print dialog...', false, feedbackElId);
+        // Add a temporary print stylesheet
+        const printStyle = document.createElement('style');
+        printStyle.textContent = `
+            @media print {
+                body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; }
+                table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+                th, td { border: 1px solid #000; padding: 4px; }
+                th { background-color: #f0f0f0; }
+                .print-hidden, .toggle-details-btn { display: none; }
+                @page { size: letter; margin: 0.75in; }
+            }
+        `;
+        document.head.appendChild(printStyle);
+
+        // Trigger the print dialog
         window.print();
 
     } finally {
-        // Restore original page state
-        document.head.removeChild(printStyle);
-        document.body.innerHTML = originalContent;
+        // Restore the original page content and title
+        document.body.innerHTML = originalBody;
         document.title = originalTitle;
-        if (wasInDarkMode) {
-            document.documentElement.classList.add('dark');
-        }
-        
-        // Reattach event listeners (since we replaced body content)
+        // Re-initialize any UI elements that were in the original body
         initializeSharedUI();
-        
-        showFeedback('Ready to save as PDF from print dialog', false, feedbackElId);
+        // Re-attach calculator-specific event listeners if they were lost
+        // This part is tricky and might require a more robust solution if issues arise.
+        // For now, we assume the main event listeners are re-attached by the page's own script.
+        showFeedback('Print view closed.', false, feedbackElId);
     }
 }
 /**
@@ -867,204 +942,3 @@ function createLoadInputsHandler(inputIds, onComplete, feedbackElId = 'feedback-
             if (displayEl) displayEl.textContent = ''; 
             return;
         }
-
-        if (displayEl) displayEl.textContent = `Loaded: ${sanitizeHTML(file.name)}`;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const inputs = JSON.parse(e.target.result);
-                inputIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && inputs[id] !== undefined) { // Check for undefined, not just truthiness
-                        if (el.type === 'checkbox') {
-                            el.checked = !!inputs[id];
-                        } else {
-                            el.value = inputs[id];
-                        }
-                        // Trigger change event for selects to update UI
-                        if (el.tagName === 'SELECT') {
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
-                });
-                showFeedback('Inputs loaded successfully!', false, feedbackElId);
-                if (typeof onComplete === 'function') onComplete();
-            } catch (err) {
-                showFeedback('Failed to load inputs. Data may be corrupt.', true, feedbackElId);
-                console.error("Error parsing saved data:", err);
-            } finally {
-                // Reset file input to allow loading the same file again
-                event.target.value = ''; 
-                if (displayEl) displayEl.textContent = ''; // Clear filename display after processing
-            }
-        };
-        reader.readAsText(file);
-    };
-}
-
-/**
- * Saves a key-value pair to the browser's local storage.
- * @param {string} storageKey - The key to use for storing the data.
- * @param {object} inputs - The input data object to be stringified and saved.
- */
-function saveInputsToLocalStorage(storageKey, inputs) {
-    try {
-        const dataStr = JSON.stringify(inputs);
-        localStorage.setItem(storageKey, dataStr);
-    } catch (error) {
-        console.error('Could not save inputs to local storage:', error);
-    }
-}
-
-/**
- * Loads and applies saved inputs from local storage.
- * @param {string} storageKey - The key to retrieve data from.
- * @param {string[]} inputIds - An array of input element IDs to populate.
- * @param {function} [onComplete] - An optional callback to run after inputs are loaded.
- */
-function loadInputsFromLocalStorage(storageKey, inputIds, onComplete) {
-    const dataStr = localStorage.getItem(storageKey);
-    if (!dataStr) {
-        return; // No saved data found, do not proceed.
-    }
-    try {
-        const inputs = JSON.parse(dataStr);
-        inputIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el && inputs[id] !== undefined) {
-                if (el.type === 'checkbox') {
-                    el.checked = !!inputs[id];
-                } else {
-                    el.value = inputs[id];
-                }
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        });
-        // Only run the onComplete callback if data was actually found and loaded.
-        if (typeof onComplete === 'function') {
-            onComplete();
-        }
-    } catch (error) {
-        console.error('Could not load inputs from local storage:', error);
-    }
-}
-
-/**
- * Sends data from a calculator to the load combination page.
- * It stores the data in localStorage and redirects the user.
- * @param {object} config - The configuration object.
- * @param {object} config.loads - The key-value pairs of loads to send.
- * @param {string} config.source - The name of the source calculator (e.g., "Wind Calculator").
- * @param {string} config.type - The type of loads (e.g., "Wind", "Snow").
- * @param {string} [config.feedbackElId='feedback-message'] - The ID of the feedback element.
- * @param {string} [config.destinationUrl='combos.html'] - The URL to redirect to.
- */
-function sendDataToCombos(config) {
-    const { loads, source, type, feedbackElId = 'feedback-message', destinationUrl = 'combos.html' } = config;
-    if (!loads || Object.keys(loads).length === 0) {
-        showFeedback(`No ${type} loads to send.`, true, feedbackElId);
-        return;
-    }
-    const dataToSend = { source, type, loads };
-    localStorage.setItem('loadsForCombinator', JSON.stringify(dataToSend));
-    window.location.href = destinationUrl;
-}
-/**
- * Creates a standardized calculation handler to reduce boilerplate code.
- * This function encapsulates the common pattern: gather, validate, calculate, render.
- * @param {object} config - The configuration object for the handler.
- * @param {string[]} config.inputIds - Array of input element IDs.
- * @param {string} config.storageKey - Local storage key for saving inputs.
- * @param {string} config.validationRuleKey - Key for the validationRules object.
- * @param {function} config.calculatorFunction - The function that performs the calculation.
- * @param {function} config.renderFunction - The function that renders the results.
- * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
- * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation. If not provided, a default validator is used.
- * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
- * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
- * @returns {function} The generated event handler function.
- */
-/**
- * Creates a standardized calculation handler to reduce boilerplate code.
- * This function encapsulates the common pattern: gather, validate, calculate, render.
- * @param {object} config - The configuration object for the handler.
- * @param {string[]} config.inputIds - Array of input element IDs.
- * @param {string} config.storageKey - Local storage key for saving inputs.
- * @param {function} config.calculatorFunction - The function that performs the calculation.
- * @param {function} config.renderFunction - The function that renders the results.
- * @param {string} config.resultsContainerId - The ID of the DOM element to render results into.
- * @param {function} [config.validatorFunction] - Optional. A custom function to perform validation.
- * @param {string} [config.feedbackElId='feedback-message'] - Optional. The ID of the feedback element.
- * @param {string} [config.buttonId] - Optional ID of the run button for loading state.
- * @returns {function} The generated event handler function.
- */
-function createCalculationHandler(config) {
-    const {
-        inputIds,
-        storageKey,
-        validationRuleKey,
-        calculatorFunction,
-        renderFunction,
-        resultsContainerId,
-        validatorFunction,
-        feedbackElId = 'feedback-message',
-        buttonId
-    } = config;
-    
-    return async function() {
-        const resultsContainer = document.getElementById(resultsContainerId);
-
-        const step = async (message, action) => {
-            showFeedback(message, false, feedbackElId);
-            // Yield to the main thread to allow the UI to update with the feedback message.
-            await new Promise(resolve => setTimeout(resolve, 20)); 
-            return action();
-        };
-
-        try {
-            if (buttonId) setLoadingState(true, buttonId);
-
-            const inputs = await step('Gathering inputs...', () => gatherInputsFromIds(inputIds));
-
-            const validation = await step('Validating inputs...', () => {
-                if (typeof validatorFunction === 'function') {
-                    return validatorFunction(inputs);
-                }
-                const rules = validationRules[validationRuleKey];
-                return validateInputs(inputs, rules);
-            });
-
-            if (validation.errors.length > 0) {
-                renderValidationResults(validation, resultsContainer);
-                showFeedback('Validation failed. Please correct the errors.', true, feedbackElId);
-                if (buttonId) setLoadingState(false, buttonId);
-                return;
-            }
-
-            const calculationResult = await step('Running calculation...', () => {
-                // Pass validation object to calculator if it accepts more than one argument
-                return calculatorFunction(inputs, validation);
-            });
-
-            if (calculationResult.error) {
-                renderValidationResults({ errors: [calculationResult.error] }, resultsContainer);
-                showFeedback('Calculation failed.', true, feedbackElId);
-            } else {
-                await step('Rendering results...', () => {
-                    saveInputsToLocalStorage(storageKey, inputs);
-                    renderFunction(calculationResult);
-                });
-                showFeedback('Calculation complete!', false, feedbackElId);
-            }
-
-        } catch (error) {
-            console.error('An unexpected error occurred in the calculation handler:', error);
-            renderValidationResults({ errors: [`An unexpected error occurred: ${error.message}`] }, resultsContainer);
-            showFeedback('A critical error occurred.', true, feedbackElId);
-        } finally {
-            if (buttonId) setLoadingState(false, buttonId);
-        }
-    };
-}

@@ -56,6 +56,7 @@ const validationRules = {
     wood: {
         'Fb_unadjusted': { min: 0.001, required: true, label: 'Fb' },
         'Fv_unadjusted': { min: 0.001, required: true, label: 'Fv' },
+        'Fc_perp_unadjusted': { min: 0.001, required: true, label: 'Fc⊥' },
         'Fc_unadjusted': { min: 0.001, required: true, label: 'Fc' },
         'E_unadjusted': { min: 0.001, required: true, label: 'E' },
         'E_min_unadjusted': { min: 0.001, required: true, label: 'E_min' },
@@ -63,6 +64,13 @@ const validationRules = {
         'd_depth': { min: 0.001, required: true, label: 'Depth (d)' },
         'unbraced_length_L': { min: 0.001, required: true, label: 'Unbraced Length (L)' },
         'effective_length_factor_K': { min: 0.001, required: true, label: 'K Factor' },
+        'bearing_length_Lb': { min: 0.001, required: true, label: 'Bearing Length (Lb)' },
+        'deflection_span': { min: 0.001, required: false, label: 'Deflection Span' },
+        'deflection_limit': { min: 1, required: false, label: 'Deflection Limit' },
+        'actual_deflection': { min: 0, required: false, label: 'Actual Deflection' },
+        'axial_load_P': { required: false, label: 'Axial Load' },
+        'moment_load_M': { required: false, label: 'Moment Load' },
+        'shear_load_V': { required: false, label: 'Shear Load' }
     },
     steel_check: {
         'Fy': { min: 0.1, max: 150, required: true, label: 'Yield Strength (Fy)' },

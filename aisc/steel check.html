@@ -15,8 +15,8 @@
         })();
     </script>
     <script src="../js/template.js" defer></script>
-    <script src="../js/shared-utils.js" defer></script>
     <script src="../js/validation-rules.js" defer></script>
+    <script src="../js/shared-utils.js" defer></script>
     <script src="steel check.js" defer></script>
     <link rel="stylesheet" href="../styles.min.css">
 </head>
@@ -72,39 +72,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div>
-                    <div class="form-section">
-                    <h2>Section Type & Geometry</h2>
-                        <div class="space-y-4">
-                            <div>
-                                <label for="section_type" class="block text-sm font-medium mb-1">Section Type</label>
-                                <select id="section_type">
-                                    <option value="I-Shape" selected>I-Shape</option>
-                                    <option value="Rectangular HSS">Rectangular HSS</option>
-                                    <option value="HSS-round">Round HSS</option>
-                                    <option value="channel">Channel</option>
-                                    <option value="angle">Angle</option>
-                                </select>
-                            </div>
-                            <div id="d-input-container">
-                                <label for="d" id="label-d" class="block text-sm font-medium mb-1">Depth (d)</label>
-                                <input type="number" id="d" value="32.9">
-                            </div>
-                            <div id="bf-input-container">
-                                <label for="bf" id="label-bf" class="block text-sm font-medium mb-1">Flange Width (bf)</label>
-                                <input type="number" id="bf" value="11.5">
-                            </div>
-                            <div id="tf-input-container">
-                                <label for="tf" id="label-tf" class="block text-sm font-medium mb-1">Flange Thick (tf)</label>
-                                <input type="number" id="tf" value="0.74">
-                            </div>
-                            <div id="tw-input-container">
-                                <label for="tw" id="label-tw" class="block text-sm font-medium mb-1">Web Thick (tw)</label>
-                                <input type="number" id="tw" value="0.55">
-                            </div>
-                        </div>
-                    </div>
                     <div class="form-section">
                     <h2>Bracing</h2>
                         <div class="grid grid-cols-2 gap-2">
@@ -143,20 +110,49 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Column 3: Serviceability & Advanced -->
                 <div>
+                    <div class="form-section">
+                    <h2>Section Type & Geometry</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="section_type" class="block text-sm font-medium mb-1">Section Type</label>
+                                <select id="section_type">
+                                    <option value="I-Shape" selected>I-Shape</option>
+                                    <option value="Rectangular HSS">Rectangular HSS</option>
+                                    <option value="HSS-round">Round HSS</option>
+                                    <option value="channel">Channel</option>
+                                    <option value="angle">Angle</option>
+                                </select>
+                            </div>
+                            <div id="d-input-container">
+                                <label for="d" id="label-d" class="block text-sm font-medium mb-1">Depth (d)</label>
+                                <input type="number" id="d" value="32.9">
+                            </div>
+                            <div id="bf-input-container">
+                                <label for="bf" id="label-bf" class="block text-sm font-medium mb-1">Flange Width (bf)</label>
+                                <input type="number" id="bf" value="11.5">
+                            </div>
+                            <div id="tf-input-container">
+                                <label for="tf" id="label-tf" class="block text-sm font-medium mb-1">Flange Thick (tf)</label>
+                                <input type="number" id="tf" value="0.74">
+                            </div>
+                            <div id="tw-input-container">
+                                <label for="tw" id="label-tw" class="block text-sm font-medium mb-1">Web Thick (tw)</label>
+                                <input type="number" id="tw" value="0.55">
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-section">
                         <h2>Applied Loads</h2>
                         <p class="text-xs  mb-2">Use negative for compression. Units: kips, kip-ft, kip-in.</p>
                             <div class="space-y-4">
                                 <div>
                                     <label for="Pu_or_Pa" class="block text-sm font-medium mb-1">Axial (Pu / Pa)</label>
-                                    <input type="number" id="Pu_or_Pa" value="0">
+                                    <input type="number" id="Pu_or_Pa" value="-150">
                                 </div>
                                 <div>
                                     <label for="Mux_or_Max" class="block text-sm font-medium mb-1">Moment, Major (Mux / Max)</label>
-                                    <input type="number" id="Mux_or_Max" value="350">
+                                    <input type="number" id="Mux_or_Max" value="250">
                                 </div>
                                 <div>
                                     <label for="Muy_or_May" class="block text-sm font-medium mb-1">Moment, Minor (Muy / May)</label>
@@ -164,7 +160,7 @@
                                 </div>
                                 <div>
                                     <label for="Vu_or_Va" class="block text-sm font-medium mb-1">Shear (Vu / Va)</label>
-                                    <input type="number" id="Vu_or_Va" value="35">
+                                    <input type="number" id="Vu_or_Va" value="50">
                                 </div>
                                  <div>
                                     <label for="Tu_or_Ta" class="block text-sm font-medium mb-1">Torsion (Tu / Ta, kip-in)</label>
@@ -172,14 +168,9 @@
                                 </div>
                             </div>
                     </div>
-                    <div class="form-section">
-                    <h2>Serviceability (Deflection)</h2>
-                        <div class="space-y-4">
-                            <div><label for="deflection_span" class="block text-sm">Span for Deflection (ft)</label><input type="number" id="deflection_span" value="32"></div>
-                            <div><label for="deflection_limit" class="block text-sm">Deflection Limit (e.g., 240 for L/240)</label><input type="number" id="deflection_limit" value="240"></div>
-                            <div><label for="actual_deflection_input" class="block text-sm">Actual Deflection (in)</label><input type="number" id="actual_deflection_input" value="1.2"></div>
-                        </div>
-                    </div>
+                </div>
+                <!-- Column 3: Manual Properties & Serviceability -->
+                <div>
                     <div class="form-section">
                     <h2>Manual Properties</h2>
                     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded-md my-2 text-sm dark:bg-yellow-900/50 dark:text-yellow-300">
@@ -200,6 +191,14 @@
                             <div><label for="Sy_manual" class="block text-sm">Sy</label><input type="number" id="Sy_manual" value="40.4"></div>
                             <div><label for="Zy_manual" class="block text-sm">Zy</label><input type="number" id="Zy_manual" value="61.7"></div>
                          </div>
+                    </div>
+                    <div class="form-section">
+                    <h2>Serviceability (Deflection)</h2>
+                        <div class="space-y-4">
+                            <div><label for="deflection_span" class="block text-sm">Span for Deflection (ft)</label><input type="number" id="deflection_span" value="32"></div>
+                            <div><label for="deflection_limit" class="block text-sm">Deflection Limit (e.g., 240 for L/240)</label><input type="number" id="deflection_limit" value="240"></div>
+                            <div><label for="actual_deflection_input" class="block text-sm">Actual Deflection (in)</label><input type="number" id="actual_deflection_input" value="1.2"></div>
+                        </div>
                     </div>
                     <div class="form-section">
                         <h2>Built-Up Section Calculator</h2>

@@ -16,8 +16,8 @@
     </script>
     <link rel="stylesheet" href="../styles.min.css">
     <script src="../js/template.js" defer></script>
-    <script src="../js/shared-utils.js" defer></script>
     <script src="../js/validation-rules.js" defer></script>
+    <script src="../js/shared-utils.js" defer></script>
     <script src="splice.js" defer></script>
 </head>
 <body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-300">
@@ -26,8 +26,7 @@
         <div id="header-placeholder" style="min-height: 110px;"></div>
 
         <main id="splice-checker-form">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Column 1: General & Member -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <div class="form-section">
                         <h2>General Parameters</h2>
@@ -44,6 +43,20 @@
                                 <input type="number" id="gap" value="1.0">
                             </div>
                             <div class="col-span-2">
+                                <label for="deformation_is_consideration" class="flex items-center text-sm font-medium">
+                                    <input type="checkbox" id="deformation_is_consideration" class="h-4 w-4 rounded mr-2" checked>
+                                    Deformation at bolt holes is a design consideration?
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h2>Applied Loads</h2>
+                        <div class="space-y-4">
+                            <div><label for="M_load" class="block text-sm">Moment (M, kip-ft)</label><input type="number" id="M_load" value="150"></div>
+                            <div><label for="V_load" class="block text-sm">Shear (V, kips)</label><input type="number" id="V_load" value="40"></div>
+                            <div><label for="Axial_load" class="block text-sm">Axial (P, kips)</label><input type="number" id="Axial_load" value="0"></div>
+                            <div class="pt-2 border-t dark:border-gray-600">
                                 <label for="develop_capacity_check" class="flex items-center text-sm font-medium">
                                     <input type="checkbox" id="develop_capacity_check" class="h-4 w-4 rounded mr-2"
                                            data-ui-toggle-controller
@@ -52,14 +65,10 @@
                                     Design splice for full member capacity?
                                 </label>
                             </div>
-                            <div class="col-span-2">
-                                <label for="deformation_is_consideration" class="flex items-center text-sm font-medium">
-                                    <input type="checkbox" id="deformation_is_consideration" class="h-4 w-4 rounded mr-2" checked>
-                                    Deformation at bolt holes is a design consideration?
-                                </label>
-                            </div>
                         </div>
                     </div>
+                </div>
+                <div>
                     <div class="form-section">
                         <h2>Member Properties</h2>
                         <div class="grid grid-cols-2 gap-4">
@@ -73,17 +82,9 @@
                             <div><label for="member_Sx" class="block text-sm">Sx</label><input type="number" id="member_Sx" value="88.9"></div>
                         </div>
                     </div>
-                    <div class="form-section">
-                        <h2>Applied Loads</h2>
-                        <div class="space-y-4">
-                            <div><label for="M_load" class="block text-sm">Moment (M, kip-ft)</label><input type="number" id="M_load" value="150"></div>
-                            <div><label for="V_load" class="block text-sm">Shear (V, kips)</label><input type="number" id="V_load" value="40"></div>
-                            <div><label for="Axial_load" class="block text-sm">Axial (P, kips)</label><input type="number" id="Axial_load" value="0"></div>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- Column 2: Flange Splice -->
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 <div>
                     <div class="form-section">
                         <h2>Flange Splice Plates</h2>
@@ -140,8 +141,16 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Column 3: Web Splice -->
+                <div class="lg:col-span-2">
+                    <div class="form-section h-full flex flex-col">
+                        <h3 class="text-center font-semibold">Flange Splice Diagram (Top View)</h3>
+                        <div class="diagram mt-2 flex-grow flex items-center justify-center">
+                            <svg id="flange-svg" viewBox="0 0 500 250" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 <div>
                     <div class="form-section">
                         <h2>Web Splice Plates</h2>
@@ -180,21 +189,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="form-section mt-6">
-                <h2>Splice Diagrams</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h3 class="text-center font-semibold">Flange Splice (Top View)</h3>
-                        <div class="diagram"><svg id="flange-svg" viewBox="0 0 500 250" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg"></svg></div>
-                    </div>
-                    <div>
-                        <h3 class="text-center font-semibold">Web Splice (Elevation)</h3>
-                        <div class="diagram"><svg id="web-svg" viewBox="0 0 500 300" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg"></svg></div>
+                <div class="lg:col-span-2">
+                     <div class="form-section h-full flex flex-col">
+                        <h3 class="text-center font-semibold">Web Splice Diagram (Elevation)</h3>
+                        <div class="diagram mt-2 flex-grow flex items-center justify-center">
+                            <svg id="web-svg" viewBox="0 0 500 300" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg"></svg>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"></div>
 
             <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
                 <button id="load-inputs-btn" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600">Load Inputs</button>

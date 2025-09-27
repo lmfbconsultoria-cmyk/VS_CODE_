@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputIds = [
         'Fb_unadjusted', 'Fv_unadjusted', 'Fc_perp_unadjusted', 'Fc_unadjusted', 'E_unadjusted', 'E_min_unadjusted',
         'b_width', 'd_depth', 'unbraced_length_L', 'effective_length_factor_K', 'bearing_length_Lb',
-        'load_duration', 'wet_service', 'temperature', 'flat_use', 'incising', 'repetitive_member', 'deflection_span', 'deflection_limit',
+        'load_duration', 'wet_service', 'temperature', 'flat_use', 'incising', 'repetitive_member', 'deflection_span', 'deflection_limit', 'actual_deflection',
         'axial_load_P', 'moment_load_M', 'shear_load_V'
     ];
 
@@ -89,6 +89,7 @@ const woodChecker = (() => {
             M: inputs.moment_load_M * 1000 * 12,
             deflection_span: inputs.deflection_span * 12,
             deflection_limit_divisor: inputs.deflection_limit,
+            actual_deflection: inputs.actual_deflection,
             V: inputs.shear_load_V * 1000
         };
 
@@ -156,10 +157,9 @@ const woodChecker = (() => {
         results.actuals = actual;
         
         // Deflection Calculation (assuming simply supported beam with uniform load)
-        const I = (b_beam * Math.pow(d_beam, 3)) / 12;
         const E_adj = processedInputs.E * factors.CM_E * factors.Ct * factors.Ci;
-        const actual_deflection = (E_adj > 0 && I > 0) ? (5 * processedInputs.M * Math.pow(processedInputs.deflection_span, 2)) / (48 * E_adj * I) : Infinity;
         const allowable_deflection = processedInputs.deflection_limit_divisor > 0 ? processedInputs.deflection_span / processedInputs.deflection_limit_divisor : Infinity;
+        const actual_deflection = processedInputs.actual_deflection;
         results.deflection = {
             actual: actual_deflection,
             allowable: allowable_deflection,
@@ -173,7 +173,7 @@ const woodChecker = (() => {
             results.interaction = Infinity;
         }
 
-        return results;
+        return { inputs: processedInputs, results: results };
     }
 
     return { run };
@@ -185,7 +185,7 @@ function renderWoodResults(calculationOutput) {
     // The 'calculationOutput' is the direct result from woodChecker.run.
     // Validation errors are handled by createCalculationHandler before this function is called.
     const wood_results = calculationOutput; // This is the full object from the calculator
-    const inputs = wood_results.inputs; // Access inputs from the correct location
+    const { inputs, results } = wood_results; // Destructure to get inputs and results
 
     let html = `<div id="wood-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-4">`;
     html += `<div class="flex justify-end gap-2 mb-4 -mt-2 -mr-2">
@@ -195,10 +195,10 @@ function renderWoodResults(calculationOutput) {
              </div>`;
     html += `<h2 class="report-header text-center">NDS Wood Member Check Summary</h2>`;
     
-    const adj = wood_results.adjusted;
-    const actual = wood_results.actuals;
-    const interaction = wood_results.interaction;
-    const deflection = wood_results.deflection;
+    const adj = results.adjusted;
+    const actual = results.actuals;
+    const interaction = results.interaction;
+    const deflection = results.deflection;
 
     const fb_ratio = adj.Fb_prime > 0 ? actual.fb / adj.Fb_prime : Infinity;
     const fv_ratio = adj.Fv_prime > 0 ? actual.fv / adj.Fv_prime : Infinity; 
@@ -216,8 +216,8 @@ function renderWoodResults(calculationOutput) {
                 <ul>
                     <li>Actual Bending Stress (f<sub>b</sub>) = M / S<sub>x</sub> = ${inputs.M.toFixed(0)} lb-in / ${actual.Sx.toFixed(3)} in³ = <b>${actual.fb.toFixed(2)} psi</b></li>
                     <li>Allowable Bending Stress (F'<sub>b</sub>) = F<sub>b</sub> * C<sub>D</sub> * C<sub>M</sub> * C<sub>t</sub> * C<sub>L</sub> * C<sub>F</sub> * C<sub>i</sub> * C<sub>r</sub></li>
-                    <li>F'<sub>b</sub> = ${inputs.Fb} * ${wood_results.factors.CD.toFixed(2)} * ${wood_results.factors.CM_Fb.toFixed(2)} * ${wood_results.factors.Ct.toFixed(2)} * ${wood_results.factors.CL.toFixed(3)} * ${wood_results.factors.CF.toFixed(3)} * ${wood_results.factors.Ci.toFixed(2)} * ${wood_results.factors.Cr.toFixed(2)} = <b>${adj.Fb_prime.toFixed(2)} psi</b></li>
-                    <li>Beam Stability Factor (C<sub>L</sub>) = <b>${wood_results.factors.CL.toFixed(3)}</b> (from R<sub>B</sub> = ${wood_results.Rb.toFixed(2)})</li>
+                    <li>F'<sub>b</sub> = ${inputs.Fb} * ${results.factors.CD.toFixed(2)} * ${results.factors.CM_Fb.toFixed(2)} * ${results.factors.Ct.toFixed(2)} * ${results.factors.CL.toFixed(3)} * ${results.factors.CF.toFixed(3)} * ${results.factors.Ci.toFixed(2)} * ${results.factors.Cr.toFixed(2)} = <b>${adj.Fb_prime.toFixed(2)} psi</b></li>
+                    <li>Beam Stability Factor (C<sub>L</sub>) = <b>${results.factors.CL.toFixed(3)}</b> (from R<sub>B</sub> = ${results.Rb.toFixed(2)})</li>
                 </ul>`
         },
         {
@@ -230,7 +230,7 @@ function renderWoodResults(calculationOutput) {
                 <ul>
                     <li>Actual Shear Stress (f<sub>v</sub>) = 1.5 * V / A = 1.5 * ${inputs.V.toFixed(0)} lb / ${actual.A.toFixed(3)} in² = <b>${actual.fv.toFixed(2)} psi</b></li>
                     <li>Allowable Shear Stress (F'<sub>v</sub>) = F<sub>v</sub> * C<sub>D</sub> * C<sub>M</sub> * C<sub>t</sub> * C<sub>i</sub></li>
-                    <li>F'<sub>v</sub> = ${inputs.Fv} * ${wood_results.factors.CD.toFixed(2)} * ${wood_results.factors.CM_Fv.toFixed(2)} * ${wood_results.factors.Ct.toFixed(2)} * ${wood_results.factors.Ci.toFixed(2)} = <b>${adj.Fv_prime.toFixed(2)} psi</b></li>
+                    <li>F'<sub>v</sub> = ${inputs.Fv} * ${results.factors.CD.toFixed(2)} * ${results.factors.CM_Fv.toFixed(2)} * ${results.factors.Ct.toFixed(2)} * ${results.factors.Ci.toFixed(2)} = <b>${adj.Fv_prime.toFixed(2)} psi</b></li>
                 </ul>`
         },
         {
@@ -242,8 +242,8 @@ function renderWoodResults(calculationOutput) {
             breakdown: `<h4>Compression Breakdown</h4>
                 <ul>
                     <li>Actual Compression Stress (f<sub>c</sub>) = P / A = ${inputs.P.toFixed(0)} lb / ${actual.A.toFixed(3)} in² = <b>${actual.fc.toFixed(2)} psi</b></li>
-                    <li>Allowable Compression Stress (F'<sub>c</sub>) = F<sub>c</sub>* * C<sub>P</sub> = ${wood_results.Fc_star.toFixed(2)} psi * ${wood_results.factors.Cp.toFixed(3)} = <b>${adj.Fc_prime.toFixed(2)} psi</b></li>
-                    <li>Column Stability Factor (C<sub>P</sub>) = <b>${wood_results.factors.Cp.toFixed(3)}</b> (from L<sub>e</sub>/d = ${wood_results.Le_d.toFixed(2)})</li>
+                    <li>Allowable Compression Stress (F'<sub>c</sub>) = F<sub>c</sub>* * C<sub>P</sub> = ${results.Fc_star.toFixed(2)} psi * ${results.factors.Cp.toFixed(3)} = <b>${adj.Fc_prime.toFixed(2)} psi</b></li>
+                    <li>Column Stability Factor (C<sub>P</sub>) = <b>${results.factors.Cp.toFixed(3)}</b> (from L<sub>e</sub>/d = ${results.Le_d.toFixed(2)})</li>
                 </ul>`
         },
         {
@@ -255,7 +255,7 @@ function renderWoodResults(calculationOutput) {
             breakdown: `<h4>Deflection Breakdown</h4>
                 <ul>
                     <li>Allowable Deflection = Span / ${inputs.deflection_limit_divisor} = ${inputs.deflection_span.toFixed(2)} in / ${inputs.deflection_limit_divisor} = <b>${deflection.allowable.toFixed(3)} in</b></li>
-                    <li>Actual Deflection (δ) = 5*M*L² / (48*E'*I) = (5 * ${inputs.M.toFixed(0)} * ${inputs.deflection_span.toFixed(2)}²) / (48 * ${deflection.E_adj.toExponential(2)} * ${(actual.Sx * inputs.d / 2).toFixed(2)}) = <b>${deflection.actual.toFixed(3)} in</b></li>
+                    <li>Actual Deflection (δ) = <b>${deflection.actual.toFixed(3)} in</b> (User Input)</li>
                 </ul>`
         },
         {
@@ -267,12 +267,12 @@ function renderWoodResults(calculationOutput) {
             breakdown: `<h4>Combined Stress Interaction Breakdown</h4>
                 <ul>
                     <li>Equation: (f<sub>c</sub> / F'<sub>c</sub>)² + f<sub>b</sub> / (F'<sub>b</sub> * (1 - f<sub>c</sub>/F<sub>cE</sub>))</li>
-                    <li>Interaction = (${actual.fc.toFixed(2)} / ${adj.Fc_prime.toFixed(2)})² + ${actual.fb.toFixed(2)} / (${adj.Fb_prime.toFixed(2)} * (1 - ${actual.fc.toFixed(2)}/${wood_results.Fce.toFixed(2)})) = <b>${interaction.toFixed(3)}</b></li>
+                    <li>Interaction = (${actual.fc.toFixed(2)} / ${adj.Fc_prime.toFixed(2)})² + ${actual.fb.toFixed(2)} / (${adj.Fb_prime.toFixed(2)} * (1 - ${actual.fc.toFixed(2)}/${results.Fce.toFixed(2)})) = <b>${interaction.toFixed(3)}</b></li>
                 </ul>`
         }
     ];
 
-    const f = wood_results.factors;
+    const f = results.factors;
     const factor_data = [
         ['Load Duration (C<sub>D</sub>)', f.CD.toFixed(2), 'NDS 2.3.2'],
         ['Wet Service (C<sub>M</sub>)', `${f.CM_Fb.toFixed(2)} (Fb), ${f.CM_Fv.toFixed(2)} (Fv), ${f.CM_Fc.toFixed(2)} (Fc)`, 'NDS Table 4.3.1'],

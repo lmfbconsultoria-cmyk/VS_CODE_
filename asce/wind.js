@@ -1816,7 +1816,7 @@ function sendWindToCombos(results) {
     comboLoads.combo_wind_cc_wall_max = 0;
     comboLoads.combo_wind_cc_wall_min = 0;
     if (results.candc && results.candc.applicable && results.candc.pressures) {
-        for (const [zone, pressureData] of Object.entries(candc.pressures)) {
+        for (const [zone, pressureData] of Object.entries(results.candc.pressures)) {
             // The combo calculator expects nominal (ASD) level loads.
             // For C&C, the ASD pressure is 0.6 * LRFD pressure.
             const p_asd_pos = pressureData.p_pos * 0.6; // p_pos is LRFD level

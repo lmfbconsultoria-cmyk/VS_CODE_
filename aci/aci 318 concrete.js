@@ -88,20 +88,22 @@ function renderAciResults(calc_results) {
             <div class="calc-breakdown mt-4">
                 <h4>Flexure Breakdown</h4>
                 <ul>
-                    <li>Effective Depth (d): ${results.flexure_details.d.toFixed(2)} in</li>
-                    <li>Area of Steel (A<sub>s</sub>): ${results.flexure_details.As.toFixed(2)} in²</li>
-                    <li>Depth of Compression Block (a): ${results.flexure_details.a.toFixed(2)} in</li>
-                    <li>Neutral Axis Depth (c): ${results.flexure_details.c.toFixed(2)} in</li>
-                    <li>Tensile Strain (&epsilon;<sub>t</sub>): ${results.flexure_details.strain_t.toFixed(4)} (${results.flexure_details.strain_t >= 0.005 ? 'Tension-Controlled' : 'Transition'})</li>
-                    <li>Strength Reduction Factor (&phi;<sub>f</sub>): ${results.flexure_details.phi_f.toFixed(2)}</li>
+                    <li>Effective Depth (d) = h - cover - d<sub>stirrup</sub> - d<sub>bar</sub>/2 = <b>${results.flexure_details.d.toFixed(2)} in</b></li>
+                    <li>Area of Steel (A<sub>s</sub>) = n * A<sub>bar</sub> = ${inputs.num_bars} * ${BAR_AREAS[inputs.bar_size]} = <b>${results.flexure_details.As.toFixed(2)} in²</b></li>
+                    <li>Depth of Compression Block (a) = (A<sub>s</sub> * f<sub>y</sub>) / (0.85 * f'<sub>c</sub> * b) = <b>${results.flexure_details.a.toFixed(2)} in</b></li>
+                    <li>Neutral Axis Depth (c) = a / &beta;<sub>1</sub> = ${results.flexure_details.a.toFixed(2)} / ${results.flexure_details.beta1.toFixed(2)} = <b>${results.flexure_details.c.toFixed(2)} in</b></li>
+                    <li>Tensile Strain (&epsilon;<sub>t</sub>) = 0.003 * (d - c) / c = <b>${results.flexure_details.strain_t.toFixed(4)}</b> (${results.flexure_details.strain_t >= 0.005 ? 'Tension-Controlled' : 'Transition'})</li>
+                    <li>Strength Reduction Factor (&phi;<sub>f</sub>) = <b>${results.flexure_details.phi_f.toFixed(2)}</b> <span class="ref">[ACI 21.2.2]</span></li>
+                    <li>Nominal Moment (M<sub>n</sub>) = A<sub>s</sub> * f<sub>y</sub> * (d - a/2) = <b>${(results.flexure_details.Mn / 12000).toFixed(2)} kip-ft</b></li>
                 </ul>
             </div>
             <div class="calc-breakdown mt-4">
                 <h4>Shear Breakdown</h4>
                 <ul>
-                    <li>Concrete Capacity (V<sub>c</sub>): ${(results.shear_details.Vc/1000).toFixed(2)} kips</li>
-                    <li>Stirrup Capacity (V<sub>s</sub>): ${(results.shear_details.Vs/1000).toFixed(2)} kips</li>
-                    <li>Max Stirrup Capacity (V<sub>s,max</sub>): ${(results.shear_details.Vs_max/1000).toFixed(2)} kips</li>
+                    <li>Concrete Capacity (V<sub>c</sub>) = 2 * &radic;(f'<sub>c</sub>) * b * d = <b>${(results.shear_details.Vc/1000).toFixed(2)} kips</b> <span class="ref">[ACI 22.5.5.1]</span></li>
+                    <li>Stirrup Capacity (V<sub>s</sub>) = (A<sub>v</sub> * f<sub>y</sub> * d) / s = <b>${(results.shear_details.Vs/1000).toFixed(2)} kips</b> <span class="ref">[ACI 22.5.10.5.3]</span></li>
+                    <li>Max Stirrup Capacity (V<sub>s,max</sub>) = 8 * &radic;(f'<sub>c</sub>) * b * d = <b>${(results.shear_details.Vs_max/1000).toFixed(2)} kips</b> <span class="ref">[ACI 22.5.1.2]</span></li>
+                    <li>Nominal Shear (V<sub>n</sub>) = V<sub>c</sub> + min(V<sub>s</sub>, V<sub>s,max</sub>) = <b>${((results.shear_details.Vc + Math.min(results.shear_details.Vs, results.shear_details.Vs_max))/1000).toFixed(2)} kips</b></li>
                 </ul>
             </div>
         </div>`;

@@ -24,13 +24,6 @@ const snowInputIds = [
     'snow_height_difference_hc',
     'snow_lower_roof_length_ll'
 ];
-        if (inputs.snow_ground_snow_load < nycbc_min_pg) {
-            validationResult.warnings.push(`The input ground snow load (p_g = ${inputs.snow_ground_snow_load} psf) is less than the NYCBC 2022 minimum of ${nycbc_min_pg} psf. Verify the correct jurisdictional value.`);
-        }
-    
-    // Ensure factors have default values
-    const { Is = 1.0, Ce = 1.0, Ct = 1.0 } = getSnowFactors(inputs.snow_risk_category, inputs.snow_exposure_condition, inputs.snow_thermal_condition, inputs.snow_surface_roughness_category, validationResult);ughness_category', 'snow_exposure_condition', 'snow_thermal_condition', 'snow_roof_slope_degrees', 'snow_is_roof_slippery', 'snow_calculate_unbalanced', 'snow_calculate_drift', 'snow_calculate_sliding', 'snow_eave_to_ridge_distance_W', 'snow_is_simply_supported_prismatic', 'snow_winter_wind_parameter_W2', 'snow_upper_roof_length_lu', 'snow_height_difference_hc', 'snow_lower_roof_length_ll'
-];
 
 const snowLoadCalculator = (() => {
     function calculateSlopeFactor(slope_deg, is_slippery, Ct, standard) {
@@ -279,10 +272,10 @@ function run(inputs, validation) {
     }
 
     // Add jurisdiction-specific warnings
-    if (inputs.jurisdiction === "NYCBC 2022") {
+    if (inputs.snow_jurisdiction === "NYCBC 2022") {
         const nycbc_min_pg = 25;
-        if (inputs.ground_snow_load < nycbc_min_pg) {
-            validationResult.warnings.push(`The input ground snow load (p_g = ${inputs.ground_snow_load} psf) is less than the NYCBC 2022 minimum of ${nycbc_min_pg} psf. Verify the correct jurisdictional value.`);
+        if (inputs.snow_ground_snow_load < nycbc_min_pg) {
+            validationResult.warnings.push(`The input ground snow load (p_g = ${inputs.snow_ground_snow_load} psf) is less than the NYCBC 2022 minimum of ${nycbc_min_pg} psf. Verify the correct jurisdictional value.`);
         }
     }
     
@@ -320,17 +313,17 @@ function run(inputs, validation) {
     }
 
     let drift_results = {};
-    if (inputs.calculate_drift === 'Yes') {
-        drift_results = calculateDriftLoads(inputs.ground_snow_load, inputs.upper_roof_length_lu, inputs.height_difference_hc, pf, inputs.asce_standard, inputs.winter_wind_parameter_W2, inputs.lower_roof_length_ll, Is);
+    if (inputs.snow_calculate_drift === 'Yes') {
+        drift_results = calculateDriftLoads(inputs.snow_ground_snow_load, inputs.snow_upper_roof_length_lu, inputs.snow_height_difference_hc, pf, inputs.snow_asce_standard, inputs.snow_winter_wind_parameter_W2, inputs.snow_lower_roof_length_ll, Is);
     }
 
     let sliding_snow_results = {};
-    if (inputs.calculate_sliding === 'Yes') {
-        sliding_snow_results = calculateSlidingSnowLoad(pf, inputs.eave_to_ridge_distance_W, Cs, inputs.is_roof_slippery, inputs.unit_system);
+    if (inputs.snow_calculate_sliding === 'Yes') {
+        sliding_snow_results = calculateSlidingSnowLoad(pf, inputs.snow_eave_to_ridge_distance_W, Cs, inputs.snow_is_roof_slippery, inputs.snow_unit_system);
     }
 
     let partial_load_results = {};
-    if (inputs.is_simply_supported_prismatic === 'No') {
+    if (inputs.snow_is_simply_supported_prismatic === 'No') {
         partial_load_results = {
             applicable: true,
             load_on_adjacent_span: 0.5 * ps_balanced,
@@ -385,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
             validationRuleKey: 'snow',
             calculatorFunction: (inputs, validation) => snowLoadCalculator.run(inputs, validation),
             renderFunction: renderSnowResults,
-            resultsContainerId: 'snow-results-container',
+            resultsContainerId: 'results-container',
             buttonId: 'run-snow-calculation-btn',
         });
 
@@ -397,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('snow-file-input').addEventListener('change', createLoadInputsHandler(snowInputIds));
 
         // Load inputs from local storage after the main setup.
-        loadInputsFromLocalStorage('snow-calculator-inputs', snowInputIds);
+        loadInputsFromLocalStorage('snow-calculator-inputs', snowInputIds, false); // false means don't trigger calculation
     }, 50);
 });
 
@@ -435,14 +428,14 @@ function renderSnowReportHeader(inputs) {
             <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm print-hidden">Copy Report</button>
         </div>
         <div class="text-center border-b pb-4">
-            <h2 class="text-2xl font-bold">SNOW LOAD CALCULATION REPORT (${inputs.asce_standard})</h2>
+            <h2 class="text-2xl font-bold">SNOW LOAD CALCULATION REPORT (${inputs.snow_asce_standard || 'ASCE 7-16'})</h2>
         </div>`;
 }
 
 function renderSnowNotesAndWarnings(inputs, is_nycbc_min_governed, warnings) {
     let html = '';
-    if (inputs.jurisdiction === "NYCBC 2022") {
-        const note = is_nycbc_min_governed ? `The calculated roof snow load was less than the specified NYCBC minimum of ${inputs.nycbc_minimum_roof_snow_load} psf. The NYCBC minimum has been applied.` : "The calculated roof snow load meets or exceeds the specified NYCBC minimum.";
+    if (inputs.snow_jurisdiction === "NYCBC 2022") {
+        const note = is_nycbc_min_governed ? `The calculated roof snow load was less than the specified NYCBC minimum of ${inputs.snow_nycbc_minimum_roof_snow_load} psf. The NYCBC minimum has been applied.` : "The calculated roof snow load meets or exceeds the specified NYCBC minimum.";
         html += `<div class="bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500 text-blue-700 dark:text-blue-300 p-4 rounded-md"><p><strong>Jurisdiction Note:</strong> ${note}</p></div>`;
     }
     if (warnings && warnings.length > 0) {
@@ -468,19 +461,19 @@ function renderSnowDesignParameters(inputs, intermediate, units) {
             <div class="copy-content">
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.risk_category)} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
-                    <li><strong>Ground Snow Load (p<sub>g</sub>):</strong> ${(inputs.ground_snow_load || 0).toFixed(2)} ${p_unit} <span class="ref">[User Input / ASCE 7 Fig. 7.2-1]</span></li>
-                    ${inputs.jurisdiction === "NYCBC 2022" ? `<li><strong>NYCBC Minimum Roof Snow Load (p<sub>s,min,nycbc</sub>):</strong> ${(inputs.nycbc_minimum_roof_snow_load || 0).toFixed(2)} ${p_unit} <span class="ref">[NYCBC, SEC. 1608.1]</span></li>` : ''}
-                    <li><strong>Surface Roughness:</strong> ${sanitizeHTML(inputs.surface_roughness_category)} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
-                    <li><strong>Exposure Condition:</strong> ${sanitizeHTML(inputs.exposure_condition)} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
-                    <li><strong>Thermal Condition:</strong> ${sanitizeHTML(inputs.thermal_condition)} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
-                    <li><strong>Roof Slope:</strong> ${(inputs.roof_slope_degrees || 0).toFixed(2)} degrees <span class="ref">[ASCE 7, Sec. 7.4]</span></li>
-                    <li><strong>Slippery Roof?:</strong> ${inputs.is_roof_slippery ? 'Yes' : 'No'} <span class="ref">[ASCE 7, Sec. 7.4]</span></li>
-                    ${inputs.calculate_unbalanced ? `<li><strong>Eave to Ridge Distance (W):</strong> ${(inputs.eave_to_ridge_distance_W || 0).toFixed(2)} ${l_unit}</li>` : ''}
-                    ${inputs.calculate_unbalanced ? `<li><strong>Simply Supported Prismatic?:</strong> ${inputs.is_simply_supported_prismatic ? 'Yes' : 'No'}</li>` : ''}
-                    ${inputs.calculate_drift ? `<li><strong>Upper Roof Length (l<sub>u</sub>):</strong> ${(inputs.upper_roof_length_lu || 0).toFixed(2)} ${l_unit}</li>` : ''}
-                    ${inputs.calculate_drift ? `<li><strong>Height Difference (h<sub>c</sub>):</strong> ${(inputs.height_difference_hc || 0).toFixed(2)} ${l_unit}</li>` : ''}
-                    ${inputs.calculate_drift ? `<li><strong>Lower Roof Length (l<sub>l</sub>):</strong> ${(inputs.lower_roof_length_ll || 0).toFixed(2)} ${l_unit}</li>` : ''}
+                    <li><strong>Risk Category:</strong> ${sanitizeHTML(inputs.snow_risk_category || 'I')} <span class="ref">[ASCE 7, Table 1.5-1]</span></li>
+                    <li><strong>Ground Snow Load (p<sub>g</sub>):</strong> ${(inputs.snow_ground_snow_load || 0).toFixed(2)} ${p_unit} <span class="ref">[User Input / ASCE 7 Fig. 7.2-1]</span></li>
+                    ${inputs.snow_jurisdiction === "NYCBC 2022" ? `<li><strong>NYCBC Minimum Roof Snow Load (p<sub>s,min,nycbc</sub>):</strong> ${(inputs.snow_nycbc_minimum_roof_snow_load || 0).toFixed(2)} ${p_unit} <span class="ref">[NYCBC, SEC. 1608.1]</span></li>` : ''}
+                    <li><strong>Surface Roughness:</strong> ${sanitizeHTML(inputs.snow_surface_roughness_category || 'B')} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
+                    <li><strong>Exposure Condition:</strong> ${sanitizeHTML(inputs.snow_exposure_condition || 'Fully Exposed')} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
+                    <li><strong>Thermal Condition:</strong> ${sanitizeHTML(inputs.snow_thermal_condition || 'All other structures')} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
+                    <li><strong>Roof Slope:</strong> ${(inputs.snow_roof_slope || 0).toFixed(2)} degrees <span class="ref">[ASCE 7, Sec. 7.4]</span></li>
+                    <li><strong>Slippery Roof?:</strong> ${inputs.snow_is_slippery_surface ? 'Yes' : 'No'} <span class="ref">[ASCE 7, Sec. 7.4]</span></li>
+                    ${inputs.snow_calculate_unbalanced ? `<li><strong>Eave to Ridge Distance (W):</strong> ${(inputs.snow_eave_to_ridge_distance_W || 0).toFixed(2)} ${l_unit}</li>` : ''}
+                    ${inputs.snow_calculate_unbalanced ? `<li><strong>Simply Supported Prismatic?:</strong> ${inputs.snow_is_simply_supported_prismatic ? 'Yes' : 'No'}</li>` : ''}
+                    ${inputs.snow_calculate_drift ? `<li><strong>Upper Roof Length (l<sub>u</sub>):</strong> ${(inputs.snow_upper_roof_length_lu || 0).toFixed(2)} ${l_unit}</li>` : ''}
+                    ${inputs.snow_calculate_drift ? `<li><strong>Height Difference (h<sub>c</sub>):</strong> ${(inputs.snow_height_difference_hc || 0).toFixed(2)} ${l_unit}</li>` : ''}
+                    ${inputs.snow_calculate_drift ? `<li><strong>Lower Roof Length (l<sub>l</sub>):</strong> ${(inputs.snow_lower_roof_length_ll || 0).toFixed(2)} ${l_unit}</li>` : ''}
                     <li><strong>Importance Factor (I<sub>s</sub>):</strong> ${safeIs.toFixed(2)} <span class="ref">[ASCE 7, Table 1.5-2]</span></li>
                     <li><strong>Exposure Factor (C<sub>e</sub>):</strong> ${safeCe.toFixed(2)} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
                     <li><strong>Thermal Factor (C<sub>t</sub>):</strong> ${safeCt.toFixed(2)} <span class="ref">[ASCE 7, Sec. 7.3]</span></li>
@@ -525,7 +518,7 @@ function renderSnowCalculationBreakdown(inputs, intermediate, is_nycbc_min_gover
                                 p<sub>min</sub> = ${safeGroundSnowLoad > 20 ? `20 * I_s = 20 * ${safeIs.toFixed(2)}` : `p_g * I_s = ${safeGroundSnowLoad.toFixed(2)} * ${safeIs.toFixed(2)}`} = <b>${safePsMinAsce7.toFixed(2)} ${p_unit}</b>.
                                 ${intermediate.asce7_min_governed ? `This minimum governs over the calculated p<sub>s</sub>.` : `The calculated p<sub>s</sub> governs.`}
                             </div></li>` : ''}
-                        ${is_nycbc_min_governed ? `<li><strong>Jurisdictional Minimum:</strong> <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">NYCBC minimum of <b>${(inputs.nycbc_minimum_roof_snow_load || 0).toFixed(2)} ${p_unit}</b> governs. <span class="ref">[NYCBC, SEC. 1608.4]</span></div></li>` : ''}
+                        ${is_nycbc_min_governed ? `<li><strong>Jurisdictional Minimum:</strong> <div class="pl-6 text-sm text-gray-600 dark:text-gray-400">NYCBC minimum of <b>${(inputs.snow_nycbc_minimum_roof_snow_load || 0).toFixed(2)} ${p_unit}</b> governs. <span class="ref">[NYCBC, SEC. 1608.4]</span></div></li>` : ''}
                     </ul>
                 </div>
             </div>
@@ -543,14 +536,14 @@ function renderSnowDiagrams(inputs, unbalanced, drift, units) {
             <div class="copy-content">
                 <hr class="border-gray-400 dark:border-gray-600 mt-1 mb-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    ${generateBalancedSnowDiagram(inputs.roof_type)}
-                    ${inputs.calculate_unbalanced && unbalanced.applicable ? 
-                        (inputs.roof_type === 'monoslope' ? 
+                    ${generateBalancedSnowDiagram(inputs.snow_roof_type)}
+                    ${inputs.snow_calculate_unbalanced === 'Yes' && unbalanced.applicable ? 
+                        (inputs.snow_roof_type === 'monoslope' ? 
                             generateMonoslopeUnbalancedDiagram(unbalanced.case) : 
                             generateUnbalancedSnowDiagram()
                         ) : ''
                     }
-                    ${inputs.calculate_drift && drift.applicable ? generateDriftSnowDiagram(drift.hd, drift.w, l_unit) : ''}
+                    ${inputs.snow_calculate_drift === 'Yes' && drift.applicable ? generateDriftSnowDiagram(drift.hd, drift.w, l_unit) : ''}
                 </div>
             </div>
         </div>`;
@@ -562,7 +555,7 @@ function renderSnowLoadSummary(inputs, results, unbalanced, drift, sliding, unit
 
     let summaryCards = generateBalancedSnowCard(ps_balanced_nominal, p_unit);
 
-    if (inputs.calculate_unbalanced) {
+    if (inputs.snow_calculate_unbalanced === 'Yes') {
         if (unbalanced.applicable) {
             const leeward_nominal = unbalanced.leeward_nominal || 0;
             const surcharge_magnitude = unbalanced.surcharge_magnitude || 0;
@@ -581,7 +574,7 @@ function renderSnowLoadSummary(inputs, results, unbalanced, drift, sliding, unit
         }
     }
 
-    if (inputs.calculate_drift) {
+    if (inputs.snow_calculate_drift === 'Yes') {
         if (drift.applicable) {
             const pd_nominal = drift.pd_nominal || 0;
             const hd = drift.hd || 0;
@@ -605,7 +598,7 @@ function renderSnowLoadSummary(inputs, results, unbalanced, drift, sliding, unit
         }
     }
 
-    if (inputs.calculate_sliding) {
+    if (inputs.snow_calculate_sliding === 'Yes') {
         summaryCards += `<div class="border dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800/50">
             <h3 class="text-lg font-semibold text-center mb-2">Governing Sliding Snow Load (ASCE 7 Sec. 7.13)</h3>`;
         if (sliding.applicable) {

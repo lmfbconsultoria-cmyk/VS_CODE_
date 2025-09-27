@@ -883,41 +883,50 @@ function generateBreakdownHtml(name, data, design_method) { // This function is 
 
 function renderResults(results) {
     const { checks, geomChecks, inputs, final_loads } = results;
-    let html = `<div class="results-section">
+    let html = `<div id="splice-report-content" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg space-y-4">
                 <div class="flex justify-end gap-2 -mt-2 -mr-2 print-hidden">
                     <button id="download-pdf-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 text-sm print-hidden">Download PDF</button>
                     <button id="copy-report-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 text-sm print-hidden">Copy Report</button>
                 </div>
-                <h2 class="report-header !mt-0">Geometry & Spacing Checks</h2>
-                <table><thead><tr><th>Item</th><th>Actual (in)</th><th>Limit (in)</th><th>Status</th></tr></thead><tbody>`;
+                <h2 class="report-header !mt-0 text-center">Splice Connection Check Results (${inputs.design_method})</h2>
+                `;
+    
     const addGeomRow = (name, data, isMaxCheck = false) => {
         const status = data.pass ? '<span class="text-green-600 font-semibold">Pass</span>' : '<span class="text-red-600 font-semibold">Fail</span>';
         const limit_val = isMaxCheck ? data.max : data.min;
         const limit_label = isMaxCheck ? 'Maximum' : 'Minimum';
-        html += `<tr><td>${name} (${limit_label})</td><td>${data.actual.toFixed(3)}</td><td>${limit_val.toFixed(3)}</td><td>${status}</td></tr>`;
+        return `<tr><td>${name} (${limit_label})</td><td>${data.actual.toFixed(3)}</td><td>${limit_val.toFixed(3)}</td><td>${status}</td></tr>`;
     };
 
-    html += `<table><caption class="font-bold text-center bg-gray-200 dark:bg-gray-700 p-2">Geometry & Spacing Checks (AISC J3)</caption>
-             <thead><tr><th>Item</th><th>Actual (in)</th><th>Limit (in)</th><th>Status</th></tr></thead><tbody>`;
+    html += `<div id="splice-geom-section" class="report-section-copyable">
+                <div class="flex justify-between items-center">
+                    <h3 class="report-header !text-lg !mb-0 !pb-0 !border-b-0 flex-grow">Geometry & Spacing Checks (AISC J3)</h3>
+                    <button data-copy-target-id="splice-geom-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
+                <table><thead><tr><th>Item</th><th>Actual (in)</th><th>Limit (in)</th><th>Status</th></tr></thead><tbody>`;
 
     addGeomRow('Flange Bolt Edge Distance (Long.)', geomChecks['Flange Bolts'].edge_dist_long);
     addGeomRow('Flange Bolt Edge Distance (Tran.)', geomChecks['Flange Bolts'].edge_dist_tran);
-    addGeomRow('Flange Bolt Edge Distance (Gap Side)', geomChecks['Flange Bolts'].edge_dist_gap);
-    addGeomRow('Flange Bolt Spacing (Pitch)', geomChecks['Flange Bolts'].spacing_col);
-    addGeomRow('Flange Bolt Spacing (Gage)', geomChecks['Flange Bolts'].spacing_row);
-    addGeomRow('Flange Bolt Spacing (Pitch)', geomChecks['Flange Bolts'].max_spacing_col, true);
-    addGeomRow('Flange Bolt Spacing (Gage)', geomChecks['Flange Bolts'].max_spacing_row, true);
-    addGeomRow('Web Bolt Edge Distance (Long.)', geomChecks['Web Bolts'].edge_dist_long);
-    addGeomRow('Web Bolt Edge Distance (Tran.)', geomChecks['Web Bolts'].edge_dist_tran);
-    addGeomRow('Web Bolt Edge Distance (Gap Side)', geomChecks['Web Bolts'].edge_dist_gap);
-    addGeomRow('Web Bolt Spacing (Pitch)', geomChecks['Web Bolts'].spacing_col);
-    addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].spacing_row);
-    addGeomRow('Web Bolt Spacing (Pitch)', geomChecks['Web Bolts'].max_spacing_col, true);
-    addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].max_spacing_row, true);
-    html += `</tbody></table>`;
+    html += addGeomRow('Flange Bolt Edge Distance (Gap Side)', geomChecks['Flange Bolts'].edge_dist_gap);
+    html += addGeomRow('Flange Bolt Spacing (Pitch)', geomChecks['Flange Bolts'].spacing_col);
+    html += addGeomRow('Flange Bolt Spacing (Gage)', geomChecks['Flange Bolts'].spacing_row);
+    html += addGeomRow('Flange Bolt Spacing (Pitch)', geomChecks['Flange Bolts'].max_spacing_col, true);
+    html += addGeomRow('Flange Bolt Spacing (Gage)', geomChecks['Flange Bolts'].max_spacing_row, true);
+    html += addGeomRow('Web Bolt Edge Distance (Long.)', geomChecks['Web Bolts'].edge_dist_long);
+    html += addGeomRow('Web Bolt Edge Distance (Tran.)', geomChecks['Web Bolts'].edge_dist_tran);
+    html += addGeomRow('Web Bolt Edge Distance (Gap Side)', geomChecks['Web Bolts'].edge_dist_gap);
+    html += addGeomRow('Web Bolt Spacing (Pitch)', geomChecks['Web Bolts'].spacing_col);
+    html += addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].spacing_row);
+    html += addGeomRow('Web Bolt Spacing (Pitch)', geomChecks['Web Bolts'].max_spacing_col, true);
+    html += addGeomRow('Web Bolt Spacing (Gage)', geomChecks['Web Bolts'].max_spacing_row, true);
+    html += `</tbody></table></div>`;
 
-    html += `<table class="mt-6"><caption class="font-bold text-center bg-gray-200 dark:bg-gray-700 p-2">Strength Checks (${inputs.design_method})</caption>
-             <thead class="text-sm"><tr><th class="w-2/5">Limit State</th><th>Demand</th><th>Capacity</th><th>Ratio</th><th>Status</th></tr></thead><tbody>`;
+    html += `<div id="splice-strength-section" class="report-section-copyable mt-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="report-header !text-lg !mb-0 !pb-0 !border-b-0 flex-grow">Strength Checks (${inputs.design_method})</h3>
+                    <button data-copy-target-id="splice-strength-section" class="copy-section-btn bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-blue-700 text-xs print-hidden">Copy Section</button>
+                </div>
+                <table><thead class="text-sm"><tr><th class="w-2/5">Limit State</th><th>Demand</th><th>Capacity</th><th>Ratio</th><th>Status</th></tr></thead><tbody>`;
     let checkCounter = 0;
     const addRow = (name, data) => { 
         if (!data || !data.check) return;
@@ -954,7 +963,7 @@ function renderResults(results) {
     html += `<tr><td colspan="5" class="bg-gray-100 dark:bg-gray-700 font-bold text-center">Member Checks at Splice</td></tr>`;
     Object.entries(memberChecks).forEach(([name, data]) => addRow(name, data));
 
-    html += `</tbody></table></div>`; // End of results-section div
+    html += `</tbody></table></div></div>`; // End of strength section and main report div
     document.getElementById('results-container').innerHTML = html;
 }
 
@@ -991,7 +1000,7 @@ const handleRunCheck = createCalculationHandler({
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Attach Event Listeners ---
-    loadInputsFromLocalStorage('splice-inputs', inputIds, handleRunCheck);
+    loadInputsFromLocalStorage('splice-inputs', inputIds);
 
     const handleSaveInputs = createSaveInputsHandler(inputIds, 'splice-inputs.txt');
     const handleLoadInputs = createLoadInputsHandler(inputIds, null, 'feedback-message');
@@ -1018,6 +1027,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (event.target.id === 'download-pdf-btn') {
             handleDownloadPdf('results-container', 'Splice-Report.pdf');
+        }
+        const copySectionBtn = event.target.closest('.copy-section-btn');
+        if (copySectionBtn) {
+            handleCopyToClipboard(copySectionBtn.dataset.copyTargetId, 'feedback-message');
         }
     });
 

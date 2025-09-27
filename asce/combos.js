@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeApp() {
         attachEventListeners();
         loadDataFromStorage();
-        loadInputsFromLocalStorage('combo-calculator-inputs', comboInputIds);
+        loadInputsFromLocalStorage('combo-calculator-inputs', comboInputIds, false);  // false means don't trigger calculation
     }
 
     function attachEventListeners() {
@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('load-combo-inputs-btn').addEventListener('click', () => initiateLoadInputsFromFile('combo-file-input')); // initiateLoad is already generic
         document.getElementById('combo-file-input').addEventListener('change', handleLoadComboInputs);
 
-        attachDebouncedListeners(comboInputIds, handleRunComboCalculation);
-
+        // Removed automatic calculation on input change - now only runs when button is clicked
+        
         document.body.addEventListener('click', async (event) => {
             const copyBtn = event.target.closest('.copy-section-btn');
             if (copyBtn) {
@@ -356,7 +356,7 @@ function renderComboResults(fullResults) {
 
     html += `
                  <div class="text-center border-b pb-4">
-                    <h2 class="text-2xl font-bold">LOAD COMBINATION REPORT (${fullResults.inputs.asce_standard})</h2>
+                    <h2 class="text-2xl font-bold">LOAD COMBINATION REPORT (${fullResults.inputs.combo_asce_standard || 'ASCE 7-16'})</h2>
                  </div>`;
     
     // Display adjustment notes if they exist
