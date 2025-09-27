@@ -634,6 +634,48 @@ async function handleDownloadPdf(containerId, filename, feedbackElId = 'feedback
 }
 
 /**
+ * Copies the content of a given container to the clipboard, converting SVGs to images.
+ * @param {string} containerId - The ID of the container with the report content.
+ * @param {string} feedbackElId - The ID of the feedback element.
+ */
+async function handleCopyToClipboard(containerId, feedbackElId = 'feedback-message') {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        showFeedback('Report container not found for copying.', true, feedbackElId);
+        return;
+    }
+
+    try {
+        showFeedback('Preparing report for copying...', false, feedbackElId);
+        const clone = container.cloneNode(true);
+
+        // --- Get Title and Date ---
+        const reportTitle = document.getElementById('main-title')?.innerText || 'Calculation Report';
+        const reportDate = new Date().toLocaleDateString();
+        const headerHtml = `<h1 style="font-size: 16pt; font-family: 'Times New Roman', Times, serif; font-weight: bold; text-align: center;">${reportTitle}</h1><p style="font-size: 12pt; font-family: 'Times New Roman', Times, serif; text-align: center;">Date: ${reportDate}</p><hr>`;
+        const headerText = `${reportTitle}\nDate: ${reportDate}\n\n---\n\n`;
+
+        // Prepare the clone for copying: remove interactive elements and expand details.
+        clone.classList.add('copy-friendly');
+        clone.querySelectorAll('button, .print-hidden, [data-copy-ignore]').forEach(el => el.remove());
+        clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
+
+        const htmlContent = headerHtml + clone.innerHTML;
+        const plainTextContent = headerText + (clone.innerText || clone.textContent);
+
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const textBlob = new Blob([plainTextContent], { type: 'text/plain' });
+        await navigator.clipboard.write([
+            new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })
+        ]);
+        showFeedback('Report copied successfully!', false, feedbackElId);
+    } catch (err) {
+        console.error('Clipboard API failed:', err);
+        showFeedback('Copy failed. Your browser may not support this feature.', true, feedbackElId);
+    }
+}
+
+/**
  * Sends data from a calculator to the load combination page.
  * It stores the data in localStorage and redirects the user.
  * @param {object} config - The configuration object.
@@ -755,60 +797,6 @@ function createCalculationHandler(config) {
             if (buttonId) setLoadingState(false, buttonId);
         }
     };
-}
-        showFeedback('Preparing report for copying...', false, feedbackElId);
-        const clone = container.cloneNode(true);
-
-        // --- Get Title and Date ---
-        const reportTitle = document.getElementById('main-title')?.innerText || 'Calculation Report';
-        const reportDate = new Date().toLocaleDateString();
-        const headerHtml = `<h1 style="font-size: 16pt; font-family: 'Times New Roman', Times, serif; font-weight: bold; text-align: center;">${reportTitle}</h1><p style="font-size: 12pt; font-family: 'Times New Roman', Times, serif; text-align: center;">Date: ${reportDate}</p><hr>`;
-        const headerText = `${reportTitle}\nDate: ${reportDate}\n\n---\n\n`;
-
-        // Prepare the clone for copying: remove interactive elements and expand details.
-        clone.classList.add('copy-friendly');
-        clone.querySelectorAll('button, .print-hidden, [data-copy-ignore]').forEach(el => el.remove());
-        clone.querySelectorAll('.details-row').forEach(row => row.classList.add('is-visible'));
-
-        // Convert SVGs to PNGs
-        let conversionFailures = 0;
-        const svgElements = Array.from(clone.querySelectorAll('svg'));
-        if (svgElements.length > 0) {
-            showFeedback(`Converting ${svgElements.length} diagram(s) to images...`, false, feedbackElId);
-            // Use Promise.all to run conversions in parallel for better performance.
-            await Promise.all(svgElements.map(async (svg) => {
-                try {
-                    const pngImage = await convertSvgToPng(svg);
-                    if (pngImage && svg.parentNode) {
-                        svg.parentNode.replaceChild(pngImage, svg);
-                    }
-                } catch (error) {
-                    console.warn("SVG to PNG conversion failed:", error);
-                    conversionFailures++;
-                    if (svg.parentNode) svg.parentNode.remove(); // Remove SVG if conversion fails to avoid broken images.
-                }
-            }));
-        }
-
-        showFeedback('Copying to clipboard...', false, feedbackElId);
-        const htmlContent = headerHtml + clone.innerHTML;
-        const plainTextContent = headerText + (clone.innerText || clone.textContent);
-
-        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-        const textBlob = new Blob([plainTextContent], { type: 'text/plain' });
-        await navigator.clipboard.write([
-            new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })
-        ]);
-
-        let feedback = 'Report and diagrams copied successfully!';
-        if (conversionFailures > 0) {
-            feedback = `Report copied, but ${conversionFailures} diagram(s) could not be converted.`;
-        }
-        showFeedback(feedback, false, feedbackElId);
-    } catch (err) {
-        console.error('Clipboard API failed:', err);
-        showFeedback('Copy failed. Your browser may not support this feature.', true, feedbackElId);
-    }
 }
 
 /**
@@ -985,3 +973,27 @@ function createLoadInputsHandler(inputIds, onComplete, feedbackElId = 'feedback-
             if (displayEl) displayEl.textContent = ''; 
             return;
         }
+
+        if (displayEl) displayEl.textContent = file.name;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const loadedInputs = JSON.parse(e.target.result);
+                inputIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && loadedInputs[id] !== undefined) {
+                        el.value = loadedInputs[id];
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                });
+                showFeedback('Inputs loaded successfully!', false, feedbackElId);
+                if (typeof onComplete === 'function') onComplete();
+            } catch (error) {
+                showFeedback('Failed to parse input file. Ensure it is a valid JSON file.', true, feedbackElId);
+            }
+        };
+        reader.readAsText(file);
+    };
+}
